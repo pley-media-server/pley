@@ -329,21 +329,11 @@ function mediaProfile(stream as object) as string
     return parts.Join(" · ")
 end function
 
-' "23.976 fps" ("23,976 i/s" in French): up to three decimals, trailing
-' zeros left out.
+' "23.976 fps" ("23,976 i/s" in French).
 function mediaFrameRate(fps as dynamic, interlaced as boolean) as string
     value = httpNumber(fps, 0)
     if value <= 0 then return ""
-    thousandths = Int(value * 1000 + 0.5)
-    decimals = 0
-    if thousandths mod 1000 > 0
-        digits = Right("00" + urlValue(thousandths mod 1000), 3)
-        while Right(digits, 1) = "0"
-            digits = Left(digits, Len(digits) - 1)
-        end while
-        decimals = Len(digits)
-    end if
-    text = i18nNumber(thousandths / 1000, decimals)
+    text = fmtThreeDecimals(value)
     if interlaced then return t("player.media.fpsInterlaced", { fps: text })
     return t("player.media.fps", { fps: text })
 end function

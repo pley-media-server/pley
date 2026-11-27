@@ -499,7 +499,7 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
           </div>
           <div class="player-clock">
             <div class="player-clock-row">
-              {s.method && <span class={`method-badge t-caption ${methodClass(s.methodKind)}`}>{s.method}</span>}
+              {s.method && <MethodBadge method={s.methodKind} text={s.method} />}
               <TimeOfDay hours24={app.platform.clock24()} />
             </div>
             {s.phase.kind === "paused" && <EndsAt controller={c} hours24={app.platform.clock24()} />}
@@ -632,6 +632,11 @@ function methodClass(method: PlaybackMethod | null): string {
   if (method === "direct") return "direct";
   if (method === "remux") return "stream";
   return "transcode";
+}
+
+/** How it plays, in its words and its color: over a title, and over a live channel. */
+export function MethodBadge(p: { method: PlaybackMethod | null; text: string }) {
+  return <span class={`method-badge t-caption ${methodClass(p.method)}`}>{p.text}</span>;
 }
 
 /**

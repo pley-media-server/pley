@@ -523,7 +523,7 @@ impl ServersScreen {
         let right = theme::CANVAS_W - theme::SAFE_X;
         let title_opts = TextOpts::line(right - x - 200.0);
         let title = t!("signin.servers.title");
-        ui.text(Point::new(x, TITLE_Y + (TITLE_H - 34.0) / 2.0), title, &theme::PAGE_TITLE, &title_opts, theme::FG);
+        ui.text(Point::new(x, TITLE_Y + (TITLE_H - 34.0) / 2.0), title, &theme::PAGE_TITLE, &title_opts, theme::fg());
         let logo_w = Logo::width(ui, LOGO_H);
         self.logo.show(ui, Point::new(right - logo_w, TITLE_Y + (TITLE_H - LOGO_H) / 2.0), LOGO_H);
 
@@ -590,7 +590,7 @@ impl ServersScreen {
         if self.sweep.is_some() {
             let since = *self.sweep_since.get_or_insert(ui.time());
             let text = sweeping_text(self.subnet.as_deref());
-            y += status_line(ui, Point::new(x, y), width, &text, &theme::CAPTION, theme::MUTED, false) + 8.0;
+            y += status_line(ui, Point::new(x, y), width, &text, &theme::CAPTION, theme::muted(), false) + 8.0;
             let progress = ((ui.time() - since) / SWEEP_TOTAL.as_secs_f64()) as f32;
             sweep_bar(ui, Point::new(x, y), progress);
             if progress < 1.0 {
@@ -599,17 +599,17 @@ impl ServersScreen {
             y += 4.0 + 8.0;
         } else if self.searching {
             let text = t!("signin.servers.looking");
-            y += status_line(ui, Point::new(x, y), width, text, &theme::LABEL, theme::MUTED, true) + 8.0;
+            y += status_line(ui, Point::new(x, y), width, text, &theme::LABEL, theme::muted(), true) + 8.0;
         } else if self.searched && rows.is_empty() && self.problem.is_none() {
             let text = t!("signin.servers.noneFound");
-            y += ui.text(Point::new(x, y), text, &theme::BODY, &TextOpts::wrap(width, 0), theme::MUTED).h + 8.0;
+            y += ui.text(Point::new(x, y), text, &theme::BODY, &TextOpts::wrap(width, 0), theme::muted()).h + 8.0;
         }
         if let Some(p) = &self.problem {
-            ui.text(Point::new(x, y), &p.text(), &theme::BODY, &TextOpts::wrap(width, 0), theme::DANGER_TEXT);
+            ui.text(Point::new(x, y), &p.text(), &theme::BODY, &TextOpts::wrap(width, 0), theme::danger());
         }
         if rows.iter().any(|r| r.saved) {
             let at = Point::new(x, theme::CANVAS_H - theme::SAFE_Y - theme::CAPTION.line_height);
-            ui.text(at, t!("signin.servers.forgetHint"), &theme::CAPTION, &TextOpts::line(width), theme::SUBTLE);
+            ui.text(at, t!("signin.servers.forgetHint"), &theme::CAPTION, &TextOpts::line(width), theme::subtle());
         }
 
         // Focus: the first row once there is one, else "Enter an address", until a key is pressed.
@@ -684,7 +684,7 @@ impl ServersScreen {
         let Some(pad) = self.pad.as_mut() else { return };
         let centre = theme::CANVAS_W / 2.0;
         let opts = TextOpts::line(theme::CANVAS_W).aligned(pley_base::Align::Center);
-        ui.text(Point::new(0.0, 27.0), t!("signin.address.title"), &theme::TITLE, &opts, theme::FG);
+        ui.text(Point::new(0.0, 27.0), t!("signin.address.title"), &theme::TITLE, &opts, theme::fg());
         let field_y = 27.0 + theme::TITLE.line_height + 8.0;
         let connect_y = field_y + pley_kit::keyboard::FIELD_HEIGHT + 14.0;
         let info_y = connect_y + theme::BUTTON_HEIGHT + 16.0;
@@ -727,9 +727,9 @@ impl ServersScreen {
         }
         let wrap = TextOpts::wrap(FIELD_W, 0).aligned(pley_base::Align::Center);
         let info = Point::new(centre - FIELD_W / 2.0, info_y);
-        let h = ui.text(info, &address_hint(), &theme::CAPTION, &wrap, theme::MUTED).h;
+        let h = ui.text(info, &address_hint(), &theme::CAPTION, &wrap, theme::muted()).h;
         if let Some(p) = &pad.problem {
-            ui.text(Point::new(info.x, info.y + h + 8.0), &p.text(), &theme::BODY, &wrap, theme::DANGER_TEXT);
+            ui.text(Point::new(info.x, info.y + h + 8.0), &p.text(), &theme::BODY, &wrap, theme::danger());
         }
         if typing {
             let kb = Keyboard::new().action_label(t!("signin.address.connect")).show(
@@ -794,12 +794,12 @@ fn server_row(ui: &mut Ui, id: Id, rect: Rect, row: &ServerRow, connecting: bool
     }
     let focused = r.focused;
     if focused {
-        ui.fill(rect, theme::ACCENT, radius::CARD);
+        ui.fill(rect, theme::accent(), radius::CARD);
     }
-    let ink = if focused { theme::ON_ACCENT } else { theme::FG };
-    let soft = if focused { theme::ON_ACCENT } else { theme::MUTED };
+    let ink = if focused { theme::on_accent() } else { theme::fg() };
+    let soft = if focused { theme::on_accent() } else { theme::muted() };
     let icon_box = Rect::new(rect.x + 12.0, rect.y + 12.0, 40.0, 40.0);
-    let well = if focused { theme::ON_ACCENT.alpha(theme::ICON_WELL_ALPHA) } else { theme::SURFACE3 };
+    let well = if focused { theme::on_accent().alpha(theme::ICON_WELL_ALPHA) } else { theme::surface3() };
     ui.fill(icon_box, well, radius::FIELD);
     ui.icon(icon_box.place(pley_base::Size::new(22.0, 22.0), 0.5, 0.5), Icon::Monitor, ink);
 
@@ -808,12 +808,12 @@ fn server_row(ui: &mut Ui, id: Id, rect: Rect, row: &ServerRow, connecting: bool
         let w = ui.measure(tag, &theme::CAPTION, &crate::kit::free_line()).w;
         let tag_x = text_right - w;
         let y = rect.y + (rect.h - theme::CAPTION.line_height) / 2.0;
-        let color = if warning && !focused { theme::DANGER_TEXT } else { soft };
+        let color = if warning && !focused { theme::danger() } else { soft };
         ui.text(Point::new(tag_x, y), tag, &theme::CAPTION, &crate::kit::free_line(), color);
         text_right = tag_x - 8.0;
         if !warning {
             let dot = Rect::new(tag_x - 16.0, rect.y + (rect.h - 8.0) / 2.0, 8.0, 8.0);
-            ui.fill(dot, theme::SUCCESS, 4.0);
+            ui.fill(dot, theme::success(), 4.0);
             text_right = dot.x - 8.0;
         }
     }
@@ -822,7 +822,7 @@ fn server_row(ui: &mut Ui, id: Id, rect: Rect, row: &ServerRow, connecting: bool
     let top = rect.y + (rect.h - theme::TITLE.line_height - theme::CAPTION.line_height) / 2.0;
     ui.text(Point::new(text_x, top), &row.name, &theme::TITLE, &TextOpts::line(width), ink);
     let (line, danger) = row.line(connecting);
-    let color = if danger && !focused { theme::DANGER_TEXT } else { soft };
+    let color = if danger && !focused { theme::danger() } else { soft };
     ui.text(Point::new(text_x, top + theme::TITLE.line_height), &line, &theme::CAPTION, &TextOpts::line(width), color);
     r
 }

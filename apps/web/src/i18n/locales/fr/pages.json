@@ -213,7 +213,7 @@
     },
     "theme": {
       "title": "Thème",
-      "hint": "L'apparence de Pley sur cet appareil. Chaque navigateur, et l'app de bureau, garde la sienne.",
+      "hint": "L'apparence de Pley pour vous sur cet appareil. Chaque profil garde la sienne.",
       "names": {
         "midnight": "Minuit",
         "midday": "Midi",

@@ -9,7 +9,6 @@ publish = false
 
 [dependencies]
 pley-base = { path = "../base" }
-
-[dev-dependencies]
-# Reads packages/placeholder/placeholder.json, which the placeholder's gradient is held to.
+# Reads packages/themes/themes.json, built in: the themes' colors. The tests read
+# packages/placeholder/placeholder.json too, which the placeholder's gradient is held to.
 serde_json = "1.0.154"

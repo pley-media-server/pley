@@ -12,7 +12,7 @@ const icons = [
   // Navigation and the rail
   ["Search", "search"], ["House", "house"], ["Clapperboard", "clapperboard"], ["Tv", "tv"], ["Music", "music"],
   ["Image", "image"], ["Images", "images"], ["Film", "film"], ["Layers", "layers"], ["ListMusic", "list-music"],
-  ["ListVideo", "list-video"], ["LibraryBig", "library-big"], ["Settings", "settings"], ["Settings2", "settings-2"],
+  ["ListVideo", "list-video"], ["LibraryBig", "library-big"], ["Settings", "settings"], ["Settings2", "settings-2"], ["Palette", "palette"],
   ["SlidersHorizontal", "sliders-horizontal"], ["UserRound", "user-round"], ["Users", "users"], ["UserPlus", "user-plus"],
   ["Compass", "compass"], ["Menu", "menu"],
   // Playback

@@ -50,6 +50,11 @@ fn focus_on_a_category_shows_its_rows() {
     app.press(Key::Down);
     assert!(app.shows("Subtitle size"));
     assert!(app.shows("Reduce motion"));
+    app.press(Key::Down);
+    assert_eq!(app.focused(), Some(category(&app, SettingsSection::Appearance)));
+    assert!(app.shows("Theme"));
+    assert!(app.shows("Midnight"));
+    assert!(app.shows("Default"));
     app.press_n(Key::Down, 2);
     assert!(app.shows("Open diagnostics"));
     assert!(app.shows("OLED65C2PUA"));

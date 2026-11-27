@@ -104,6 +104,79 @@ export function videoCaps(): ClientCaps {
   return videoCache;
 }
 
+/**
+ * What plays of a channel's own stream: each video codec up to a bit depth,
+ * and the sound. Codec names are ffprobe's.
+ */
+export interface StreamCaps {
+  video: { codec: string; max_bit_depth: number }[];
+  audio_codecs: string[];
+}
+
+/**
+ * The video mpegts.js reads from MPEG-TS: what it writes each as once read,
+ * and how MSE is asked for it at 8 and at 10 bits (H.264 High and High 10,
+ * HEVC Main and Main 10), as a decoder for one doesn't say the other is
+ * there. MPEG-2 video it doesn't read, nor does a browser play it; AV1 it
+ * reads only as a draft carries it, which FFmpeg, and so the server's plan,
+ * doesn't name.
+ */
+const STREAM_VIDEO: [codec: string, written: string, eight: string, ten: string][] = [
+  ["h264", "avc1", "avc1.640028", "avc1.6E0028"],
+  ["hevc", "hvc1", "hvc1.1.6.L120.90", "hvc1.2.4.L153.B0"],
+];
+
+const mseVideo = (codec: string) => mse(`video/mp4; codecs="${codec}"`);
+const mseAac = () => mse('audio/mp4; codecs="mp4a.40.2"');
+/** MPEG audio goes to MSE as it is, but in MP4 on Firefox (as mpegts.js chooses). */
+const mseMpegAudio = () => mse(/firefox/i.test(navigator.userAgent) ? 'audio/mp4; codecs="mp3"' : "audio/mpeg");
+
+/**
+ * The sound mpegts.js reads from MPEG-TS: what it writes each as once read
+ * (AAC in ADTS and in LATM alike, MP2 as MP3), and whether this browser
+ * plays it. No type asks for MP2: Chromium's MPEG audio decoder plays it,
+ * unasked as it plays Matroska. E-AC-3, which mpegts.js reads too, is left
+ * out: mpegts.js 1.8 doesn't count it as the stream's sound, so the picture
+ * starts without it, and a browser takes no track added once one plays.
+ */
+const STREAM_AUDIO: [codec: string, written: string, plays: () => boolean][] = [
+  ["aac", "mp4a", mseAac],
+  ["aac_latm", "mp4a", mseAac],
+  ["ac3", "ac-3", () => mse('audio/mp4; codecs="ac-3"')],
+  ["mp3", "mp3", mseMpegAudio],
+  ["mp2", "mp3", () => isChromium() && mseMpegAudio()],
+  ["opus", "opus", () => mse('audio/mp4; codecs="opus"')],
+];
+
+/**
+ * What this browser plays of a live channel's MPEG-TS. mpegts.js reads it
+ * and hands it to Media Source Extensions, so MSE is what's asked, not the
+ * element as for a file.
+ */
+export function streamCaps(): StreamCaps {
+  return {
+    video: STREAM_VIDEO.filter(([, , eight]) => mseVideo(eight)).map(([codec, , , ten]) => ({
+      codec,
+      max_bit_depth: mseVideo(ten) ? 10 : 8,
+    })),
+    audio_codecs: STREAM_AUDIO.filter(([, , plays]) => plays()).map(([codec]) => codec),
+  };
+}
+
+/**
+ * Whether this browser plays a track mpegts.js read from a stream, by what
+ * it wrote it as. Video by its whole codec ("hvc1.2.1.L153.B0"): the
+ * stream's own profile and level, which the server's plan doesn't give.
+ * Sound by its name: `said` is the server's for it ("mp2"), which tells
+ * apart what mpegts.js writes alike; unknown, each it may be has to play.
+ */
+export function playsStreamTrack(kind: "video" | "audio", written: string, said?: string | null): boolean {
+  if (kind === "video") return STREAM_VIDEO.some(([, prefix]) => written.startsWith(prefix)) && mseVideo(written);
+  const may = STREAM_AUDIO.filter(([, prefix]) => written.startsWith(prefix));
+  const is = may.filter(([codec]) => codec === said);
+  return may.length > 0 && (is.length ? is : may).every(([, , plays]) => plays());
+}
+
 /** What this browser can direct-play in an `<audio>` element. */
 export function audioCaps(): ClientCaps {
   if (audioCache) return audioCache;

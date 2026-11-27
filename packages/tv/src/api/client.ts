@@ -41,6 +41,7 @@ import type {
   RequestList,
   RequestStatus,
   RequestSummary,
+  SessionPlan,
   SessionStatus,
   SubtitleMode,
   SubtitleResult,
@@ -646,6 +647,19 @@ export class Api {
         if (isApiError(e, 410)) return e.message;
         throw e;
       },
+    );
+  }
+
+  /**
+   * What the channel a session watches is, and what the transcoder makes of
+   * it, for the player's details: null while the transcoder hasn't said.
+   * The server waits up to 3 s the first time; asked again it answers at
+   * once, with the provider's bitrate as it is now. What an older server
+   * leaves out reads as not known.
+   */
+  livePlan(session: string, cancel?: Cancel): Promise<SessionPlan | null> {
+    return this.get<Partial<SessionPlan> | null>(`/api/live/sessions/${encodeURIComponent(session)}/plan`, { cancel, timeoutMs: 8_000 }).then((plan) =>
+      plan ? ({ bit_depth: null, out_height: null, video_kbps: null, kbps: 0, ...plan } as SessionPlan) : null,
     );
   }
 

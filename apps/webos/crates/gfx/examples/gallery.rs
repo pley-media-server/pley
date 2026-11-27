@@ -152,6 +152,7 @@ fn page(text: &TextEngine, images: &mut ImageCache, picture: &str, scale: f32) -
         rect: Rect::new(0.0, 0.0, 960.0, 540.0),
         center: Point::new(960.0, 540.0),
         radius: 576.0,
+        squash: 1.0,
         inner: BRAND_DEEP.alpha(0.18),
         outer: Color::TRANSPARENT,
     });

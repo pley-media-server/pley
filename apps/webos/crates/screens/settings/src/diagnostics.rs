@@ -373,15 +373,15 @@ fn draw_line(ui: &mut Ui, s: &ListSlot, line: &Line) -> bool {
                 t!("settings.categories.diagnostics"),
                 &theme::PAGE_TITLE,
                 &TextOpts::line(r.w),
-                theme::FG,
+                theme::fg(),
             );
         }
         Line::Heading(text, first) => {
             let y = r.y + if *first { 0.0 } else { 20.0 };
-            ui.text(Point::new(r.x, y), text, &theme::SECTION, &TextOpts::line(r.w), theme::FG);
+            ui.text(Point::new(r.x, y), text, &theme::SECTION, &TextOpts::line(r.w), theme::fg());
         }
         Line::Note(text, danger) => {
-            let color = if *danger { theme::DANGER_TEXT } else { theme::MUTED };
+            let color = if *danger { theme::danger() } else { theme::muted() };
             ui.text(Point::new(r.x + 16.0, r.y), text, &theme::BODY, &TextOpts::line(r.w - 16.0), color);
         }
         Line::Again => {
@@ -392,20 +392,20 @@ fn draw_line(ui: &mut Ui, s: &ListSlot, line: &Line) -> bool {
         Line::Fact(label, value) => {
             let p = focused_fill(ui, s);
             let y = r.y + 8.0;
-            let label_color = mix(theme::MUTED, theme::ON_ACCENT, p);
+            let label_color = mix(theme::muted(), theme::on_accent(), p);
             ui.text(Point::new(r.x + 16.0, y), label, &theme::BODY, &TextOpts::line(LABEL_W - 8.0), label_color);
-            let value_color = mix(theme::FG, theme::ON_ACCENT, p);
+            let value_color = mix(theme::fg(), theme::on_accent(), p);
             let opts = TextOpts::wrap(r.w - 32.0 - LABEL_W, 0);
             ui.text(Point::new(r.x + 16.0 + LABEL_W, y), value, &theme::BODY, &opts, value_color);
         }
         Line::Plays(value) => {
             let p = focused_fill(ui, s);
-            let color = mix(theme::FG, theme::ON_ACCENT, p);
+            let color = mix(theme::fg(), theme::on_accent(), p);
             ui.text(Point::new(r.x + 16.0, r.y + 8.0), value, &theme::BODY, &TextOpts::wrap(r.w - 32.0, 0), color);
         }
         Line::Log(text) => {
             let p = focused_fill(ui, s);
-            let color = mix(theme::MUTED, theme::ON_ACCENT, p);
+            let color = mix(theme::muted(), theme::on_accent(), p);
             ui.text(Point::new(r.x + 16.0, r.y + 5.0), text, &theme::CAPTION, &TextOpts::line(r.w - 32.0), color);
         }
     }
@@ -418,7 +418,7 @@ fn focused_fill(ui: &mut Ui, s: &ListSlot) -> f32 {
     let r = ui.focusable(s.id, s.rect);
     let p = focus_progress(ui, s.id, r.focused);
     if p > 0.0 {
-        ui.fill(s.rect, mix(pley_base::Color::TRANSPARENT, theme::ACCENT, p), radius::FIELD);
+        ui.fill(s.rect, mix(pley_base::Color::TRANSPARENT, theme::accent(), p), radius::FIELD);
     }
     p
 }

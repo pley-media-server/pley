@@ -8,9 +8,6 @@ sub init()
     m.line = m.top.findNode("line")
     m.clock = m.top.findNode("clock")
     m.method = m.top.findNode("method")
-    m.methodBack = m.top.findNode("methodBack")
-    m.methodTint = m.top.findNode("methodTint")
-    m.methodText = m.top.findNode("methodText")
     m.endsAt = m.top.findNode("endsAt")
     m.elapsed = m.top.findNode("elapsed")
     m.remaining = m.top.findNode("remaining")
@@ -41,7 +38,6 @@ sub init()
     m.title.font = uiType("title")
     m.line.font = uiType("label")
     m.clock.font = uiType("label")
-    m.methodText.font = uiType("caption")
     m.endsAt.font = uiType("label")
     m.elapsed.font = uiType("caption")
     m.remaining.font = uiType("caption")
@@ -62,23 +58,12 @@ end sub
 sub onTop()
     m.title.text = m.top.title
     m.line.text = m.top.line
-    ' The badge: success for a file played as it is, info for a stream
-    ' copied, the accent for a conversion, on bg at 80 %.
+    ' The badge (MethodBadge), in its kind's color.
     method = m.top.method
     m.method.visible = method <> ""
     if method <> ""
-        colors = { text: m.c.accent, tint: themeAlpha(m.c.accent, "33") }
-        if m.top.methodKind = "direct" then colors = { text: m.c.success, tint: themeAlpha(m.c.success, "33") }
-        if m.top.methodKind = "remux" then colors = { text: m.c.info, tint: themeAlpha(m.c.info, "33") }
-        m.methodText.text = method
-        m.methodText.color = colors.text
-        m.methodTint.blendColor = colors.tint
-        ' The label keeps no width of its own, as wide as its words: held to
-        ' the width it measured, Roku cut the last letters for an ellipsis.
-        m.methodText.width = 0
-        width = Int(m.methodText.boundingRect().width + 0.999) + 32
-        m.methodBack.width = width
-        m.methodTint.width = width
+        m.method.kind = m.top.methodKind
+        m.method.text = method
     end if
     onClock()
 end sub
@@ -92,7 +77,7 @@ sub onClock()
     m.clock.width = 0
     clockWidth = Int(m.clock.boundingRect().width)
     m.clock.width = 400
-    if m.method.visible then m.method.translation = [1824 - clockWidth - 24 - m.methodBack.width, 54]
+    if m.method.visible then m.method.translation = [1824 - clockWidth - 24 - m.method.width, 54]
     left = m.top.durationMs - m.top.positionMs
     shown = m.top.paused and m.top.durationMs > 0 and left > 0
     m.endsAt.visible = shown

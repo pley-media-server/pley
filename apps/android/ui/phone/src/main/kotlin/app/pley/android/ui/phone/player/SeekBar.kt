@@ -111,6 +111,7 @@ internal fun TimesAndSeekBar(state: PlayerScreenState) {
  */
 @Composable
 internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
+    val palette = PleyColors.palette
     PlayerProbe.composed?.invoke("seekBar")
     val car = LocalCarScreen.current
     val track = if (car) CarScrubTrack else ScrubTrack
@@ -198,10 +199,10 @@ internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
                             }
                             drawRoundRect(color, Offset(start, y - height / 2f), Size(to - start, height), radius)
                         }
-                        segment(0f, w, PleyColors.Fg.copy(alpha = 0.25f))
-                        segment(0f, buffered, PleyColors.Fg.copy(alpha = 0.45f))
-                        segment(0f, played, PleyColors.Accent)
-                        drawCircle(PleyColors.Accent, knob.value.toPx() / 2f, Offset(played, y))
+                        segment(0f, w, palette.fg.copy(alpha = 0.25f))
+                        segment(0f, buffered, palette.fg.copy(alpha = 0.45f))
+                        segment(0f, played, palette.accent)
+                        drawCircle(palette.accent, knob.value.toPx() / 2f, Offset(played, y))
                     },
             )
             ScrubPreview(state)

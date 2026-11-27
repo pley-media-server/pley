@@ -14,6 +14,9 @@
 ' once, and Live TV opens back at the channel watched. The user's remote,
 ' on another device, changes channel as up and down do (Remote.brs), and
 ' watching stopped from elsewhere stops here, saying who stopped it.
+' How the channel plays (GET /api/live/sessions/{session}/plan, Details.brs's
+' detLive) is asked once as it starts, for the badge before the banner's
+' Live chip, and Replay shows it in the panel the player's Info opens.
 
 sub init()
     m.video = m.top.findNode("video")
@@ -35,6 +38,7 @@ sub init()
     m.bannerNext = m.top.findNode("bannerNext")
     m.bannerHint = m.top.findNode("bannerHint")
     m.star = m.top.findNode("star")
+    m.method = m.top.findNode("method")
     m.list = m.top.findNode("list")
     m.listTitle = m.top.findNode("listTitle")
     m.listRange = m.top.findNode("listRange")
@@ -56,6 +60,21 @@ sub init()
     m.retryTimer = m.top.findNode("retryTimer")
     m.stallTimer = m.top.findNode("stallTimer")
     m.stallTimer.observeField("fire", "onStall")
+    m.details = m.top.findNode("details")
+    m.detailsFacts = m.top.findNode("detailsFacts")
+    ' The picture dimmed behind the details, in the player's shade.
+    m.top.findNode("detailsScrim").color = themeShade(uiPlayerColors(), 0.5)
+    m.detailsSlide = m.top.findNode("detailsSlide")
+    m.detailsTimer = m.top.findNode("detailsTimer")
+    m.detailsTimer.observeField("fire", "onDetailsTick")
+    detailsTitle = m.top.findNode("detailsTitle")
+    detailsTitle.font = uiType("section")
+    detailsTitle.text = t("player.menu.details")
+    ' The session's plan as last answered (invalid until it is known), the
+    ' session one is being asked for, and the sheet's lines as shown.
+    m.plan = invalid
+    m.planAsked = ""
+    m.detailsShown = ""
     ' Waiting for data since the timer started (the spinner shows after it).
     m.stalling = false
     for each spinner in [m.waiting, m.tuning]
@@ -608,6 +627,7 @@ sub onZapTimer()
     if m.channel <> invalid and target.id = m.channel.id and m.sessionId <> ""
         ' Back where it started.
         if m.played then m.card.visible = false
+        showMethod()
         return
     end if
     tune(target, 0, false, true)
@@ -622,6 +642,10 @@ sub tune(channel as object, takeOver = 0 as integer, again = false as boolean, s
     m.picks = liveTunePicks(m.picks, again, stepped)
     abandonWatch()
     leave()
+    ' The details and the badge were the channel before's.
+    closeDetails()
+    m.plan = invalid
+    showMethod()
     if not again then m.retries = 0
     m.retryTimer.control = "stop"
     m.zapTo = invalid
@@ -661,6 +685,8 @@ sub leave()
     uiRequest({ method: "DELETE", path: "/api/live/sessions/" + urlEncode(m.sessionId) }, "")
     m.sessionId = ""
     m.playlist = ""
+    ' How it played goes with it.
+    showMethod()
 end sub
 
 function isCurrent(event as object) as boolean
@@ -718,6 +744,10 @@ sub play()
     m.video.setHttpAgent(uiHttpAgent())
     m.video.content = content
     m.video.control = "play"
+    ' How it plays, for the banner's badge: asked once, as the player's
+    ' controls know a title's from the start. The server knows it by now
+    ' (its playlist answered), and starts nothing for the asking.
+    askPlan()
 end sub
 
 sub onState(event as object)
@@ -960,7 +990,8 @@ sub showBanner(hides as boolean)
     if coming <> invalid then m.bannerNext.text = t("livetv.player.next", { time: liveClock(coming.start, m.twelve), title: coming.title })
     m.star.text = ""
     if channel.favorite then m.star.text = "★ " + t("livetv.favourites.mark")
-    m.bannerHint.text = t("livetv.player.bannerHint", { category: m.categoryName })
+    showMethod()
+    m.bannerHint.text = t("livetv.player.bannerHint", { category: m.categoryName }) + Chr(10) + t("livetv.player.bannerMoreHint")
     if m.list.visible or m.notice.visible then return
     m.banner.visible = true
     m.bannerTimer.control = "stop"
@@ -1033,11 +1064,109 @@ sub onToastTimer()
     m.toast.visible = false
 end sub
 
+' --- Playback details ---
+
+' How the channel plays, badged before the banner's Live chip in the
+' words and colors the player's controls badge a title's with
+' (MethodBadge): only once the server has said how, of the channel
+' playing, so not over the one Up or Down leads to. The channel's name and
+' what's on end before it.
+sub showMethod()
+    known = m.plan <> invalid and m.sessionId <> "" and m.zapTo = invalid
+    m.method.visible = known
+    room = 1100
+    if known
+        how = detLive(m.plan)
+        m.method.kind = how.kind
+        m.method.text = how.method
+        ' Its right edge 24 px before the chip (Android TV's 12 dp), its
+        ' middle on the chip's.
+        left = 1648 - 24 - m.method.width
+        m.method.translation = [left, 753]
+        if left - 24 - 384 < room then room = left - 24 - 384
+    end if
+    m.bannerChannel.width = room
+    m.bannerTitle.width = room
+end sub
+
+' Replay: how the channel plays, in the panel the player's Info opens. What
+' is known of this session shows at once; the plan is asked for again every
+' 2 s while the panel shows, for what the provider sends now (the server
+' answers at once, and starts nothing for it).
+sub openDetails()
+    if m.sessionId = "" then return
+    hideBanner()
+    m.detailsFacts.fromTop = true
+    m.detailsShown = ""
+    showDetails()
+    m.details.visible = true
+    m.detailsSlide.control = "start"
+    ' Up and Down scroll the sheet, as in the player: no channel changes
+    ' under it.
+    m.detailsFacts.setFocus(true)
+    onDetailsTick()
+    m.detailsTimer.control = "start"
+end sub
+
+sub closeDetails()
+    m.detailsTimer.control = "stop"
+    if not m.details.visible then return
+    m.details.visible = false
+    ' The sheet gives the focus up: its parent taking it may not.
+    m.detailsFacts.setFocus(false)
+    if m.notice.visible
+        m.noticeButtons.setFocus(true)
+    else
+        m.top.setFocus(true)
+    end if
+end sub
+
+sub onDetailsTick()
+    if not m.details.visible
+        m.detailsTimer.control = "stop"
+        return
+    end if
+    askPlan()
+end sub
+
+' One asking at a time: the server waits up to 3 s for a plan it doesn't
+' know yet.
+sub askPlan()
+    if m.sessionId = "" or m.planAsked = m.sessionId then return
+    m.planAsked = m.sessionId
+    uiRequest({ method: "GET", path: "/api/live/sessions/" + urlEncode(m.sessionId) + "/plan", session: m.sessionId }, "onPlan")
+end sub
+
+sub onPlan(event as object)
+    session = event.getRoSGNode().spec.session
+    if session = m.planAsked then m.planAsked = ""
+    if session <> m.sessionId then return
+    answer = event.getData()
+    ' Not known yet (null), or not answered: what was known stays.
+    if not answer.ok or httpObject(answer.data) = invalid then return
+    m.plan = answer.data
+    showMethod()
+    if m.details.visible then showDetails()
+end sub
+
+' The sheet's lines; none until the server knows the channel's plan, which
+' alone says whether it converts the video.
+sub showDetails()
+    lines = []
+    if m.plan <> invalid then lines = detSheet(detLive(m.plan))
+    ' Asked again every 2 s: laid out again only when something changed.
+    shown = FormatJson(lines)
+    if shown = m.detailsShown then return
+    m.detailsShown = shown
+    m.detailsFacts.lines = lines
+end sub
+
 ' A watching that didn't start or stopped: what the server said, with Try
 ' again where it may help (Watch again when it stopped), Other channels,
 ' and Back.
 sub trouble(problem as object)
     m.trouble = problem
+    closeDetails()
     m.retryTimer.control = "stop"
     m.video.control = "stop"
     m.card.visible = false
@@ -1097,7 +1226,7 @@ sub finish()
     abandonWatch()
     leave()
     m.video.control = "stop"
-    for each timer in [m.bannerTimer, m.zapTimer, m.clock, m.pictureTimer, m.toastTimer, m.stallTimer, m.retryTimer]
+    for each timer in [m.bannerTimer, m.zapTimer, m.clock, m.pictureTimer, m.toastTimer, m.stallTimer, m.retryTimer, m.detailsTimer]
         timer.control = "stop"
     end for
     if m.channel <> invalid then m.top.getScene().liveChannel = m.channel.id
@@ -1107,8 +1236,9 @@ end sub
 ' Up and down change channel (Up: the next number); Left opens the
 ' category's channels, Right and OK show what's on (it never shows by
 ' itself as a channel starts), and the Options key (*) puts the channel in
-' the favorites or takes it out, the banner showing its star; play,
-' rewind, fast forward and Replay do nothing. In the list:
+' the favorites or takes it out, the banner showing its star; Replay opens
+' the playback's details (Up and Down scroll them, Back or Replay closes
+' them); play, rewind and fast forward do nothing. In the list:
 ' the Options key adds to or takes out of the favorites, up and down past
 ' its ends go to the page before or after, Left opens the categories
 ' (Back and Right close them), Replay searches, Back leaves a search for
@@ -1116,6 +1246,10 @@ end sub
 ' showing hides it; otherwise it leaves (the scene).
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    if m.details.visible
+        if key = "back" or key = "replay" then closeDetails()
+        return true
+    end if
     if m.list.visible and m.categoryList.visible
         if key = "back" or key = "right" then closeCategories()
         return true
@@ -1164,8 +1298,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
         openList()
         return true
     end if
+    if key = "replay"
+        openDetails()
+        return true
+    end if
     ' Live is live: no pause, rewind or skip.
-    if key = "play" or key = "rewind" or key = "fastforward" or key = "replay" then return true
+    if key = "play" or key = "rewind" or key = "fastforward" then return true
     if key = "options"
         channel = m.zapTo
         if channel = invalid then channel = m.channel

@@ -6,6 +6,7 @@ import { keys } from "@/api/hooks";
 import { apiError, LocationDisplay, mockApi, renderWithProviders, testUser } from "@/test/render";
 import { lastProfile } from "@/lib/lastProfile";
 import { makeRequest, makeRequestList, makeSummary } from "@/test/requests";
+import { startTheme } from "@/theme";
 import { RequireAdmin, RequireAuth, useAuth } from "./auth";
 
 beforeEach(() => {
@@ -46,6 +47,19 @@ describe("RequireAuth", () => {
     expect(lastProfile()).toBeNull();
     renderApp();
     await waitFor(() => expect(lastProfile()).toBe(4));
+  });
+
+  it("draws the page in the profile's own theme on this device", async () => {
+    startTheme();
+    localStorage.setItem("pley.theme.7", "nightshade");
+    localStorage.setItem("pley.accent.7", "gold");
+    mockApi({ "GET /api/server": () => server, "GET /api/auth/me": () => ({ ...testUser, id: 7, name: "Sam" }) });
+    renderApp();
+    expect(await screen.findByText("Hello Sam")).toBeInTheDocument();
+    expect(document.documentElement.dataset.theme).toBe("nightshade");
+    expect(document.documentElement.dataset.accent).toBe("gold");
+    startTheme();
+    delete document.documentElement.dataset.accent;
   });
 
   it("sends everyone else to sign in, and back afterwards", async () => {

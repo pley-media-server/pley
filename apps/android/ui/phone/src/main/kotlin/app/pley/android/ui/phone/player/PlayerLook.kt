@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import app.pley.android.data.Settings
 import app.pley.android.data.SubtitleBackground
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.theme.PleyPalette
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.player.ChapterMark
 import app.pley.android.player.subtitles.CaptionLook
@@ -20,13 +21,13 @@ object PlayerLook {
     /**
      * The method badge (apps/web/src/player/VideoPlayer.tsx): direct play in
      * [PleyColors.Success] (a download plays so too), a direct stream in
-     * [PleyColors.Info], a transcode, or a way not known, in [PleyColors.Accent].
+     * [PleyColors.Info], a transcode, or a way not known, in [PleyColors.Accent]: of [palette].
      */
-    fun badgeColors(method: PlaybackMethod?): BadgeColors {
+    fun badgeColors(method: PlaybackMethod?, palette: PleyPalette): BadgeColors {
         val text = when (method) {
-            PlaybackMethod.Direct -> PleyColors.Success
-            PlaybackMethod.Remux -> PleyColors.Info
-            else -> PleyColors.Accent
+            PlaybackMethod.Direct -> palette.success
+            PlaybackMethod.Remux -> palette.info
+            else -> palette.accent
         }
         return BadgeColors(text, text.copy(alpha = 0.2f))
     }

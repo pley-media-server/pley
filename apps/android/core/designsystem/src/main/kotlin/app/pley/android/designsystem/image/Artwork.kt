@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.reducedMotion
 import coil3.BitmapImage
 import coil3.ImageLoader
@@ -335,7 +334,7 @@ private class PlaceholderNode(
             text?.let {
                 drawText(
                     it,
-                    color = PleyColors.Fg.copy(alpha = 0.7f),
+                    color = Color.White.copy(alpha = 0.7f),
                     topLeft = Offset((size.width - it.size.width) / 2f, top + markSide + gap),
                 )
             }

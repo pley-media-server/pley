@@ -106,7 +106,7 @@ internal fun PhoneLinkContent(
 ) {
     val status = state.status
     val code = state.code
-    Column(Modifier.fillMaxSize().brandCorner().testTag(LINK_TAG)) {
+    Column(Modifier.fillMaxSize().brandCorner(PleyColors.BrandDeep).testTag(LINK_TAG)) {
         // Signed in, only the success shows.
         OnboardingTopBar(language.takeIf { status !is LinkStatus.SignedIn }, onLanguage)
         Column(

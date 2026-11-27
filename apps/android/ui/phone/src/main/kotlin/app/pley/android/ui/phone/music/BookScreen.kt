@@ -226,6 +226,7 @@ internal fun BookScreen(bookId: Long) {
 /** How far the profile is in a book: a bar, "37 % heard · 7h 2m left", and the part Play goes on from. */
 @Composable
 private fun BookProgressLine(page: BookPage) {
+    val palette = PleyColors.palette
     val progress = page.progress ?: return
     Spacer(Modifier.height(12.dp))
     Box(
@@ -235,8 +236,8 @@ private fun BookProgressLine(page: BookPage) {
             .height(4.dp)
             .drawBehind {
                 val r = CornerRadius(size.height / 2f)
-                drawRoundRect(PleyColors.Fg.copy(alpha = 0.2f), cornerRadius = r)
-                drawRoundRect(PleyColors.Accent, size = Size(size.width * progress.fraction, size.height), cornerRadius = r)
+                drawRoundRect(palette.fg.copy(alpha = 0.2f), cornerRadius = r)
+                drawRoundRect(palette.accent, size = Size(size.width * progress.fraction, size.height), cornerRadius = r)
             },
     )
     Spacer(Modifier.height(6.dp))
@@ -267,6 +268,7 @@ private fun BookLine(
     playing: Boolean,
     onClick: () -> Unit,
 ) {
+    val palette = PleyColors.palette
     Row(
         Modifier
             .fillMaxWidth()
@@ -302,8 +304,8 @@ private fun BookLine(
                         .height(3.dp)
                         .drawBehind {
                             val r = CornerRadius(size.height / 2f)
-                            drawRoundRect(PleyColors.Fg.copy(alpha = 0.2f), cornerRadius = r)
-                            drawRoundRect(PleyColors.Accent, size = Size(size.width * fraction, size.height), cornerRadius = r)
+                            drawRoundRect(palette.fg.copy(alpha = 0.2f), cornerRadius = r)
+                            drawRoundRect(palette.accent, size = Size(size.width * fraction, size.height), cornerRadius = r)
                         },
                 )
             }

@@ -112,7 +112,7 @@ export function PersonScreen(p: { entry: Entry; id: number }) {
           {person.photo_url ? (
             <Art candidates={[person.photo_url]} width={160} title={person.name} class="tile-clip" />
           ) : (
-            <span class="t-page" style="color:rgba(233,235,239,0.8)">
+            <span class="t-page" style="color:rgba(var(--fg-rgb), 0.8)">
               {initials(person.name)}
             </span>
           )}

@@ -190,7 +190,10 @@ data class WatchRequest(
  * carries and what the transcoder makes of it ([video]: `copy` or the
  * encoder; [audio]: `copy`, `aac` or `none`). Sent as it is, a player
  * that reads MPEG-TS plays it from `stream.ts`, sooner than its first HLS
- * segments ([direct]).
+ * segments ([direct]); so does one that decodes what the provider sends,
+ * and the server then makes no transcode of it. An older server says
+ * neither [kbps] nor the bit depth, nor what a transcode comes out as:
+ * they stay as they are here.
  */
 @Serializable
 data class LivePlan(
@@ -199,10 +202,20 @@ data class LivePlan(
     val height: Int? = null,
     val frameRate: Double? = null,
     val interlaced: Boolean = false,
+    /** The provider's video: 8, 10 or 12 bits; `null` when not known. */
+    val bitDepth: Int? = null,
     val audioCodec: String? = null,
     val audioChannels: Int? = null,
     val video: String = "",
     val audio: String = "",
+    /** A transcode's lines; `null` when the video is copied. */
+    val outHeight: Int? = null,
+    /** A transcode's video bitrate, kbit/s; `null` when the video is copied. */
+    val videoKbps: Long? = null,
+    /** The server's Deinterlace setting: interlaced video is made progressive; `null` (taken as on) from an older server. */
+    val deinterlace: Boolean? = null,
+    /** What the provider sends now, kbit/s; 0 until measured. */
+    val kbps: Long = 0,
 ) {
     /** The channel is sent as it is (or without picture or sound): `stream.ts` plays it straight away, as the web's player does. */
     val direct: Boolean get() = video in SENT_AS_IS && audio in SENT_AS_IS

@@ -21,6 +21,11 @@
     <EmbeddedResource Include="Locales\**\*.json" />
   </ItemGroup>
 
+  <!-- Pley's themes and accents as every app draws them (Ui/Themes.cs), built in as they are. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\..\packages\themes\themes.json" LogicalName="Pley.Tv.Core.themes.json" Link="themes.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Pley.Tv.Core.Tests" />
   </ItemGroup>

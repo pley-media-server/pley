@@ -55,6 +55,7 @@ import app.pley.android.ui.phone.player.CarSizedWindow
  */
 @Composable
 internal fun DownloadGlyph(entry: DownloadEntry?, size: Dp = 24.dp) {
+    val palette = PleyColors.palette
     when (entry?.state) {
         null -> Icon(PleyIcons.Download, contentDescription = null, size = size)
         DownloadState.Done -> Icon(PleyIcons.CircleCheck, contentDescription = null, size = size, tint = PleyColors.AccentBright)
@@ -69,9 +70,9 @@ internal fun DownloadGlyph(entry: DownloadEntry?, size: Dp = 24.dp) {
                         val stroke = 2.dp.toPx()
                         val inset = stroke / 2f
                         val arc = Size(this.size.width - stroke, this.size.height - stroke)
-                        drawArc(PleyColors.Fg.copy(alpha = 0.25f), 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(stroke))
+                        drawArc(palette.fg.copy(alpha = 0.25f), 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(stroke))
                         if (fraction > 0f) {
-                            drawArc(PleyColors.Accent, -90f, 360f * fraction, false, Offset(inset, inset), arc, style = Stroke(stroke, cap = StrokeCap.Round))
+                            drawArc(palette.accent, -90f, 360f * fraction, false, Offset(inset, inset), arc, style = Stroke(stroke, cap = StrokeCap.Round))
                         }
                     },
                 contentAlignment = Alignment.Center,

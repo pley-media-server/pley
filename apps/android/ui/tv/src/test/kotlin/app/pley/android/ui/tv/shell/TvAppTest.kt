@@ -1,8 +1,10 @@
 package app.pley.android.ui.tv.shell
 
+import android.graphics.drawable.ColorDrawable
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
@@ -18,12 +20,16 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.navigation3.runtime.NavKey
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.TestTags
 import app.pley.android.data.Loadable
 import app.pley.android.data.RequestNotice
 import app.pley.android.data.Settings
+import app.pley.android.designsystem.theme.Appearance
+import app.pley.android.designsystem.theme.PleyPalette
+import app.pley.android.designsystem.theme.PleyTheme
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.Me
@@ -39,6 +45,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -160,6 +167,43 @@ class TvAppTest {
         app(StartFacts("http://s", false))
         compose.onNodeWithText("Sign in to Pley").assertExists()
         compose.onNodeWithText("Change server").assertIsFocused()
+    }
+
+    /** The window's color: the page's, which ThemedWindow sets as the shell draws. */
+    private fun windowColor(): Int = (compose.activity.window.decorView.background as ColorDrawable).color
+
+    /** Midday picked on this TV: a theme without a glow, so the window is its plain color. */
+    private fun pickMidday() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        context.getSharedPreferences("appearance", android.content.Context.MODE_PRIVATE).edit().clear().commit()
+        Appearance.attach(context)
+        Appearance.pick(context, PleyTheme.Midday)
+    }
+
+    @After
+    fun midnightAgain() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        context.getSharedPreferences("appearance", android.content.Context.MODE_PRIVATE).edit().clear().commit()
+        Appearance.attach(context)
+    }
+
+    @Test
+    fun outsideAProfileIsMidnightAndInsideItsPick() {
+        pickMidday()
+        // "Who's watching?": Midnight in its own accent, whatever the profile picked.
+        app(StartFacts("http://s", true, profiles = 2))
+        compose.onNodeWithText("Who's watching?").assertExists()
+        compose.runOnIdle { assertEquals(PleyPalette.Default.bg.toArgb(), windowColor()) }
+        // A profile chosen: inside it, its pick.
+        compose.onNodeWithTag("pley.profiles.profile.1").performClick()
+        compose.waitUntil(STARTS_WITHIN_MS) { windowColor() == PleyPalette.of(PleyTheme.Midday, null).bg.toArgb() }
+    }
+
+    @Test
+    fun aStartInsideAProfileIsInItsPick() {
+        pickMidday()
+        app()
+        compose.runOnIdle { assertEquals(PleyPalette.of(PleyTheme.Midday, null).bg.toArgb(), windowColor()) }
     }
 
     @Test

@@ -6,6 +6,7 @@ import { LogoMark } from "@/components/Logo";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { useSetupFrame } from "@/lib/setupFrame";
+import { useOutsideProfile } from "@/theme";
 
 /** Pley's mark, unplugged, breathing softly while the server can't be reached; in the theme's colors. */
 export function OfflineMark({ className }: { className?: string }) {
@@ -26,6 +27,8 @@ export function OfflineMark({ className }: { className?: string }) {
  */
 export function OfflineScreen({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   const { t } = useTranslation(["pages", "common"]);
+  // Before the server answers, no profile is known: Pley's own Midnight.
+  useOutsideProfile();
   const inSetup = useSetupFrame() !== null;
   return (
     <div className={cn("relative flex items-center justify-center overflow-hidden px-6", inSetup ? "py-6" : "min-h-screen")}>

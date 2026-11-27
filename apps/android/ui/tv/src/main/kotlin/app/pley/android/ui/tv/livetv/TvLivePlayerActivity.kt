@@ -14,12 +14,15 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import app.pley.android.common.AppLanguage
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.player.CastFrom
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerWindows
@@ -35,6 +38,8 @@ import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.keyRepeatGate
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -65,10 +70,13 @@ class TvLivePlayerActivity : ComponentActivity() {
         val graph = (application as PleyGraphOwner).screensGraph
         // Said once, as it opens: not again when the window is made anew.
         val cast = castFrom(intent).takeIf { savedInstanceState == null }?.notice(resources)
+        // Settings → Playback details, as the video player follows it.
+        val showDetails = graph.data.settings.settings.map { it.showPlaybackDetails }.distinctUntilChanged()
         setContent {
-            TvTheme(tier = graph.device.tier) {
+            TvTheme(tier = graph.device.tier, palette = Appearance.palette.dark) {
                 WindowRules {
-                    TvLivePlayerScreen(vm = vm, onExit = ::finish)
+                    val details by showDetails.collectAsStateWithLifecycle(false)
+                    TvLivePlayerScreen(vm = vm, onExit = ::finish, showDetails = details)
                     TvCastNotice(cast)
                 }
             }

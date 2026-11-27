@@ -109,6 +109,11 @@
     "andMore_one": "and {{count}} more",
     "andMore_other": "and {{count}} more"
   },
+  "details": {
+    "interlaced": "Interlaced video is made progressive.",
+    "videoNotPlayed": "This TV doesn't play {{codec}} video.",
+    "audioNotPlayed": "This TV doesn't play {{codec}} audio."
+  },
   "trouble": {
     "busy": "All connections are in use",
     "stopped": "Live TV stopped",

@@ -12,6 +12,9 @@ describes how they are made.
 
 - Themes and accents in Settings → Appearance, as on the web, kept for each
   profile on this TV; the players stay dark in a light theme.
+- Live TV has Playback details on the Replay key, and its banner shows
+  how the channel plays, as the player does for a film.
+- A transcode's Playback details name its encoder.
 
 ### Fixed
 

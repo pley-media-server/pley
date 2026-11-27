@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Appearance: the web's words (account.theme in apps/web/src/i18n/locales), docs/THEMES.md. -->
+    <string name="appearance_title">Appearance</string>
+    <string name="appearance_theme">Theme</string>
+    <string name="appearance_theme_hint">How Pley looks for you on this device. Each profile keeps its own.</string>
+    <string name="appearance_theme_hint_tv">How Pley looks for you on this TV. Each profile keeps its own.</string>
+    <string name="appearance_theme_midnight">Midnight</string>
+    <string name="appearance_theme_midday">Midday</string>
+    <string name="appearance_theme_twilight">Twilight</string>
+    <string name="appearance_theme_starlight">Starlight</string>
+    <string name="appearance_theme_moonlight">Moonlight</string>
+    <string name="appearance_theme_nightshade">Nightshade</string>
+    <string name="appearance_theme_greenlight">Greenlight</string>
+    <string name="appearance_theme_sunshine">Sunshine</string>
+    <string name="appearance_theme_blacklight">Blacklight</string>
+    <string name="appearance_about_midnight">Lights off, popcorn on</string>
+    <string name="appearance_about_midday">Midnight, but it\'s brunch</string>
+    <string name="appearance_about_twilight">Sunset, no sunburn</string>
+    <string name="appearance_about_starlight">Champagne, no hangover</string>
+    <string name="appearance_about_moonlight">Tuxedo mode</string>
+    <string name="appearance_about_nightshade">Lurking in the ferns</string>
+    <string name="appearance_about_greenlight">Touch grass, indoors</string>
+    <string name="appearance_about_sunshine">Juice box approved</string>
+    <string name="appearance_about_blacklight">Zero colors given</string>
+    <string name="appearance_accent">Accent</string>
+    <string name="appearance_accent_hint">Affects buttons, links and other focal items.</string>
+    <string name="appearance_accent_own">Default</string>
+    <string name="appearance_accent_sky">Sky</string>
+    <string name="appearance_accent_violet">Violet</string>
+    <string name="appearance_accent_miami">Miami</string>
+    <string name="appearance_accent_gold">Gold</string>
+    <string name="appearance_accent_mint">Mint</string>
+    <string name="appearance_accent_amber">Amber</string>
+</resources>

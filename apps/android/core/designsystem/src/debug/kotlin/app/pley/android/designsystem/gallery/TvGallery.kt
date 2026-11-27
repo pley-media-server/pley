@@ -109,6 +109,11 @@ internal fun TvGallery(tier: Tier) {
             repeat(3) { SkeletonTile(skeleton, TileKind.Landscape, TileStyle.Tv) }
         }
 
+        Section("Themes")
+        Box(Modifier.padding(start = PleyTv.Gutter)) {
+            ThemesGrid(PleyType.Tv.Label, 200.dp, columns = 5)
+        }
+
         Section("Type")
         Column(Modifier.padding(start = PleyTv.Gutter), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Label("Hero title 38", PleyType.Tv.HeroTitle)

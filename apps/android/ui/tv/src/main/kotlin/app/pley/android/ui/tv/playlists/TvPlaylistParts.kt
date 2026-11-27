@@ -64,6 +64,7 @@ internal fun TvPlaylistArt(
     shape: Shape = PleyShape.TileTv,
     glyph: Dp = 48.dp,
 ) {
+    val palette = PleyColors.palette
     val images = remember(artwork, origin) { artwork.mapNotNull { ArtworkImage.of(it, origin) } }
     Box(
         modifier
@@ -73,7 +74,7 @@ internal fun TvPlaylistArt(
                 val hair = 1.dp.toPx()
                 onDrawWithContent {
                     drawContent()
-                    drawRect(PleyColors.TileHairline, style = Stroke(hair))
+                    drawRect(palette.tileHairline, style = Stroke(hair))
                 }
             },
     ) {
@@ -97,7 +98,7 @@ internal fun TvPlaylistArt(
                 Modifier
                     .fillMaxSize()
                     .drawWithCache {
-                        val brush = Brush.linearGradient(listOf(PleyColors.Surface3, PleyColors.Surface2))
+                        val brush = Brush.linearGradient(listOf(palette.surface3, palette.surface2))
                         onDrawBehind { drawRect(brush) }
                     },
                 contentAlignment = Alignment.Center,

@@ -14,15 +14,17 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
-import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
 import app.pley.android.designsystem.PleyMotion
+import app.pley.android.designsystem.theme.LocalPleyPalette
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -54,7 +56,7 @@ private class CardPressNode(
     private var interactions: InteractionSource,
     private var shape: Shape,
     private var reduced: Boolean,
-) : Modifier.Node(), LayoutModifierNode, DrawModifierNode {
+) : Modifier.Node(), LayoutModifierNode, DrawModifierNode, CompositionLocalConsumerModifierNode {
     private val progress = Animatable(0f)
     private var watching: Job? = null
     private var ringOutline: Outline? = null
@@ -120,7 +122,7 @@ private class CardPressNode(
             ringSize = ring
         }
         translate(-stroke / 2f, -stroke / 2f) {
-            drawOutline(outline, PleyColors.Accent, alpha = p.coerceIn(0f, 1f), style = Stroke(stroke))
+            drawOutline(outline, currentValueOf(LocalPleyPalette).accent, alpha = p.coerceIn(0f, 1f), style = Stroke(stroke))
         }
     }
 

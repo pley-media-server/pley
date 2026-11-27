@@ -37,7 +37,7 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import app.pley.android.common.TestTags
-import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.theme.PleyPalette
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.screens.requests.RequestsEntry
@@ -124,7 +124,7 @@ class TvRailTest {
     }
 
     private fun isPanel(color: Color): Boolean {
-        val panel = PleyColors.Surface
+        val panel = PleyPalette.Default.surface
         return abs(color.red - panel.red) < 0.05f && abs(color.green - panel.green) < 0.05f && abs(color.blue - panel.blue) < 0.05f
     }
 

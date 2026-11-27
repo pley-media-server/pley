@@ -1,4 +1,9 @@
-/* The server picker, in the web app's colors (apps/web/src/index.css). */
+/*
+ * The server picker, in Midnight with its own accent: it shows outside any
+ * profile, where Pley draws its own look (docs/THEMES.md). The colors are
+ * Midnight's in packages/themes/themes.json, which src/theme.test.ts holds
+ * them to.
+ */
 :root {
   --bg: #0b0d10;
   --surface: #12151a;
@@ -7,12 +12,17 @@
   --border: #2a303b;
   --fg: #e9ebef;
   --muted: #a1a9b6;
-  --subtle: #6c7584;
+  --subtle: #7e8795;
   --accent: #38bdf8;
   --accent-hover: #7dd3fc;
   --accent-fg: #03131f;
   --success: #3fb27f;
-  --danger: #e5484d;
+  --danger: #ed6c6d;
+  --brand-light: #bae6fd;
+  --brand: #38bdf8;
+  --brand-deep: #0284c7;
+  --brand-far: #0c4a6e;
+  --brand-tile: #0a1622;
   color-scheme: dark;
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
@@ -29,9 +39,31 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* The light at the top of the page: the accent at 9%. */
   background:
     radial-gradient(60rem 30rem at 50% -10rem, rgb(56 189 248 / 0.09), transparent 70%),
     var(--bg);
+}
+
+/* The logo, in the brand's colors, as the web app's (Logo.tsx). */
+.mark .tile {
+  fill: var(--brand-tile);
+}
+
+.mark .far {
+  fill: var(--brand-far);
+}
+
+.mark .deep {
+  fill: var(--brand-deep);
+}
+
+.mark .light {
+  stop-color: var(--brand-light);
+}
+
+.mark .brand {
+  stop-color: var(--brand);
 }
 
 .picker {

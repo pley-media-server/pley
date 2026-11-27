@@ -213,7 +213,7 @@
     },
     "theme": {
       "title": "Tema",
-      "hint": "Cómo se ve Pley en este dispositivo. Cada navegador, y la app de escritorio, guarda el suyo.",
+      "hint": "Cómo se ve Pley para ti en este dispositivo. Cada perfil guarda el suyo.",
       "names": {
         "midnight": "Medianoche",
         "midday": "Mediodía",

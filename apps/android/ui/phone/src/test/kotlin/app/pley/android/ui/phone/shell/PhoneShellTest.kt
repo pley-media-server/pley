@@ -4,7 +4,11 @@ import android.app.Application
 import android.content.ComponentName
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.drawable.ColorDrawable
+import android.view.View
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
 import androidx.compose.ui.test.SemanticsMatcher
@@ -28,6 +32,9 @@ import app.pley.android.common.TestTags
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteSession
 import app.pley.android.data.SessionState
+import app.pley.android.designsystem.theme.Appearance
+import app.pley.android.designsystem.theme.PleyPalette
+import app.pley.android.designsystem.theme.PleyTheme
 import app.pley.android.model.CastKind
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.PlayingChannel
@@ -45,6 +52,7 @@ import app.pley.android.ui.phone.player.CarSized
 import app.pley.android.ui.phone.remote.REMOTE_BAR
 import app.pley.android.ui.phone.remote.REMOTE_BUTTON
 import app.pley.android.ui.phone.theme.PhoneTheme
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -120,6 +128,49 @@ class PhoneShellTest {
     class Shell(val graph: TestGraph) {
         lateinit var state: PhoneShellState
         lateinit var navigation: PhoneNavigation
+    }
+
+    /** The window's color in the shell started at [start]: the page's, which ThemedWindow sets as the shell draws. */
+    private fun windowColor(start: PhoneStart): Int {
+        val graph = TestGraph(start.server)
+        TestApplication.graph = graph
+        lateinit var view: View
+        compose.setContent {
+            view = LocalView.current
+            PhoneTheme {
+                CompositionLocalProvider(LocalOnboardingSource provides FakeOnboardingSource()) { PhoneShell(start, { graph }) }
+            }
+        }
+        compose.waitForIdle()
+        return compose.runOnIdle { (view.rootView.background as ColorDrawable).color }
+    }
+
+    /** Midday picked on this phone: a theme without a glow, so the window is its plain color. */
+    private fun pickMidday() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        context.getSharedPreferences("appearance", android.content.Context.MODE_PRIVATE).edit().clear().commit()
+        Appearance.attach(context)
+        Appearance.pick(context, PleyTheme.Midday)
+    }
+
+    @After
+    fun midnightAgain() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        context.getSharedPreferences("appearance", android.content.Context.MODE_PRIVATE).edit().clear().commit()
+        Appearance.attach(context)
+    }
+
+    @Test
+    fun signingInIsMidnightWhateverThePick() {
+        pickMidday()
+        assertEquals(PleyPalette.Default.bg.toArgb(), windowColor(PhoneStart(TestGraph.SERVER, signedIn = false)))
+        signInPage().assertExists()
+    }
+
+    @Test
+    fun aStartInsideAProfileIsInItsPick() {
+        pickMidday()
+        assertEquals(PleyPalette.of(PleyTheme.Midday, null).bg.toArgb(), windowColor(PhoneStart(TestGraph.SERVER, signedIn = true)))
     }
 
     @Test

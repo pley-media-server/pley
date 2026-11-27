@@ -130,7 +130,16 @@ sealed class TvShell : Sheet
 
         Back = OnBack;
         watches.Add(state.Libraries.Watch(_ => RailItems()));
-        watches.Add(state.Me.Watch(me => Rail.SetProfile(me == null ? null : new RailProfile(me.Name, AvatarView.Rgb(ProfileColors.Of(me.Name, me.AvatarColor))))));
+        watches.Add(state.Me.Watch(me =>
+        {
+            if (me == null)
+            {
+                Rail.SetProfile(null);
+                return;
+            }
+            var rgb = ProfileColors.Of(me.Name, me.AvatarColor);
+            Rail.SetProfile(new RailProfile(me.Name, AvatarView.Rgb(rgb), ProfileColors.DarkTextOn(rgb) ? PleyColors.DarkInk : Color.White));
+        }));
         Gone += () =>
         {
             foreach (var w in watches) w.Dispose();
@@ -147,6 +156,9 @@ sealed class TvShell : Sheet
 
     /// <summary>The page the stack starts at, which the rail shows as current.</summary>
     public PageKey? RootKey => stack.Count > 0 ? stack[0].Key : null;
+
+    /// <summary>The pages, the stack's root first.</summary>
+    public IReadOnlyList<ShellPage> Pages => stack;
 
     /// <summary>The pages' keys, the stack's root first: to open them again (in another language).</summary>
     public IReadOnlyList<PageKey> Keys => stack.ConvertAll(p => p.Key);

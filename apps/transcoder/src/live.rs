@@ -11,6 +11,11 @@
 //! when it is AAC, else made AAC stereo. FFmpeg reads the input from its
 //! standard input, so it never opens a connection of its own: the caller
 //! holds the one to the channel, which providers count.
+//!
+//! An `on_demand` channel is probed at once but made only when its playlist
+//! is first asked for, from the last few seconds of input kept meanwhile: a
+//! caller can learn what a channel carries, for players that read the
+//! provider's stream themselves, without a transcode for nobody.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -23,7 +28,7 @@ use bytes::Bytes;
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use pley_transcoder_api::{
-    EncoderInfo, HwAccel, LiveCreated, LivePlan, LiveRequest, LiveState, LiveStatus, VideoCodec, default_video_kbps,
+    EncoderInfo, HwAccel, LiveCreated, LivePlan, LiveRequest, LiveState, LiveStatus, VideoCodec, default_video_kbps, ts,
 };
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::Notify;
@@ -65,6 +70,12 @@ const PLAYLIST_WAIT: Duration = Duration::from_secs(30);
 const IDLE: Duration = Duration::from_secs(90);
 /// Lines of FFmpeg's output kept for an error.
 const STDERR_LINES: usize = 12;
+/// Input an `on_demand` channel keeps while nobody asked for it: what came
+/// from the newest video keyframe at least this old, at most this many
+/// bytes. FFmpeg starts there, after the stream's tables, so the first
+/// segments come at once.
+const HELD: Duration = Duration::from_secs(3);
+const HELD_BYTES: usize = 16 << 20;
 
 pub struct LiveManager {
     ff: Arc<Ffmpeg>,
@@ -90,6 +101,8 @@ pub struct Live {
     feeding: AtomicBool,
     /// Woken when the playlist changes or the channel ends.
     changed: Notify,
+    /// Its playlist was asked for: an `on_demand` channel starts.
+    wanted: CancellationToken,
     stop: CancellationToken,
 }
 
@@ -141,6 +154,7 @@ impl LiveManager {
             last_access: Mutex::new(Instant::now()),
             feeding: AtomicBool::new(false),
             changed: Notify::new(),
+            wanted: CancellationToken::new(),
             stop: CancellationToken::new(),
         });
         tracing::info!(id = %id, label = ?live.request.label, "live channel created");
@@ -243,6 +257,43 @@ impl LiveManager {
             }
         };
         let plan = plan(&self.ff, &live.request, &probed)?;
+        // What the channel is, said before a slot is taken: a caller whose
+        // players read the provider's stream themselves needs no slot.
+        live.inner.lock().plan = Some(plan.status.clone());
+        live.changed.notify_waiters();
+        if live.request.on_demand && !ended {
+            let mut held = ts::Backlog::new(HELD_BYTES);
+            for chunk in &head {
+                held.push(chunk);
+            }
+            held.trim_to_keyframe_older_than(HELD);
+            loop {
+                let next = tokio::select! {
+                    next = tokio::time::timeout(INPUT_STALL, input.next()) => next,
+                    () = live.wanted.cancelled() => break,
+                    () = live.stop.cancelled() => return Ok(()),
+                };
+                match next {
+                    Ok(Some(Ok(chunk))) => {
+                        live.bytes_in.fetch_add(chunk.len() as u64, Relaxed);
+                        held.push(&chunk);
+                        held.trim_to_keyframe_older_than(HELD);
+                    }
+                    Ok(Some(Err(e))) => return Err(ApiError::Failed(format!("the channel's stream broke off: {e}"))),
+                    // Over before anybody asked for it: nothing to make.
+                    Ok(None) => return Ok(()),
+                    Err(_) => {
+                        return Err(ApiError::Failed(format!(
+                            "the channel sent nothing for {} s",
+                            INPUT_STALL.as_secs()
+                        )));
+                    }
+                }
+            }
+            // The tables, then from the last keyframe: FFmpeg's start, as a
+            // channel's first moment is.
+            head = held.start_held();
+        }
         let slot = match plan.encoder {
             Some(enc) => Some(self.slots.take(enc.hardware).ok_or_else(|| {
                 ApiError::Busy("every transcode slot is taken: no transcode is free for this channel".into())
@@ -256,11 +307,7 @@ impl LiveManager {
             input = ?(&plan.status.video_codec, plan.status.height, plan.status.interlaced, &plan.status.audio_codec),
             "live channel starting"
         );
-        {
-            let mut inner = live.inner.lock();
-            inner.plan = Some(plan.status.clone());
-            inner.state = LiveState::Running;
-        }
+        live.inner.lock().state = LiveState::Running;
         live.changed.notify_waiters();
 
         let window = live.request.window_seconds.unwrap_or(DEFAULT_WINDOW).max(MIN_WINDOW);
@@ -427,6 +474,7 @@ impl Live {
     pub async fn file(&self, name: &str) -> ApiResult<LiveFile> {
         self.touch();
         if name == "index.m3u8" {
+            self.wanted.cancel();
             let deadline = Instant::now() + PLAYLIST_WAIT;
             loop {
                 let notified = self.changed.notified();
@@ -537,8 +585,8 @@ struct ProbedStream {
     height: Option<i64>,
     frame_rate: Option<f64>,
     interlaced: bool,
-    /// 10 bits or more.
-    deep: bool,
+    /// Bits a sample (8, 10, 12), when the pixel format says.
+    bit_depth: Option<i64>,
     channels: Option<i64>,
 }
 
@@ -603,7 +651,7 @@ fn parse_probe(json: &[u8]) -> Probed {
                 .and_then(rate)
                 .or_else(|| s["r_frame_rate"].as_str().and_then(rate)),
             interlaced: matches!(s["field_order"].as_str(), Some("tt" | "bb" | "tb" | "bt")),
-            deep: s["pix_fmt"].as_str().is_some_and(|p| p.contains("10") || p.contains("12")),
+            bit_depth: s["pix_fmt"].as_str().filter(|p| !p.is_empty()).map(bit_depth),
             channels: s["channels"].as_i64(),
         };
         match s["codec_type"].as_str() {
@@ -615,6 +663,17 @@ fn parse_probe(json: &[u8]) -> Probed {
         }
     }
     probed
+}
+
+/// A pixel format's bits a sample: `yuv420p10le` 10, `p010le` 10, `yuv420p` 8.
+fn bit_depth(pix_fmt: &str) -> i64 {
+    if pix_fmt.contains("12") {
+        12
+    } else if pix_fmt.contains("10") {
+        10
+    } else {
+        8
+    }
 }
 
 /// `30000/1001` as frames a second, when it is one.
@@ -640,9 +699,9 @@ fn plan<'a>(ff: &'a Ffmpeg, request: &LiveRequest, probed: &Probed) -> ApiResult
     let audio = probed.audio.clone();
     let deinterlace = request.deinterlace && video.as_ref().is_some_and(|v| v.interlaced);
     let too_tall = |v: &ProbedStream| request.max_height.zip(v.height).is_some_and(|(max, h)| h > i64::from(max));
-    let copy = video
-        .as_ref()
-        .is_some_and(|v| v.codec == "h264" && !v.deep && !deinterlace && !too_tall(v) && !request.force_transcode);
+    let copy = video.as_ref().is_some_and(|v| {
+        v.codec == "h264" && v.bit_depth.unwrap_or(8) <= 8 && !deinterlace && !too_tall(v) && !request.force_transcode
+    });
     let encoder = match &video {
         Some(_) if !copy => Some(live_encoder(ff, request.hwaccel).ok_or_else(|| {
             ApiError::Failed("this channel's video needs a transcode, and no H.264 encoder works".into())
@@ -665,6 +724,7 @@ fn plan<'a>(ff: &'a Ffmpeg, request: &LiveRequest, probed: &Probed) -> ApiResult
         height: video.as_ref().and_then(|v| v.height),
         frame_rate: video.as_ref().and_then(|v| v.frame_rate),
         interlaced: video.as_ref().is_some_and(|v| v.interlaced),
+        bit_depth: video.as_ref().and_then(|v| v.bit_depth),
         audio_codec: audio.as_ref().map(|a| a.codec.clone()),
         audio_channels: audio.as_ref().and_then(|a| a.channels),
         video: match (&video, encoder) {
@@ -677,6 +737,8 @@ fn plan<'a>(ff: &'a Ffmpeg, request: &LiveRequest, probed: &Probed) -> ApiResult
             Some(_) if audio_copy => "copy".into(),
             Some(_) => "aac".into(),
         },
+        out_height: encoder.and(height),
+        video_kbps: encoder.map(|_| kbps),
     };
     Ok(Plan { video, audio, encoder, deinterlace, height, kbps, status })
 }
@@ -865,7 +927,14 @@ mod tests {
             (v.codec.as_str(), v.height, v.interlaced, v.frame_rate),
             ("mpeg2video", Some(1080), true, Some(25.0))
         );
+        assert_eq!(v.bit_depth, Some(8));
         assert_eq!(p.audio.unwrap().codec, "mp2");
+        let hevc = parse_probe(
+            br#"{"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","pix_fmt":"yuv420p10le"}]}"#,
+        );
+        assert_eq!(hevc.video.unwrap().bit_depth, Some(10));
+        assert_eq!(bit_depth("p010le"), 10);
+        assert_eq!(bit_depth("yuv420p12le"), 12);
         assert_eq!(rate("30000/1001").map(|r| (r * 100.0).round()), Some(2997.0));
         assert_eq!(rate("0/0"), None);
     }
@@ -923,5 +992,159 @@ mod tests {
         plan.encoder = Some(&x264);
         let line = video_args(&plan, &x264).join(" ");
         assert!(line.contains("yadif=mode=send_frame") && line.contains("-g 25") && line.contains("libx264"), "{line}");
+    }
+
+    /// Live channels with the real FFmpeg and x264, `max_jobs` transcodes at once.
+    fn manager(max_jobs: u32) -> (Arc<LiveManager>, Arc<Slots>, tempfile::TempDir) {
+        let ff = Ffmpeg {
+            ffmpeg: "ffmpeg".into(),
+            ffprobe: "ffprobe".into(),
+            caps: pley_transcoder_api::Capabilities {
+                ffmpeg_available: true,
+                ffprobe_available: true,
+                encoders: vec![EncoderInfo {
+                    name: "libx264".into(),
+                    codec: VideoCodec::H264,
+                    hardware: false,
+                    accel: HwAccel::None,
+                    main10: false,
+                    low_power: false,
+                }],
+                ..Default::default()
+            },
+            segment_times_relative: true,
+        };
+        let limits = pley_transcoder_api::Limits { max_jobs, max_hw_jobs: 0 };
+        let slots = Arc::new(Slots::new(&limits, crate::background::Background::new()));
+        let dir = crate::testing::tempdir();
+        std::fs::create_dir(dir.path().join("live")).unwrap();
+        (LiveManager::new(Arc::new(ff), slots.clone(), dir.path().join("live")), slots, dir)
+    }
+
+    /// A channel as a provider sends it, as it airs: `video` (MPEG-2, which a
+    /// live channel transcodes, or H.264) with a keyframe every `gop` frames
+    /// and MP2 sound, `secs` long, in chunks about as fast as it plays.
+    fn airing(secs: u32, video: &str, gop: u32) -> impl Stream<Item = Result<Bytes, std::io::Error>> + Unpin {
+        let made = std::process::Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error"])
+            .args(["-f", "lavfi", "-i", &format!("testsrc2=s=320x180:r=25:d={secs}")])
+            .args(["-f", "lavfi", "-i", &format!("sine=r=48000:d={secs}")])
+            .args([
+                "-c:v",
+                video,
+                "-g",
+                &gop.to_string(),
+                "-sc_threshold",
+                "0",
+                "-c:a",
+                "mp2",
+                "-f",
+                "mpegts",
+                "pipe:1",
+            ])
+            .output()
+            .unwrap();
+        assert!(made.status.success());
+        let chunk = (made.stdout.len() / (u64::from(secs) * 10) as usize).max(188);
+        let chunks: Vec<Bytes> = made.stdout.chunks(chunk).map(Bytes::copy_from_slice).collect();
+        Box::pin(futures::stream::iter(chunks).then(|c| async move {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            Ok(c)
+        }))
+    }
+
+    async fn plan_of(live: &Live) -> LivePlan {
+        for _ in 0..100 {
+            if let Some(plan) = live.status().plan {
+                return plan;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        panic!("no plan: {:?}", live.status());
+    }
+
+    #[tokio::test]
+    async fn an_on_demand_channel_says_what_it_is_and_makes_it_only_once_asked() {
+        if !crate::testing::has_encoder("libx264") {
+            return;
+        }
+        let (mgr, _slots, _dir) = manager(1);
+        let id = mgr.create(LiveRequest { on_demand: true, ..Default::default() }).unwrap().id;
+        let live = mgr.get(&id).unwrap();
+        let feeding = {
+            let (mgr, live) = (mgr.clone(), live.clone());
+            tokio::spawn(async move { mgr.feed(&live, airing(20, "mpeg2video", 25)).await })
+        };
+        let plan = plan_of(&live).await;
+        assert_eq!((plan.video_codec.as_deref(), plan.video.as_str()), (Some("mpeg2video"), "libx264"));
+        assert_eq!((plan.bit_depth, plan.out_height, plan.audio.as_str()), (Some(8), Some(180), "aac"));
+        assert!(plan.video_kbps.is_some_and(|k| k >= 500), "{plan:?}");
+
+        // Nobody asked: nothing is made, and no slot is taken.
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        let status = live.status();
+        assert_eq!((status.state, status.segments), (LiveState::Waiting, 0));
+        assert!(!live.dir.join("index.m3u8").exists());
+        assert!(status.bytes_in > 0, "the input is read meanwhile");
+
+        // The first playlist starts it, from what was kept.
+        let asked = Instant::now();
+        let LiveFile::Playlist(text) = live.file("index.m3u8").await.unwrap() else { panic!("a playlist") };
+        assert!(text.contains("s0.ts"), "{text}");
+        assert!(asked.elapsed() < Duration::from_secs(10), "{:?}", asked.elapsed());
+        assert_eq!(live.status().state, LiveState::Running);
+        mgr.remove(&id);
+        let _ = tokio::time::timeout(Duration::from_secs(10), feeding).await;
+    }
+
+    #[tokio::test]
+    async fn an_on_demand_channel_asked_late_starts_from_its_last_keyframe() {
+        if !crate::testing::has_encoder("libx264") {
+            return;
+        }
+        let (mgr, _slots, _dir) = manager(1);
+        // H.264 made again: its decoder, as HEVC's, shows nothing before a keyframe.
+        let id = mgr.create(LiveRequest { on_demand: true, force_transcode: true, ..Default::default() }).unwrap().id;
+        let live = mgr.get(&id).unwrap();
+        // A keyframe every 5 s, as many channels send.
+        let channel = airing(30, "libx264", 125);
+        let airs = Instant::now();
+        let feeding = {
+            let (mgr, live) = (mgr.clone(), live.clone());
+            tokio::spawn(async move { mgr.feed(&live, channel).await })
+        };
+        plan_of(&live).await;
+        // Asked 8.5 s in, it holds from the keyframe at 5 s, the newest 3 s
+        // old: FFmpeg starts with the tables and that keyframe (`ts::Backlog`,
+        // tested there), so the seconds held are made at once.
+        tokio::time::sleep_until((airs + Duration::from_millis(8500)).into()).await;
+        let asked = Instant::now();
+        let LiveFile::Playlist(text) = live.file("index.m3u8").await.unwrap() else { panic!("a playlist") };
+        assert!(text.contains("s0.ts"), "{text}");
+        assert!(asked.elapsed() < Duration::from_millis(2500), "{:?}", asked.elapsed());
+        mgr.remove(&id);
+        let _ = tokio::time::timeout(Duration::from_secs(10), feeding).await;
+    }
+
+    #[tokio::test]
+    async fn a_channel_with_no_transcode_free_still_says_what_it_is() {
+        if !crate::testing::has_encoder("libx264") {
+            return;
+        }
+        let (mgr, slots, _dir) = manager(1);
+        let _taken = slots.take(false).unwrap();
+        let id = mgr.create(LiveRequest::default()).unwrap().id;
+        let live = mgr.get(&id).unwrap();
+        let fed =
+            tokio::time::timeout(Duration::from_secs(20), mgr.feed(&live, airing(10, "mpeg2video", 25))).await.unwrap();
+        assert!(matches!(fed, Err(ApiError::Busy(_))), "{fed:?}");
+        let status = live.status();
+        assert_eq!(status.state, LiveState::Failed);
+        assert_eq!(
+            status.plan.map(|p| p.video),
+            Some("libx264".to_owned()),
+            "players that read the provider's stream play it"
+        );
+        mgr.remove(&id);
     }
 }

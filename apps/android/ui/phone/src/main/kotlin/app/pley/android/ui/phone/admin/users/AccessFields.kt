@@ -420,10 +420,10 @@ private fun UnratedWarning() {
         Modifier
             .fillMaxWidth()
             .clip(PleyShape.Card)
-            .background(PleyColors.Amber.copy(alpha = 0.08f))
+            .background(PleyColors.Warning.copy(alpha = 0.08f))
             .padding(16.dp),
     ) {
-        Icon(PleyIcons.TriangleAlert, contentDescription = null, size = 18.dp, tint = PleyColors.Amber)
+        Icon(PleyIcons.TriangleAlert, contentDescription = null, size = 18.dp, tint = PleyColors.Warning)
         Spacer(Modifier.width(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(stringResource(R.string.admin_users_limit_unrated_title), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Fg)

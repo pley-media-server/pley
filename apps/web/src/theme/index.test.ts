@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import themeScript from "../../public/theme.js?raw";
 import { logoIcon } from "@/components/Logo";
-import { ACCENT_KEY, ACCENTS, currentAccent, currentTheme, isAccent, isTheme, onTheme, showAccent, showTheme, startTheme, THEME_KEY, THEMES } from ".";
+import { renderHook } from "@testing-library/react";
+import { ACCENT_KEY, ACCENTS, currentAccent, currentTheme, isAccent, isTheme, onTheme, showAccent, showProfile, showTheme, startTheme, THEME_KEY, THEMES, useOutsideProfile } from ".";
 
 afterEach(() => {
   localStorage.clear();
@@ -94,6 +95,96 @@ describe("themes", () => {
   });
 });
 
+describe("each profile", () => {
+  it("keeps its own theme and accent on this device, a new one starting in Midnight", () => {
+    startTheme();
+    showProfile(1);
+    showTheme("starlight");
+    showAccent("amber");
+    expect(localStorage.getItem(`${THEME_KEY}.1`)).toBe("starlight");
+    expect(localStorage.getItem(`${ACCENT_KEY}.1`)).toBe("amber");
+
+    // Another profile, new to this device, starts in Midnight in its own accent.
+    showProfile(2);
+    expect(currentTheme()).toBe("midnight");
+    expect(currentAccent()).toBeNull();
+    expect(document.documentElement.dataset.theme).toBe("midnight");
+    showTheme("sunshine");
+
+    // Each comes back to its own.
+    showProfile(1);
+    expect(currentTheme()).toBe("starlight");
+    expect(currentAccent()).toBe("amber");
+    showProfile(2);
+    expect(currentTheme()).toBe("sunshine");
+    expect(currentAccent()).toBeNull();
+  });
+
+  it("leave the one shown last for the next visit, before a profile is known", () => {
+    startTheme();
+    showProfile(1);
+    showTheme("twilight");
+    showAccent("mint");
+    showProfile(2);
+    // The next visit starts as profile 2 left it, until it knows the profile.
+    startTheme();
+    expect(currentTheme()).toBe("midnight");
+    expect(currentAccent()).toBeNull();
+    showProfile(1);
+    startTheme();
+    expect(currentTheme()).toBe("twilight");
+    expect(currentAccent()).toBe("mint");
+  });
+
+  it("follows a pick made for it in another tab, and not one made for another profile", () => {
+    startTheme();
+    showProfile(1);
+    const listener = vi.fn();
+    const stop = onTheme(listener);
+    localStorage.setItem(`${THEME_KEY}.2`, "greenlight");
+    window.dispatchEvent(new StorageEvent("storage", { key: `${THEME_KEY}.2` }));
+    expect(currentTheme()).toBe("midnight");
+    localStorage.setItem(`${THEME_KEY}.1`, "moonlight");
+    window.dispatchEvent(new StorageEvent("storage", { key: `${THEME_KEY}.1` }));
+    expect(currentTheme()).toBe("moonlight");
+    expect(listener).toHaveBeenCalledTimes(1);
+    stop();
+  });
+});
+
+describe("outside a profile", () => {
+  it("is Midnight in its own accent, the profile's own coming back after", () => {
+    startTheme();
+    showProfile(1);
+    showTheme("starlight");
+    showAccent("amber");
+    // Signing in, "Who's watching?", setup: no profile's theme.
+    const screen = renderHook(() => useOutsideProfile());
+    expect(currentTheme()).toBe("midnight");
+    expect(currentAccent()).toBeNull();
+    expect(document.documentElement.dataset.theme).toBe("midnight");
+    // A reload there starts in Midnight too.
+    expect(localStorage.getItem(THEME_KEY)).toBe("midnight");
+    expect(localStorage.getItem(ACCENT_KEY)).toBeNull();
+    // The profile keeps its pick.
+    expect(localStorage.getItem(`${THEME_KEY}.1`)).toBe("starlight");
+    screen.unmount();
+    expect(currentTheme()).toBe("starlight");
+    expect(currentAccent()).toBe("amber");
+    expect(localStorage.getItem(THEME_KEY)).toBe("starlight");
+  });
+
+  it("stays Midnight when the profile becomes known under it", () => {
+    startTheme();
+    localStorage.setItem(`${THEME_KEY}.3`, "twilight");
+    const screen = renderHook(() => useOutsideProfile());
+    showProfile(3);
+    expect(currentTheme()).toBe("midnight");
+    screen.unmount();
+    expect(currentTheme()).toBe("twilight");
+  });
+});
+
 describe("accents", () => {
   it("are Pley's six, none being the theme's own", () => {
     expect(ACCENTS).toEqual(["sky", "violet", "miami", "gold", "mint", "amber"]);
@@ -139,6 +230,27 @@ describe("accents", () => {
     expect(currentTheme()).toBe("sunshine");
     expect(listener).toHaveBeenCalledTimes(3);
     stop();
+  });
+
+  it("are told to the desktop app with the theme, as they show", () => {
+    const theme = vi.fn();
+    const desktop = window as unknown as { __PLEY_APP__?: string; __PLEY_DESKTOP__?: unknown };
+    desktop.__PLEY_APP__ = "desktop";
+    desktop.__PLEY_DESKTOP__ = { theme };
+    try {
+      localStorage.setItem(THEME_KEY, "moonlight");
+      startTheme();
+      expect(theme).toHaveBeenLastCalledWith("moonlight", null);
+      showAccent("violet");
+      expect(theme).toHaveBeenLastCalledWith("moonlight", "violet");
+      showTheme("sunshine");
+      expect(theme).toHaveBeenLastCalledWith("sunshine", "violet");
+      showAccent(null);
+      expect(theme).toHaveBeenLastCalledWith("sunshine", null);
+    } finally {
+      delete desktop.__PLEY_APP__;
+      delete desktop.__PLEY_DESKTOP__;
+    }
   });
 
   it("are put on the page before it draws, from where the app keeps them", () => {

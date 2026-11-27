@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Added
 
+- Themes and accents, under Settings → Appearance, kept for each profile
+  on the TV.
 - A library's Collections are grouped by category, and can be narrowed
   to one category; a collection's page shows its category.
 - A row's See all opens the collection it shows, and a Home row of
@@ -37,6 +39,7 @@ describes how they are made.
   a key is pressed on the TV.
 - When the server has video transcoding turned off, the Quality menu
   offers only Original.
+- Live TV's player shows how a channel plays, as a film's player does.
 
 ### Changed
 

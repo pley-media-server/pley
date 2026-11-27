@@ -411,7 +411,7 @@ impl JumpControl<'_> {
                 chosen = Some(*letter);
             }
         }
-        let s = shade(ui, &focus::JUMP, &r);
+        let s = shade(ui, &focus::jump(), &r);
         ui.transform(Point::ZERO, s.scale, rect.center(), |ui| {
             ui.fill(rect, s.fill, radius::CONTROL);
             text_centred(ui, rect, &JUMP_LETTERS[*letter].to_string(), &theme::TITLE, s.content);
@@ -419,7 +419,7 @@ impl JumpControl<'_> {
         if s.progress > 0.0 {
             // The neighbors, in the 20 dp rooms above and below.
             let neighbour = |ui: &mut Ui, i: usize, y: f32| {
-                let c = if self.available[i] { theme::MUTED } else { theme::DISABLED.alpha(0.6) };
+                let c = if self.available[i] { theme::muted() } else { theme::disabled().alpha(0.6) };
                 let r = Rect::new(rect.x, y, Self::SIZE, 20.0);
                 let alpha = c.a as f32 / 255.0 * s.progress;
                 text_centred(ui, r, &JUMP_LETTERS[i].to_string(), &theme::CAPTION, Color { a: 255, ..c }.alpha(alpha));

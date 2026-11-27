@@ -118,6 +118,11 @@ internal fun PhoneGallery() {
             Swatches(PleyType.Phone.LabelSmall.copy(fontWeight = PleyType.Medium), 80.dp, columns = 4)
         }
 
+        PhoneSection("Themes")
+        Box(Modifier.padding(horizontal = PleyPhone.MarginCompact)) {
+            ThemesGrid(PleyType.Phone.LabelMedium, 160.dp, columns = 2)
+        }
+
         PhoneSection("Type")
         Column(Modifier.padding(horizontal = PleyPhone.MarginCompact), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Label("Display small 32", PleyType.Phone.DisplaySmall)

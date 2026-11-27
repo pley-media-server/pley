@@ -453,7 +453,7 @@ impl LibrariesScreen {
         }
         let title_y = theme::SAFE_Y + (header_h - theme::PAGE_TITLE.line_height) / 2.0;
         let title_w = right - theme::GUTTER;
-        ui.text(Point::new(theme::GUTTER, title_y), title, &theme::PAGE_TITLE, &TextOpts::line(title_w), theme::FG);
+        ui.text(Point::new(theme::GUTTER, title_y), title, &theme::PAGE_TITLE, &TextOpts::line(title_w), theme::fg());
 
         // The grid of cards under it.
         let view_top = theme::SAFE_Y + header_h + HEADER_TO_GRID;
@@ -627,7 +627,7 @@ impl LibrariesScreen {
                 &card.line,
                 &theme::CAPTION,
                 &TextOpts::line(area.w),
-                theme::MUTED,
+                theme::muted(),
             );
             y += caption.h + 12.0;
             let mut rows: Vec<(&str, Icon)> = vec![(t!("library.libraries.open"), Icon::ArrowRight)];
@@ -699,16 +699,16 @@ fn draw_card(
         ui.request_repaint();
     }
     let (fill, content, scale) = if lifted {
-        (theme::SURFACE3, theme::FG, 1.0)
+        (theme::surface3(), theme::fg(), 1.0)
     } else {
-        let s = shade(ui, &focus::LIBRARY_CARD, &r);
+        let s = shade(ui, &focus::library_card(), &r);
         (s.fill, s.content, s.scale)
     };
     ui.transform(Point::ZERO, scale, rect.center(), |ui| {
         ui.fill(rect, fill, radius::CARD);
         if lifted {
             let w = focus::RING_STROKE;
-            ui.stroke(rect.expand(-w / 2.0), theme::ACCENT_BRIGHT, radius::CARD - w / 2.0, w);
+            ui.stroke(rect.expand(-w / 2.0), theme::accent_bright(), radius::CARD - w / 2.0, w);
         }
         let well = Rect::new(rect.x + CARD_PAD, rect.y + (rect.h - WELL) / 2.0, WELL, WELL);
         ui.fill(well, content.alpha(theme::ICON_WELL_ALPHA), radius::CONTROL);
@@ -728,7 +728,7 @@ fn draw_card(
         }
         if sorting {
             let at = Rect::new(rect.right() - CARD_PAD - theme::ICON_SIZE, rect.y, theme::ICON_SIZE, rect.h);
-            let tint = if lifted { theme::ACCENT_BRIGHT } else { content.alpha(0.6) };
+            let tint = if lifted { theme::accent_bright() } else { content.alpha(0.6) };
             ui.icon(at.place(icon, 0.5, 0.5), Icon::GripVertical, tint);
         }
     });
@@ -741,8 +741,8 @@ fn draw_hint(ui: &mut Ui, text: &str) {
     let layout = ui.layout(text, &theme::LABEL, &TextOpts::line(theme::CANVAS_W - 2.0 * theme::GUTTER));
     let size = Size::new(layout.size.w + 40.0, layout.size.h + 24.0);
     let at = Point::new((theme::CANVAS_W - size.w) / 2.0, theme::CANVAS_H - theme::SAFE_Y - size.h);
-    ui.fill(Rect::from_origin_size(at, size), theme::SURFACE3, radius::CONTROL);
-    ui.draw_text(Point::new(at.x + 20.0, at.y + 12.0), layout, theme::FG);
+    ui.fill(Rect::from_origin_size(at, size), theme::surface3(), radius::CONTROL);
+    ui.draw_text(Point::new(at.x + 20.0, at.y + 12.0), layout, theme::fg());
 }
 
 impl Screen for LibrariesScreen {

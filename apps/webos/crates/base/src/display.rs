@@ -57,11 +57,13 @@ pub enum Cmd {
         colors: [Color; 4],
         radius: f32,
     },
-    /// A radial glow: `inner` at `center`, fading to `outer` at `radius`.
+    /// A radial glow: `inner` at `center`, fading to `outer` at `radius` across and
+    /// `radius × squash` down (1 for a circle, less for a flatter ellipse).
     RadialGradient {
         rect: Rect,
         center: Point,
         radius: f32,
+        squash: f32,
         inner: Color,
         outer: Color,
     },

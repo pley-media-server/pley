@@ -68,11 +68,11 @@ impl<'a> Badge<'a> {
 
     fn colors(&self) -> (Color, Color) {
         match self.style {
-            BadgeStyle::OnArt | BadgeStyle::Number => (theme::ON_ART, theme::FG),
-            BadgeStyle::Outline => (Color::TRANSPARENT, theme::MUTED),
-            BadgeStyle::Count => (theme::ACCENT, theme::ON_ACCENT),
-            BadgeStyle::Live => (theme::DANGER, theme::BG),
-            BadgeStyle::New => (theme::PRIMARY_CONTAINER, theme::ACCENT_BRIGHT),
+            BadgeStyle::OnArt | BadgeStyle::Number => (theme::on_art(), theme::fg()),
+            BadgeStyle::Outline => (Color::TRANSPARENT, theme::muted()),
+            BadgeStyle::Count => (theme::accent(), theme::on_accent()),
+            BadgeStyle::Live => (theme::danger(), theme::danger_fg()),
+            BadgeStyle::New => (theme::primary_container(), theme::accent_bright()),
         }
     }
 
@@ -92,7 +92,7 @@ impl<'a> Badge<'a> {
         let (fill, text) = self.colors();
         ui.fill(rect, fill, radius::BADGE);
         if self.style == BadgeStyle::Outline {
-            inner_stroke(ui, rect, theme::OUTLINE, radius::BADGE, 1.0);
+            inner_stroke(ui, rect, theme::outline(), radius::BADGE, 1.0);
         }
         let layout = ui.layout(self.text, &theme::BADGE, &free_line());
         let x = rect.x + (rect.w - layout.size.w) / 2.0;
@@ -213,7 +213,7 @@ impl<'a> MetaLine<'a> {
                 let g = gap(&self.parts[i - 1], p);
                 if g > QUALITY_GAP {
                     let layout = ui.layout("·", &theme::LABEL, &free_line());
-                    text_mid(ui, x + META_GAP, at.y, META_HEIGHT, layout, theme::SUBTLE);
+                    text_mid(ui, x + META_GAP, at.y, META_HEIGHT, layout, theme::subtle());
                 }
                 x += g;
             }
@@ -221,13 +221,13 @@ impl<'a> MetaLine<'a> {
                 Part::Lead(t) => {
                     let layout = ui.layout(t, &theme::LABEL, &line_within(Some(lead_room)));
                     let w = layout.size.w;
-                    text_mid(ui, x, at.y, META_HEIGHT, layout, theme::FG);
+                    text_mid(ui, x, at.y, META_HEIGHT, layout, theme::fg());
                     x += w;
                 }
                 Part::Text(t) => {
                     let layout = ui.layout(t, &theme::LABEL, &free_line());
                     let w = layout.size.w;
-                    text_mid(ui, x, at.y, META_HEIGHT, layout, theme::MUTED);
+                    text_mid(ui, x, at.y, META_HEIGHT, layout, theme::muted());
                     x += w;
                 }
                 Part::Rating(t) | Part::Quality(t) => {
@@ -235,11 +235,11 @@ impl<'a> MetaLine<'a> {
                 }
                 Part::Stars(t) => {
                     let star = Rect::new(x, at.y + (META_HEIGHT - self.star) / 2.0, self.star, self.star);
-                    ui.icon(star, Icon::Star, theme::ACCENT);
+                    ui.icon(star, Icon::Star, theme::accent());
                     x += self.star + 4.0;
                     let layout = ui.layout(t, &theme::LABEL, &free_line());
                     let w = layout.size.w;
-                    text_mid(ui, x, at.y, META_HEIGHT, layout, theme::FG);
+                    text_mid(ui, x, at.y, META_HEIGHT, layout, theme::fg());
                     x += w;
                 }
             }

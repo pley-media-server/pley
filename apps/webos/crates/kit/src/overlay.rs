@@ -2,7 +2,7 @@
 //!
 //! A side panel (`TvSidePanel` in `TvSurfaces.kt`; the player's `TvPlayerPanels.kt`) is 360 dp
 //! wide (440 for the player's Info) at the right edge, full height: Surface2 with its
-//! left corners rounded 8 and a 1 dp Surface4 line along its top, over a scrim of Bg at 60 %. It
+//! left corners rounded 8 and a 1 dp Surface4 line along its top, over a scrim of Shade at 60 %. It
 //! slides in from the right in 200 ms while the scrim fades (both in place with Reduce motion),
 //! keeps focus inside until it closes, and closes on Back or a click on the scrim; focus then goes
 //! back to what opened it. Its content sits 24 in from its left, 48 from its right and 27 from its
@@ -17,10 +17,10 @@ use crate::button::{Button, bar_group};
 use crate::list::ListRow;
 use crate::look::{inert, is_inert};
 
-/// Bg at 60 % over the whole screen, times `alpha` (a fading scrim).
+/// The scrim (Shade at 60 %) over the whole screen, times `alpha` (a fading scrim).
 pub fn scrim_fill(ui: &mut Ui, alpha: f32) {
     let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
-    ui.fill(full, theme::BG.alpha(0.6 * alpha.clamp(0.0, 1.0)), 0.0);
+    ui.fill(full, theme::scrim().alpha(alpha.clamp(0.0, 1.0)), 0.0);
 }
 
 /// A side panel.
@@ -99,8 +99,8 @@ impl SidePanel {
         }
         let x = theme::CANVAS_W - self.width * p;
         // Past the right edge by its radius, so only the left corners show rounded.
-        ui.fill(Rect::new(x, 0.0, self.width + radius::DIALOG, theme::CANVAS_H), theme::SURFACE2, radius::DIALOG);
-        ui.fill(Rect::new(x + radius::DIALOG, 0.0, self.width - radius::DIALOG, 1.0), theme::SURFACE4, 0.0);
+        ui.fill(Rect::new(x, 0.0, self.width + radius::DIALOG, theme::CANVAS_H), theme::surface2(), radius::DIALOG);
+        ui.fill(Rect::new(x + radius::DIALOG, 0.0, self.width - radius::DIALOG, 1.0), theme::surface4(), 0.0);
         let area = self.content_rect(p);
         if live {
             ui.group(id, Group::column().trap(), |ui| content(ui, area));
@@ -218,7 +218,7 @@ impl<'a> Dialog<'a> {
     }
 
     fn body_style(&self) -> (pley_base::TextStyle, pley_base::Color, f32) {
-        if self.reading { (theme::BODY_LARGE, theme::SUMMARY, 16.0) } else { (theme::BODY, theme::MUTED, 8.0) }
+        if self.reading { (theme::BODY_LARGE, theme::summary(), 16.0) } else { (theme::BODY, theme::muted(), 8.0) }
     }
 
     /// Where the dialog sits: centered, as wide as its content within 320 to 560 unless it has a
@@ -265,14 +265,15 @@ impl<'a> Dialog<'a> {
         let (style, color, gap) = self.body_style();
         let inner = rect.w - 2.0 * pad;
         ui.opacity(p, |ui| {
-            ui.fill(rect, theme::SURFACE2, radius::DIALOG);
+            ui.fill(rect, theme::surface2(), radius::DIALOG);
             // Clicks on the dialog itself aren't clicks outside it.
             if live {
                 ui.clickable(id.with("kit.card"), rect);
             }
             let mut y = rect.y + pad;
-            y +=
-                ui.text(Point::new(rect.x + pad, y), self.title, &theme::TITLE, &TextOpts::wrap(inner, 0), theme::FG).h;
+            y += ui
+                .text(Point::new(rect.x + pad, y), self.title, &theme::TITLE, &TextOpts::wrap(inner, 0), theme::fg())
+                .h;
             if !self.body.is_empty() {
                 y += gap;
                 ui.text(Point::new(rect.x + pad, y), self.body, &style, &TextOpts::wrap(inner, 0), color);
@@ -297,7 +298,7 @@ impl<'a> Dialog<'a> {
                         }
                         let mut button = Button::text(b.label);
                         if b.danger {
-                            button = button.color(theme::DANGER_TEXT);
+                            button = button.color(theme::danger());
                         }
                         if button.show(ui, bid, Point::new(x, by)).activated {
                             chosen = Some(i);
@@ -377,9 +378,9 @@ impl<'a> ActionSheet<'a> {
         let at = ActionSheet::ORIGIN;
         let w = ActionSheet::WIDTH;
         let mut y = at.y;
-        y += ui.text(Point::new(at.x, y), self.title, &theme::PAGE_TITLE, &TextOpts::wrap(w, 2), theme::FG).h;
+        y += ui.text(Point::new(at.x, y), self.title, &theme::PAGE_TITLE, &TextOpts::wrap(w, 2), theme::fg()).h;
         if !self.subtitle.is_empty() {
-            y += ui.text(Point::new(at.x, y), self.subtitle, &theme::BODY, &TextOpts::line(w), theme::MUTED).h;
+            y += ui.text(Point::new(at.x, y), self.subtitle, &theme::BODY, &TextOpts::line(w), theme::muted()).h;
         }
         y += 24.0;
         let mut chosen = None;

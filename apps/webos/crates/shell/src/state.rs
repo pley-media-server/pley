@@ -26,7 +26,7 @@ use pley_core::model::{
 };
 use pley_core::model::{RequestList, RequestQuery, RequestSummary, ScanPhase, ServerEvent, SwitchTicket, TitleKind};
 use pley_core::requests::title_key;
-use pley_core::store::{SavedServer, Snapshots, keys, snapshot_keys};
+use pley_core::store::{SavedServer, Snapshots, ThemePick, keys, snapshot_keys};
 use pley_core::{Api, ApiError, CapsOverrides, CapsReport, CastReceiver, Device, EventStream, Http, Promise, Settings};
 use pley_core::{Store, StreamNews, Tasks};
 use pley_i18n::{Language, t};
@@ -783,6 +783,32 @@ impl AppState {
     pub fn set_always_start_as(&mut self, profile: Option<i64>) {
         let Some(server) = self.server.clone() else { return };
         self.update_settings(|s| s.set_always_start_as(&server, profile));
+    }
+
+    /// The profile whose theme shows (docs/THEMES.md): the one signed in on this server, once
+    /// known.
+    fn theme_owner(&self) -> Option<(String, i64)> {
+        if !self.signed_in() {
+            return None;
+        }
+        Some((self.server.clone()?, self.profile()?))
+    }
+
+    /// The theme and accent of the profile signed in, on this TV: Midnight in its own accent when
+    /// it picked none here, or when no profile is known. A saved sign-in names its profile before
+    /// the first frame, so a start shows the profile's from there.
+    pub fn theme_pick(&self) -> ThemePick {
+        match self.theme_owner() {
+            Some((server, profile)) => self.settings.theme_of(&server, profile),
+            None => ThemePick::default(),
+        }
+    }
+
+    /// Picks a theme and accent for the profile signed in on this TV; with none, nothing is kept.
+    pub fn pick_theme(&mut self, pick: ThemePick) {
+        if let Some((server, profile)) = self.theme_owner() {
+            self.update_settings(|s| s.set_theme(&server, profile, pick));
+        }
     }
 
     // What the server has.

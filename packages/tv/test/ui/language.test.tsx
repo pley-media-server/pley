@@ -420,11 +420,11 @@ describe("Settings' Language row", () => {
     await show("en", null);
     const categories = () => Array.from(root!.querySelectorAll(".settings-categories .row-label")).map((el) => el.textContent);
     const audio = () => root!.querySelector('[data-fid="row-audio"]')!;
-    expect(categories()).toEqual(["Profile", "Playback", "Audio", "Subtitles and display", "Server", "Diagnostics", "About", "Sign out"]);
+    expect(categories()).toEqual(["Profile", "Playback", "Audio", "Subtitles and display", "Appearance", "Server", "Diagnostics", "About", "Sign out"]);
     expect(audio().querySelector(".row-value")!.textContent).toBe("The file's default");
     act(() => setLanguage("fr"));
     expect(root!.querySelector(".t-page")!.textContent).toBe("Paramètres");
-    expect(categories()).toEqual(["Profil", "Lecture", "Audio", "Sous-titres et affichage", "Serveur", "Diagnostic", "À propos", "Se déconnecter"]);
+    expect(categories()).toEqual(["Profil", "Lecture", "Audio", "Sous-titres et affichage", "Apparence", "Serveur", "Diagnostic", "À propos", "Se déconnecter"]);
     expect(audio().querySelector(".row-label")!.textContent).toBe("Langue audio");
     expect(audio().querySelector(".row-value")!.textContent).toBe("Celle du fichier par défaut");
   });

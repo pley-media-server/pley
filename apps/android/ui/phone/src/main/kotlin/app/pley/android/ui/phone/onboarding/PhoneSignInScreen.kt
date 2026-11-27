@@ -239,7 +239,7 @@ internal fun PhoneSignInContent(
     Box(
         Modifier
             .fillMaxSize()
-            .brandCorner()
+            .brandCorner(PleyColors.BrandDeep)
             .imePadding()
             .testTag(SIGN_IN_TAG),
     ) {

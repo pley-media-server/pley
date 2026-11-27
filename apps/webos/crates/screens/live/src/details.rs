@@ -61,27 +61,27 @@ pub fn show(
 
     let mut y = area.y;
     let tile = Rect::new(area.x, y, 64.0, 38.0);
-    channel_tile(ui, cx, tile, channel, Well::PAGE);
+    channel_tile(ui, cx, tile, channel, Well::page());
     let title = [channel.number.as_deref().filter(|n| !n.is_empty()), Some(channel.name.as_str())]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>()
         .join("  ");
     let tx = tile.right() + 12.0;
-    crate::draw::line_mid(ui, &title, &theme::LABEL, tx, y, tile.h, area.right() - tx, theme::MUTED);
+    crate::draw::line_mid(ui, &title, &theme::LABEL, tx, y, tile.h, area.right() - tx, theme::muted());
     y = tile.bottom();
     if let Some(p) = program {
         if let Some(req) = p.image.as_deref().and_then(|path| cx.image(path, ui.image_px(area.w))) {
             y += 14.0;
             let rect = Rect::new(area.x, y, area.w, 160.0);
-            ui.fill(rect, theme::SURFACE2, radius::TILE);
+            ui.fill(rect, theme::surface2(), radius::TILE);
             ui.image(rect, &req, &ImageOpts::cover().rounded(radius::TILE));
             y = rect.bottom();
         }
         y += 14.0;
         let t = ui.layout(&p.title, &theme::TITLE, &TextOpts::wrap(area.w, 2));
         let th = t.size.h;
-        ui.draw_text(Point::new(area.x, y), t, theme::FG);
+        ui.draw_text(Point::new(area.x, y), t, theme::fg());
         y += th;
         let episode = [p.episode_label(), p.subtitle.clone().filter(|s| !s.trim().is_empty())]
             .into_iter()
@@ -90,7 +90,7 @@ pub fn show(
             .join(" · ");
         if !episode.is_empty() {
             y += 2.0;
-            ui.text(Point::new(area.x, y), &episode, &theme::BODY, &TextOpts::line(area.w), theme::MUTED);
+            ui.text(Point::new(area.x, y), &episode, &theme::BODY, &TextOpts::line(area.w), theme::muted());
             y += theme::BODY.line_height;
         }
         y += 8.0;
@@ -101,15 +101,15 @@ pub fn show(
             let lw = crate::draw::measure(ui, &left, &theme::CAPTION);
             let line_h = theme::CAPTION.line_height;
             let bar = Rect::new(area.x, y + (line_h - 3.0) / 2.0, (area.w - lw - 10.0).max(0.0), 3.0);
-            progress(ui, bar, p, now, theme::SURFACE4, theme::ACCENT);
-            ui.text(Point::new(area.right() - lw, y), &left, &theme::CAPTION, &TextOpts::default(), theme::SUBTLE);
+            progress(ui, bar, p, now, theme::surface4(), theme::accent());
+            ui.text(Point::new(area.right() - lw, y), &left, &theme::CAPTION, &TextOpts::default(), theme::subtle());
             y += line_h;
         }
         y += 10.0;
         let described = p.description.as_deref().filter(|d| !d.trim().is_empty());
         let (text, color) = match described {
-            Some(d) => (d, theme::FG),
-            None => (t!("livetv.program.noDescription"), theme::SUBTLE),
+            Some(d) => (d, theme::fg()),
+            None => (t!("livetv.program.noDescription"), theme::subtle()),
         };
         // As many lines as the room above the buttons holds, 6 at most, at least 1
         // (`LiveKit.cs`), less the line saying it has ended.
@@ -124,7 +124,7 @@ pub fn show(
         if ended {
             y += 8.0;
             let ended = t!("livetv.program.ended");
-            ui.text(Point::new(area.x, y), ended, &theme::CAPTION, &TextOpts::line(area.w), theme::SUBTLE);
+            ui.text(Point::new(area.x, y), ended, &theme::CAPTION, &TextOpts::line(area.w), theme::subtle());
         }
     }
 
@@ -164,7 +164,7 @@ fn facts(ui: &mut Ui, area: Rect, y: f32, p: &LiveProgram, clock: &Clock) -> f32
         &when,
         &theme::CAPTION,
         &TextOpts::line(area.w),
-        theme::MUTED,
+        theme::muted(),
     );
     let (mut x, mut top) = (area.x + ww + 6.0, y);
     let rating_badge = rating.as_deref().map(|r| Badge::new(r, BadgeStyle::Outline));

@@ -97,15 +97,16 @@ fun PleyTopAppBar(
     solid: (() -> Float)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
+    val palette = PleyColors.palette
     val margin = LocalPhoneMetrics.current.margin
     val container = if (solid == null) PleyColors.Bg else Color.Transparent
     val over = if (solid == null) {
         Modifier
     } else {
         Modifier.drawBehind {
-            drawRect(Brush.verticalGradient(0f to PleyColors.Bg.copy(alpha = 0.6f), 1f to Color.Transparent))
+            drawRect(Brush.verticalGradient(0f to palette.bg.copy(alpha = 0.6f), 1f to Color.Transparent))
             val a = solid()
-            if (a > 0f) drawRect(PleyColors.Bg.copy(alpha = a))
+            if (a > 0f) drawRect(palette.bg.copy(alpha = a))
         }
     }
     Column(modifier.fillMaxWidth().then(over)) {
@@ -134,7 +135,7 @@ fun PleyTopAppBar(
                     drawContent()
                     if (scrolled()) {
                         val hair = 1.dp.toPx()
-                        drawLine(PleyColors.Surface4, Offset(0f, size.height - hair / 2f), Offset(size.width, size.height - hair / 2f), hair)
+                        drawLine(palette.border, Offset(0f, size.height - hair / 2f), Offset(size.width, size.height - hair / 2f), hair)
                     }
                 },
         )

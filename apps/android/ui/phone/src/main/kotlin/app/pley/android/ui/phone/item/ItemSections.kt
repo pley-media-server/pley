@@ -565,6 +565,7 @@ internal fun EpisodeRowSkeleton(skeleton: SkeletonState, modifier: Modifier = Mo
  */
 @Composable
 internal fun DetailsSection(page: ItemPage, actions: PageActions, modifier: Modifier = Modifier) {
+    val palette = PleyColors.palette
     val details = page.details
     Column(modifier.fillMaxWidth().padding(top = PleyPhone.SectionGap)) {
         SectionTitle(stringResource(R.string.item_details))
@@ -576,18 +577,18 @@ internal fun DetailsSection(page: ItemPage, actions: PageActions, modifier: Modi
                 else -> stringResource(if (line.plural) R.string.item_writers else R.string.item_writer)
             }
             val more = if (line.more > 0) pluralStringResource(R.plurals.item_and_more, line.more, line.more) else null
-            val text = remember(line, more) {
+            val text = remember(line, more, palette) {
                 buildAnnotatedString {
                     line.people.forEachIndexed { i, person ->
                         if (i > 0) append(", ")
                         withLink(
                             LinkAnnotation.Clickable(
                                 tag = "person-${person.id}",
-                                styles = TextLinkStyles(SpanStyle(color = PleyColors.Fg)),
+                                styles = TextLinkStyles(SpanStyle(color = palette.fg)),
                             ) { actions.openPerson(person.id) },
                         ) { append(person.name) }
                     }
-                    if (more != null) withStyle(SpanStyle(color = PleyColors.Muted)) { append(" $more") }
+                    if (more != null) withStyle(SpanStyle(color = palette.muted)) { append(" $more") }
                 }
             }
             DetailRow(label, text)

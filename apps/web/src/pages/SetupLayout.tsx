@@ -6,6 +6,7 @@ import { Logo } from "@/components/Logo";
 import { ProgressBar } from "@/components/ui";
 import { LanguagePicker } from "@/i18n/LanguagePicker";
 import { SetupFrameContext, useSetupFrame } from "@/lib/setupFrame";
+import { useOutsideProfile } from "@/theme";
 
 /**
  * Setup, from the administrator's account to the first libraries or the
@@ -14,6 +15,8 @@ import { SetupFrameContext, useSetupFrame } from "@/lib/setupFrame";
  */
 export function SetupLayout() {
   const { t } = useTranslation("pages");
+  // Setting up comes before any profile: Pley's own Midnight.
+  useOutsideProfile();
   const { pathname } = useLocation();
   const [progress, setProgress] = useState(0);
   const frame = useMemo(() => ({ setProgress }), []);

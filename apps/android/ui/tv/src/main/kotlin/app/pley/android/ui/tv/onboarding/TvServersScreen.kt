@@ -197,7 +197,7 @@ internal fun TvServersContent(
     Box(
         Modifier
             .fillMaxSize()
-            .brandGlow()
+            .brandGlow(PleyColors.BrandDeep)
             .onPreviewKeyEvent {
                 touched = true
                 false
@@ -304,6 +304,7 @@ private fun TvServerRow(
     onLongClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val palette = PleyColors.palette
     var focused by remember { mutableStateOf(false) }
     val interactions = remember { MutableInteractionSource() }
     val ink = if (focused) PleyColors.OnAccent else PleyColors.Fg
@@ -317,7 +318,7 @@ private fun TvServerRow(
             .menuKey(onLongClick)
             .combinedClickable(interactionSource = interactions, indication = null, onLongClick = onLongClick, onClick = onClick)
             .drawBehind {
-                if (focused) drawRoundRect(PleyColors.Accent, size = Size(size.width, size.height), cornerRadius = CornerRadius(PleyShape.CardRadius.toPx()))
+                if (focused) drawRoundRect(palette.accent, size = Size(size.width, size.height), cornerRadius = CornerRadius(PleyShape.CardRadius.toPx()))
             }
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -389,13 +390,14 @@ private fun ServersStatus(state: ServersUiState, onOpenSettings: () -> Unit, mod
 /** The sweep's 160 × 4 bar, filling over the 5 s it takes at most. */
 @Composable
 private fun SweepBar() {
+    val palette = PleyColors.palette
     val progress = remember { Animatable(0f) }
     LaunchedEffect(Unit) { progress.animateTo(1f, tween(SWEEP_MS, easing = LinearEasing)) }
     Box(
         Modifier.size(160.dp, 4.dp).drawBehind {
             val r = CornerRadius(size.height / 2f)
-            drawRoundRect(PleyColors.Surface4, cornerRadius = r)
-            drawRoundRect(PleyColors.Accent, size = Size(size.width * progress.value, size.height), cornerRadius = r)
+            drawRoundRect(palette.border, cornerRadius = r)
+            drawRoundRect(palette.accent, size = Size(size.width * progress.value, size.height), cornerRadius = r)
         },
     )
 }

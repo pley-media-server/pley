@@ -7,7 +7,7 @@ use pley_base::{Cmd, ImageRequest, Key, Priority, Rect};
 
 use super::row;
 use crate::testing::{Harness, Step};
-use crate::theme::{BG, FG};
+use crate::theme::{bg, fg};
 use crate::{Easing, Group, Id, ImageOpts, Motion, Tier, Ui};
 
 #[test]
@@ -135,7 +135,7 @@ fn colours_and_rectangles_animate_too() {
     let on = Cell::new(false);
     let seen = RefCell::new(Vec::new());
     let mut screen = |ui: &mut Ui| {
-        let c = ui.animate_color(Id::new("c"), if on.get() { FG } else { BG }, Motion::PRESS);
+        let c = ui.animate_color(Id::new("c"), if on.get() { fg() } else { bg() }, Motion::PRESS);
         let r = ui.animate_rect(
             Id::new("r"),
             if on.get() { Rect::new(100.0, 0.0, 200.0, 20.0) } else { Rect::new(0.0, 0.0, 100.0, 20.0) },
@@ -151,12 +151,12 @@ fn colours_and_rectangles_animate_too() {
     let (time, c, r) = *seen.borrow().last().unwrap();
     assert!((time - 3.0 / 60.0).abs() < 1e-9);
     // Half way through PRESS's 100 ms, linear.
-    let mid = BG.lerp(FG, 0.5);
+    let mid = bg().lerp(fg(), 0.5);
     let near = |a: u8, b: u8| a.abs_diff(b) <= 1;
     assert!(near(c.r, mid.r) && near(c.g, mid.g) && near(c.b, mid.b) && c.a == 255, "{c:?}");
     assert!((r.x - 50.0).abs() < 1e-3 && (r.w - 150.0).abs() < 1e-3, "{r:?}");
     h.run(&[Step::Wait(1.0)], &mut screen);
-    assert_eq!(seen.borrow().last().unwrap().1, FG);
+    assert_eq!(seen.borrow().last().unwrap().1, fg());
 }
 
 #[test]

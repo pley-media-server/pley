@@ -109,7 +109,7 @@ class TvSettingsFocusTest {
     @Test
     fun aHeldDownStopsOnTheLastCategoryAndOnlyAPressGoesOnBelow() {
         show(below = true)
-        compose.press(Key.DirectionDown, times = 6)
+        compose.press(Key.DirectionDown, times = 7)
         category(Category.About).assertIsFocused()
         // The press moves down to Sign out; held from 400 ms, Down goes no further.
         compose.hold(Key.DirectionDown)
@@ -200,9 +200,31 @@ class TvSettingsFocusTest {
     }
 
     @Test
+    fun appearanceOpensItsPage() {
+        show()
+        compose.press(Key.DirectionDown, times = 4)
+        category(Category.Appearance).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        compose.focused().assert(hasText("Theme")).assert(hasText("Midnight"))
+        compose.press(Key.DirectionCenter)
+        compose.runOnIdle { assertEquals(PleyKey.Appearance(), stack.last()) }
+    }
+
+    @Test
+    fun accentOpensThePageOnTheAccents() {
+        show()
+        compose.press(Key.DirectionDown, times = 4)
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasText("Accent")).assert(hasText("Default"))
+        compose.press(Key.DirectionCenter)
+        compose.runOnIdle { assertEquals(PleyKey.Appearance(accent = true), stack.last()) }
+    }
+
+    @Test
     fun diagnosticsShowsTheFrameRateOnSelect() {
         show()
-        compose.press(Key.DirectionDown, times = 5)
+        compose.press(Key.DirectionDown, times = 6)
         category(Category.Diagnostics).assertIsFocused()
         compose.press(Key.DirectionRight)
         compose.focused().assert(hasText("Open diagnostics"))
@@ -218,7 +240,7 @@ class TvSettingsFocusTest {
     @Test
     fun aboutCreditsTmdbAfterTheLicences() {
         show()
-        compose.press(Key.DirectionDown, times = 6)
+        compose.press(Key.DirectionDown, times = 7)
         category(Category.About).assertIsFocused()
         compose.press(Key.DirectionRight)
         compose.press(Key.DirectionDown, times = licences().size + 1)
@@ -229,7 +251,7 @@ class TvSettingsFocusTest {
     @Test
     fun signOutAsksFirstWithFocusOnCancel() {
         show()
-        compose.press(Key.DirectionDown, times = 7)
+        compose.press(Key.DirectionDown, times = 8)
         category(Category.SignOut).assertIsFocused()
         compose.press(Key.DirectionCenter)
         // Short and plain: the question, one line, Cancel and Sign out.

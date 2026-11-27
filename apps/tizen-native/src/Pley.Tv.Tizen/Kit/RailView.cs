@@ -8,8 +8,8 @@ using Tizen.NUI.BaseComponents;
 
 namespace Pley.Tv.Tizen.Kit;
 
-/// <summary>Who the rail's avatar shows: a name, and the profile's color or picture.</summary>
-sealed record RailProfile(string Name, Color? Color = null)
+/// <summary>Who the rail's avatar shows: a name, and the profile's color with its initial's ink, as an avatar's (<see cref="AvatarView"/>).</summary>
+sealed record RailProfile(string Name, Color? Color = null, Color? Ink = null)
 {
     public string Initial => Name.Length > 0 ? char.ToUpperInvariant(Name[0]).ToString() : "";
 }
@@ -181,6 +181,8 @@ sealed class RailView : View
     public void SetProfile(RailProfile? profile)
     {
         avatarInitial.Text = profile?.Initial ?? "";
+        // The profile's own color, whatever the theme: its initial is dark or white as that color needs.
+        avatarInitial.TextColor = profile?.Ink ?? PleyColors.Fg;
         avatarCircle.BackgroundColor = profile?.Color ?? PleyColors.Surface3;
         avatar.SetLabel(profile?.Name ?? "");
     }

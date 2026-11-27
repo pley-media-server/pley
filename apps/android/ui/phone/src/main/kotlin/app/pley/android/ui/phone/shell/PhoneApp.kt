@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
@@ -90,6 +91,8 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.theme.Appearance
+import app.pley.android.designsystem.theme.ThemedWindow
 import app.pley.android.player.CastFrom
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.ScreensGraph
@@ -125,6 +128,7 @@ import app.pley.android.ui.phone.requests.RequestsTabIcon
 import app.pley.android.ui.phone.requests.requestsEntries
 import app.pley.android.ui.phone.search.searchEntries
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
+import app.pley.android.ui.phone.theme.PhonePalette
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
@@ -209,18 +213,27 @@ internal fun PhoneShell(
             override fun playOn(target: CastTarget) = shell.playOn(target)
         }
     }
-    CompositionLocalProvider(
-        LocalPhoneNavigator provides navigation,
-        LocalPhoneShell provides shell,
-        LocalPlayOn provides playOn,
-        LocalOffline provides shell.offlineState,
-        LocalOfflineAction provides offlineAction.takeIf { navigation.inside },
-        LocalPhoneDeviceTier provides tier,
-    ) {
-        if (navigation.inside) {
-            key(navigation.generation) { Tabs(navigation, shell, entries) }
-        } else {
-            GettingIn(navigation, shell, entries)
+    // Outside a profile (getting in, "Who's watching?"), Midnight in its own accent; inside, the profile's pick.
+    val outside = !navigation.inside
+    val palette = Appearance.paletteFor(outside)
+    val context = LocalContext.current
+    LaunchedEffect(outside) { Appearance.outside(context, outside) }
+    PhonePalette(palette) {
+        // The window under the pages, in the same colors (docs/THEMES.md).
+        ThemedWindow(palette)
+        CompositionLocalProvider(
+            LocalPhoneNavigator provides navigation,
+            LocalPhoneShell provides shell,
+            LocalPlayOn provides playOn,
+            LocalOffline provides shell.offlineState,
+            LocalOfflineAction provides offlineAction.takeIf { navigation.inside },
+            LocalPhoneDeviceTier provides tier,
+        ) {
+            if (navigation.inside) {
+                key(navigation.generation) { Tabs(navigation, shell, entries) }
+            } else {
+                GettingIn(navigation, shell, entries)
+            }
         }
     }
 }
@@ -353,6 +366,7 @@ private fun GettingIn(navigation: PhoneNavigation, shell: PhoneShellState, entri
 /** In: the navigation bar or rail, each tab's back stack, the remote's bar, the mini player and the toasts above the bar. */
 @Composable
 private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (NavKey) -> NavEntry<NavKey>) {
+    val palette = PleyColors.palette
     val stacks: Map<PhoneTab, NavBackStack<NavKey>> = PhoneTab.entries.associateWith { rememberNavBackStack(it.root) }
     DisposableEffect(stacks) {
         navigation.attach(stacks)
@@ -370,7 +384,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
         selectedTextColor = PleyColors.Fg,
         // Under the page, no pill behind the chosen tab: its accent icon and bright label say it. In the rail, where
         // there's no label, the web's sidebar mark: a faint fill behind it and an accent bar on its edge (railMark).
-        selectedIndicatorColor = if (rail) RailFill else Color.Transparent,
+        selectedIndicatorColor = if (rail) PleyColors.Fg.copy(alpha = RAIL_FILL) else Color.Transparent,
         unselectedIconColor = PleyColors.Muted,
         unselectedTextColor = PleyColors.Muted,
     )
@@ -391,7 +405,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                     },
                     label = if (iconsAlone) null else ({ FittedLabel(name) }),
                     colors = itemColors,
-                    modifier = Modifier.testTag(TAB_TAG + item.name).then(if (rail && item == tab) Modifier.railMark() else Modifier),
+                    modifier = Modifier.testTag(TAB_TAG + item.name).then(if (rail && item == tab) Modifier.railMark(palette.accent) else Modifier),
                 )
             }
         },
@@ -420,9 +434,9 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                     val hair = 1.dp.toPx()
                     if (rail) {
                         val x = if (rtl) size.width - hair / 2f else hair / 2f
-                        drawLine(PleyColors.Surface4, Offset(x, 0f), Offset(x, size.height), hair)
+                        drawLine(palette.border, Offset(x, 0f), Offset(x, size.height), hair)
                     } else {
-                        drawLine(PleyColors.Surface4, Offset(0f, size.height - hair / 2f), Offset(size.width, size.height - hair / 2f), hair)
+                        drawLine(palette.border, Offset(0f, size.height - hair / 2f), Offset(size.width, size.height - hair / 2f), hair)
                     }
                 },
         ) {
@@ -546,14 +560,14 @@ private fun fadeThrough(reduced: Boolean): ContentTransform {
     return fadeIn(tween(PleyMotion.SCREEN_MS - out, delayMillis = out, easing = LinearEasing)) togetherWith fadeOut(tween(out, easing = LinearEasing))
 }
 
-/** The chosen tab's fill in the rail: white at 7 %, the web sidebar's. */
-private val RailFill = Color.White.copy(alpha = 0.07f)
+/** The chosen tab's fill in the rail: the words' color at 7 %, the web sidebar's. */
+private const val RAIL_FILL = 0.07f
 
 /**
  * The chosen tab's bar in the rail, as the web's sidebar marks its link: 3 dp of accent on the edge toward the
  * screen's, 6 dp short of the item's top and bottom, its outer corners square.
  */
-private fun Modifier.railMark(): Modifier = drawBehind {
+private fun Modifier.railMark(accent: Color): Modifier = drawBehind {
     val width = 3.dp.toPx()
     val inset = 6.dp.toPx()
     val radius = CornerRadius(width, width)
@@ -569,7 +583,7 @@ private fun Modifier.railMark(): Modifier = drawBehind {
             ),
         )
     }
-    drawPath(path, PleyColors.Accent)
+    drawPath(path, accent)
 }
 
 /** The test tag of each tab's item in the bar or rail: this and the tab's name. */

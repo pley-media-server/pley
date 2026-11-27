@@ -211,7 +211,7 @@
     },
     "theme": {
       "title": "Theme",
-      "hint": "How Pley looks on this device. Each browser, and the desktop app, keeps its own.",
+      "hint": "How Pley looks for you on this device. Each profile keeps its own.",
       "names": {
         "midnight": "Midnight",
         "midday": "Midday",

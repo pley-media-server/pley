@@ -383,15 +383,15 @@ private val BarItemHeight = 48.dp
 /** The badge's colors for [method], the session's name for how it plays, or for [type] where the details know it. */
 @Composable
 @ReadOnlyComposable
-internal fun methodColors(type: PlaybackMethod?): BadgeColors = PlayerLook.badgeColors(type)
+internal fun methodColors(type: PlaybackMethod?): BadgeColors = PlayerLook.badgeColors(type, PleyColors.palette)
 
 /** "Direct play", "Direct stream" or "Transcoding" in its color; it opens Playback details. */
 @Composable
-internal fun MethodBadge(method: String, type: PlaybackMethod?, onClick: () -> Unit) {
+internal fun MethodBadge(method: String, type: PlaybackMethod?, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = methodColors(type)
     val description = stringResource(R.string.player_method_hint, method)
     Box(
-        Modifier
+        modifier
             .heightIn(min = 48.dp)
             .clip(PleyShape.Badge)
             .clickable(role = Role.Button, onClick = onClick)

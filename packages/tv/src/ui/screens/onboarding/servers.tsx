@@ -306,7 +306,7 @@ export function ServersScreen() {
             { label: t("common.actions.cancel"), initial: true, onSelect: () => setForgetting(null) },
             {
               label: t("onboarding.servers.forget"),
-              color: "var(--danger-text)",
+              color: "var(--danger)",
               onSelect: () => {
                 const r = forgetting;
                 setForgetting(null);

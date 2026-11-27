@@ -62,11 +62,11 @@ impl Counted<'_> {
             if let Some(count) = &self.count {
                 let pill = Rect::new(x + 8.0, rect.y + (rect.h - COUNT_H) / 2.0, count_w - 8.0, COUNT_H);
                 let (fill, text) = if self.danger {
-                    (theme::DANGER, theme::BG)
+                    (theme::danger(), theme::danger_fg())
                 } else if r.focused {
-                    (theme::ON_ACCENT.alpha(0.16), s.content)
+                    (theme::on_accent().alpha(0.16), s.content)
                 } else {
-                    (self.count_fill(), theme::FG)
+                    (self.count_fill(), theme::fg())
                 };
                 ui.fill(pill, fill, COUNT_H / 2.0);
                 let layout = ui.layout(count, &theme::BADGE, &TextOpts::default());
@@ -79,7 +79,7 @@ impl Counted<'_> {
 
     fn count_fill(&self) -> pley_base::Color {
         // The way to the requests counts in the accent; tabs on Surface4.
-        if self.icon.is_some() { theme::ACCENT } else { theme::SURFACE4 }
+        if self.icon.is_some() { theme::accent() } else { theme::surface4() }
     }
 }
 

@@ -56,7 +56,7 @@
   top: 0;
   width: 960px;
   height: 540px;
-  background: radial-gradient(circle 576px at 100% 100%, rgba(2, 132, 199, 0.18), rgba(2, 132, 199, 0)), #0b0d10;
+  background: radial-gradient(circle 576px at 100% 100%, rgba(var(--brand-deep-rgb), 0.18), rgba(var(--brand-deep-rgb), 0)), var(--bg);
 }
 .plain-bg { position: absolute; left: 0; top: 0; width: 960px; height: 540px; background: var(--bg); }
 .step-fade { animation: step-in 200ms cubic-bezier(0.4, 0, 0.2, 1); }
@@ -125,10 +125,10 @@
   justify-content: center;
   flex: none;
 }
-.server-row[data-focused] .server-icon { background: rgba(3, 19, 31, 0.12); }
+.server-row[data-focused] .server-icon { background: rgba(var(--on-accent-rgb), 0.12); }
 .server-text { flex: 1; min-width: 0; }
 .server-tag { display: flex; align-items: center; flex: none; margin-left: 8px; }
-.found-dot { width: 8px; height: 8px; border-radius: 50%; background: #3fb27f; margin-right: 8px; }
+.found-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); margin-right: 8px; }
 .server-buttons { display: flex; }
 .server-buttons > * + * { margin-left: 12px; }
 .server-status { margin-top: 16px; width: 520px; }
@@ -195,7 +195,7 @@
 .qr-tile { width: 268px; height: 268px; border-radius: 8px; overflow: hidden; background: var(--surface2); }
 .qr-tile.dim { opacity: 0.4; }
 .signed-in { position: absolute; left: 96px; top: 200px; width: 440px; }
-.signed-in-tile { width: 64px; height: 64px; border-radius: 8px; background: #3fb27f; display: flex; align-items: center; justify-content: center; }
+.signed-in-tile { width: 64px; height: 64px; border-radius: 8px; background: var(--success); display: flex; align-items: center; justify-content: center; }
 
 /* Profiles */
 .profile-avatar {
@@ -283,19 +283,19 @@
 /* The hero's place while it is hidden: the pointer moving into it brings the hero back. */
 .hero-zone { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 .hero-title { height: 72px; display: flex; flex-direction: column; justify-content: flex-end; }
-.hero-summary { margin-top: 10px; color: rgba(233, 235, 239, 0.85); }
+.hero-summary { margin-top: 10px; color: rgba(var(--fg-rgb), 0.85); }
 .hero-buttons { margin-top: 20px; }
 /* A featured title: why it is there, over its name. */
 .hero-label {
   margin-bottom: 12px;
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: rgba(233, 235, 239, 0.85);
+  color: rgba(var(--fg-rgb), 0.85);
 }
 /* Taking turns, the summary keeps its three lines' room: the buttons stay where they are. */
 .hero.turns .hero-summary { min-height: 66px; }
 .hero-turns { display: flex; gap: 8px; margin: 18px 0 0 24px; height: 4px; }
-.hero-turns span { width: 14px; height: 4px; border-radius: 2px; background: rgba(233, 235, 239, 0.3); }
+.hero-turns span { width: 14px; height: 4px; border-radius: 2px; background: rgba(var(--fg-rgb), 0.3); }
 .hero-turns span.on { width: 36px; background: var(--fg); }
 .info-block {
   position: absolute;
@@ -309,7 +309,7 @@
 }
 .info-block.in { opacity: 1; }
 .info-title { height: 52px; display: flex; flex-direction: column; justify-content: flex-end; }
-.info-summary { color: rgba(233, 235, 239, 0.85); }
+.info-summary { color: rgba(var(--fg-rgb), 0.85); }
 .reduced .hero,
 .reduced .info-block { transition: none; }
 
@@ -377,7 +377,7 @@
 
 .jump { position: absolute; left: 872px; top: 116px; width: 40px; z-index: 3; }
 .jump-slot { height: 20px; display: flex; align-items: center; justify-content: center; }
-.jump-empty { color: var(--disabled); opacity: 0.6; }
+.jump-empty { color: var(--subtle); opacity: 0.6; }
 .jump-box {
   width: 40px;
   height: 40px;
@@ -453,13 +453,13 @@
   height: 40px;
   flex: none;
   border-radius: 6px;
-  background: rgba(233, 235, 239, 0.12);
+  background: rgba(var(--fg-rgb), 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.library-card[data-focused] .library-card-icon { background: rgba(3, 19, 31, 0.12); }
-.library-card.lifted .library-card-icon { background: rgba(233, 235, 239, 0.12); }
+.library-card[data-focused] .library-card-icon { background: rgba(var(--on-accent-rgb), 0.12); }
+.library-card.lifted .library-card-icon { background: rgba(var(--fg-rgb), 0.12); }
 .card-sub { opacity: 0.75; margin-top: 2px; }
 
 /* ---------------------------------------------------------------- item */
@@ -502,10 +502,10 @@
 }
 .season-tab.shown { background: var(--surface3); color: var(--fg); }
 .season-tab[data-focused] { background: var(--accent); color: var(--on-accent); transform: scale(1.05); transition: transform 150ms var(--focus-ease); }
-.facts-card { background: rgba(25, 29, 36, 0.6); border-radius: 6px; padding: 16px; }
+.facts-card { background: rgba(var(--surface2-rgb), 0.6); border-radius: 6px; padding: 16px; }
 .fact-row { display: flex; padding: 3px 0; }
 .fact-label { width: 160px; flex: none; }
-.fact-value { flex: 1; min-width: 0; color: rgba(233, 235, 239, 0.85); }
+.fact-value { flex: 1; min-width: 0; color: rgba(var(--fg-rgb), 0.85); }
 .media-card { margin-bottom: 12px; }
 .media-blocks { display: flex; flex-wrap: wrap; }
 .media-block { width: 300px; margin: 0 24px 14px 0; }
@@ -539,17 +539,17 @@
 .setting-row .row-value { color: var(--muted); }
 .setting-row .chev { margin-left: 12px; color: var(--subtle); }
 .setting-row.danger,
-.setting-row.danger .lead { color: var(--danger-text); }
+.setting-row.danger .lead { color: var(--danger); }
 .setting-row[data-focused] { background: var(--accent); color: var(--on-accent); }
 .setting-row[data-focused] .lead,
 .setting-row[data-focused] .chev { color: var(--on-accent); }
-.setting-row[data-focused] .row-value { color: rgba(3, 19, 31, 0.8); }
+.setting-row[data-focused] .row-value { color: rgba(var(--on-accent-rgb), 0.8); }
 .setting-row[data-pressed] { background: var(--accent-bright); }
 .switch { position: relative; width: 40px; height: 22px; flex: none; margin-left: 12px; border-radius: 11px; background: var(--surface4); }
 .switch > div { position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--control); }
 .switch.on { background: var(--accent); }
 .switch.on > div { left: 21px; background: var(--on-accent); }
-.setting-row[data-focused] .switch { background: rgba(3, 19, 31, 0.3); }
+.setting-row[data-focused] .switch { background: rgba(var(--on-accent-rgb), 0.3); }
 .setting-row[data-focused] .switch > div { background: var(--on-accent); }
 .setting-row[data-focused] .switch.on { background: var(--on-accent); }
 .setting-row[data-focused] .switch.on > div { background: var(--accent); }
@@ -558,6 +558,119 @@
 .settings-heading { padding: 16px 0 6px 20px; }
 .settings-facts { padding: 12px 0 0 20px; }
 .settings-fact { display: flex; padding: 3px 0; }
+
+/*
+ * Appearance, as every TV app lays it out: the themes five to a row, each
+ * a preview over its name and caption, then the accents in one row, on one
+ * screen. The pick in use has the accent's border and a tick (a theme) or
+ * the accent's fill (an accent). Focus is a tile's: a ring and a scale, so
+ * it reads apart from the pick; only transform and opacity animate.
+ */
+.appearance-page { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; }
+.appearance-title { position: absolute; left: 96px; top: 27px; }
+.appearance-section { position: absolute; left: 96px; right: 48px; height: 22px; display: flex; align-items: baseline; white-space: nowrap; }
+.appearance-hint { margin-left: 16px; overflow: hidden; text-overflow: ellipsis; }
+.theme-grid { position: absolute; left: 96px; top: 101px; width: 816px; display: flex; flex-wrap: wrap; }
+.theme-card {
+  position: relative;
+  width: 151px;
+  height: 150px;
+  margin: 0 15px 17px 0;
+  padding: 5px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--surface4);
+  color: var(--fg);
+  transition: transform 120ms var(--unfocus-ease);
+}
+.theme-card:nth-child(5n) { margin-right: 0; }
+.theme-card.current { background: rgba(var(--accent-rgb), 0.08); box-shadow: inset 0 0 0 2px var(--accent); }
+.theme-name { margin: 8px 2px 0; }
+.theme-about { margin: 0 2px; color: var(--muted); }
+.theme-tick {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Focus: a tile's ring, 3 px outside the edge, and a scale. */
+.theme-ring {
+  position: absolute;
+  left: -5.56px;
+  top: -5.56px;
+  right: -5.56px;
+  bottom: -5.56px;
+  border: 2.78px solid var(--accent-bright);
+  border-radius: 12px;
+  opacity: 0;
+  transition: opacity 120ms var(--unfocus-ease);
+  pointer-events: none;
+}
+.theme-card[data-focused],
+.accent-chip[data-focused] { z-index: 1; transform: scale(1.05); transition: transform 150ms var(--focus-ease); }
+.theme-card[data-focused] .theme-ring,
+.accent-chip[data-focused] .theme-ring { opacity: 1; transition: opacity 150ms var(--focus-ease); }
+.theme-card[data-pressed],
+.accent-chip[data-pressed] { transform: scale(1); }
+/* The preview: a Pley 140 by 78 in its own theme's colors (themeStyle), its edge in its own words' color. */
+.theme-preview {
+  position: relative;
+  width: 140px;
+  height: 78px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px rgba(var(--fg-rgb), 0.12);
+}
+.tp-rail { width: 34px; flex: none; padding: 9px 0 0 7px; box-sizing: border-box; background-color: var(--surface); background-image: var(--sidebar); }
+.tp-rail > span { display: block; width: 20px; height: 5px; margin-bottom: 7px; border-radius: 3px; background: rgba(var(--fg-rgb), 0.18); }
+.tp-rail > span.on { width: 15px; background: var(--accent); }
+.tp-page { position: relative; flex: 1; }
+.tp-page > span { position: absolute; border-radius: 3px; }
+.tp-title { left: 8px; top: 9px; width: 45px; height: 6px; background: rgba(var(--fg-rgb), 0.7); }
+.tp-line { left: 8px; top: 20px; width: 30px; height: 4px; background: rgba(var(--muted-rgb), 0.6); }
+.tp-button { right: 7px; top: 8px; width: 23px; height: 8px; border-radius: 4px; background: var(--accent); }
+.tp-posters { position: absolute; left: 8px; bottom: 7px; display: flex; }
+.tp-posters > span { width: 20px; height: 30px; margin-right: 3px; border-radius: 1px; background: var(--surface3); }
+.tp-posters > span.focused { box-shadow: inset 0 0 0 1px var(--accent); }
+.accent-row { position: absolute; left: 96px; top: 466px; width: 816px; display: flex; }
+.accent-chip {
+  position: relative;
+  flex: none;
+  height: 40px;
+  margin-right: 10px;
+  padding: 0 14px 0 10px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--surface4);
+  color: var(--fg);
+  transition: transform 120ms var(--unfocus-ease);
+}
+.accent-chip.current { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.accent-chip .theme-ring { border-radius: 9px; }
+.accent-swatch {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(var(--fg-rgb), 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.accent-swatch.picked { border: 1.5px solid currentColor; box-shadow: none; }
 .settings-fact > :first-child { width: 150px; flex: none; }
 /* Diagnostics: a column that scrolls with focus; every line takes it (the accent fill, as every row). */
 .diagnostics-page { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; }
@@ -572,6 +685,7 @@
 .diagnostics-note { padding-left: 16px; }
 .diagnostics-again { padding-top: 12px; }
 .web-dialog { display: flex; max-width: 640px; padding: 28px; }
+/* A QR code stays dark on white, as phones' cameras read it best, in any theme. */
 .web-qr { margin-left: 28px; padding: 4px; background: #fff; border-radius: 4px; flex: none; }
 
 .history-page { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; }
@@ -658,7 +772,7 @@
 
 /* A playlist's page: the top and the entries scroll as one column; the backdrop darkens under the entries. */
 .playlist-content { position: absolute; left: 0; top: 0; width: 960px; will-change: transform; transition: transform 240ms cubic-bezier(0.2, 0, 0, 1); }
-.playlist-dim { position: absolute; left: 0; top: 0; width: 960px; height: 540px; pointer-events: none; background: rgba(11, 13, 16, 0.92); opacity: 0; will-change: opacity; transition: opacity 240ms cubic-bezier(0.2, 0, 0, 1); }
+.playlist-dim { position: absolute; left: 0; top: 0; width: 960px; height: 540px; pointer-events: none; background: rgba(var(--bg-rgb), 0.92); opacity: 0; will-change: opacity; transition: opacity 240ms cubic-bezier(0.2, 0, 0, 1); }
 .playlist-dim.in { opacity: 1; }
 .reduced .playlist-content,
 .reduced .playlist-dim { transition: none; }
@@ -712,10 +826,10 @@
 .track-number { width: 28px; flex: none; text-align: right; color: var(--subtle); display: flex; justify-content: flex-end; }
 .track-text { flex: 1; min-width: 0; margin: 0 12px 0 16px; }
 .track-sub { color: var(--muted); }
-.track-line.current { background: rgba(233, 235, 239, 0.06); }
+.track-line.current { background: rgba(var(--fg-rgb), 0.06); }
 .track-line.current .track-title { color: var(--accent-bright); }
 .track-line.current .track-number { color: var(--accent); }
-.track-line.highlighted { background: rgba(56, 189, 248, 0.14); }
+.track-line.highlighted { background: rgba(var(--accent-rgb), 0.14); }
 .track-line[data-focused] { background: var(--accent); color: var(--on-accent); }
 .track-line[data-focused] .track-title,
 .track-line[data-focused] .track-number,
@@ -727,7 +841,7 @@
 
 .faint-art { position: absolute; left: 0; top: 0; width: 960px; height: 540px; }
 .faint-art .tile-placeholder { display: none; }
-.faint-fade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(11, 13, 16, 0) 40%, #0b0d10 100%); }
+.faint-fade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(var(--bg-rgb), 0) 40%, var(--bg) 100%); }
 .artist-header { position: absolute; left: 96px; right: 48px; top: 40px; display: flex; align-items: center; min-height: 120px; }
 .artist-picture { position: relative; width: 120px; height: 120px; flex: none; border-radius: 50%; overflow: hidden; background: var(--surface2); }
 .artist-buttons { position: absolute; left: 96px; top: 178px; }
@@ -743,10 +857,10 @@
 .now-status { height: 22px; padding-top: 4px; box-sizing: border-box; }
 .now-scrubber { margin-top: 14px; }
 .scrub-box { position: relative; width: 484px; height: 24px; }
-.scrub-track { position: absolute; left: 0; right: 0; top: 10px; height: 4px; border-radius: 2px; background: rgba(233, 235, 239, 0.25); overflow: hidden; }
+.scrub-track { position: absolute; left: 0; right: 0; top: 10px; height: 4px; border-radius: 2px; background: rgba(var(--fg-rgb), 0.25); overflow: hidden; }
 .scrub-buffered,
 .scrub-played { position: absolute; left: 0; top: 0; bottom: 0; }
-.scrub-buffered { background: rgba(233, 235, 239, 0.45); }
+.scrub-buffered { background: rgba(var(--fg-rgb), 0.45); }
 .scrub-played { background: var(--accent); }
 /* The music scrubber's thumb: 10 px, 12 with a 2 px ring 1 px clear of it while focused; it grows by a scale, so no frame lays it out. */
 .scrub-thumb { position: absolute; top: 12px; width: 0; height: 0; }
@@ -764,7 +878,7 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: rgba(233, 235, 239, 0.15);
+  background: rgba(var(--fg-rgb), 0.15);
   color: var(--fg);
   display: flex;
   align-items: center;
@@ -780,7 +894,7 @@
 .queue-lines { position: relative; }
 .queue-slot { position: absolute; left: 0; right: 0; }
 .queue-slot .track-line { height: 49px; margin-bottom: 0; }
-.now-dim { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 10; }
+.now-dim { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--shade-70); z-index: 10; }
 
 /* ---------------------------------------------------------------- requests: tones, pills, badges */
 
@@ -800,20 +914,20 @@
 .tone-text-green { color: var(--success); }
 .tone-red,
 .tile-caption .tone-text-red,
-.tone-text-red { color: var(--danger-text); }
+.tone-text-red { color: var(--danger); }
 .tone-gray,
 .tile-caption .tone-text-gray,
 .tone-text-gray { color: var(--muted); }
 .stage-pill.tone-amber,
-.title-badge.tone-amber { background: linear-gradient(rgba(242, 181, 68, 0.2), rgba(242, 181, 68, 0.2)), var(--on-art); }
+.title-badge.tone-amber { background: linear-gradient(rgba(var(--warning-rgb), 0.2), rgba(var(--warning-rgb), 0.2)), var(--on-art); }
 .stage-pill.tone-blue,
-.title-badge.tone-blue { background: linear-gradient(rgba(76, 154, 255, 0.2), rgba(76, 154, 255, 0.2)), var(--on-art); }
+.title-badge.tone-blue { background: linear-gradient(rgba(var(--info-rgb), 0.2), rgba(var(--info-rgb), 0.2)), var(--on-art); }
 .stage-pill.tone-green,
-.title-badge.tone-green { background: linear-gradient(rgba(63, 178, 127, 0.2), rgba(63, 178, 127, 0.2)), var(--on-art); }
+.title-badge.tone-green { background: linear-gradient(rgba(var(--success-rgb), 0.2), rgba(var(--success-rgb), 0.2)), var(--on-art); }
 .stage-pill.tone-red,
-.title-badge.tone-red { background: linear-gradient(rgba(255, 107, 112, 0.2), rgba(255, 107, 112, 0.2)), var(--on-art); }
+.title-badge.tone-red { background: linear-gradient(rgba(var(--danger-rgb), 0.2), rgba(var(--danger-rgb), 0.2)), var(--on-art); }
 .stage-pill.tone-gray,
-.title-badge.tone-gray { background: linear-gradient(rgba(161, 169, 182, 0.16), rgba(161, 169, 182, 0.16)), var(--on-art); }
+.title-badge.tone-gray { background: linear-gradient(rgba(var(--muted-rgb), 0.16), rgba(var(--muted-rgb), 0.16)), var(--on-art); }
 
 /* A request's stage: a dot and its words, 26 high (22 small); beside a 40 px button, centered on it. */
 .stage-pill {
@@ -833,7 +947,7 @@
 .stage-dot { flex: none; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: currentColor; }
 .stage-pill.small .stage-dot { width: 6px; height: 6px; margin-right: 6px; }
 /* How much of a download is in: blue, as its stage. */
-.download-bar { height: 4px; margin-top: 8px; border-radius: 2px; background: rgba(233, 235, 239, 0.16); overflow: hidden; }
+.download-bar { height: 4px; margin-top: 8px; border-radius: 2px; background: rgba(var(--fg-rgb), 0.16); overflow: hidden; }
 .download-bar > div { height: 100%; border-radius: 2px; background: var(--info); }
 /* A stage with a download's bar 4 under it, as wide as the pill; beside a 40 px button, the two centered on it. */
 .stage-block { display: flex; flex-direction: column; align-items: flex-start; flex: 0 1 auto; min-width: 0; max-width: 100%; }
@@ -870,7 +984,7 @@
 .title-note { display: flex; align-items: flex-start; }
 .title-note + .title-note { margin-top: 4px; }
 .title-note > .icon { flex: none; margin: 2px 8px 0 0; }
-.title-note.danger > .icon { color: var(--danger-text); }
+.title-note.danger > .icon { color: var(--danger); }
 /* A library title's request under its facts: the stage, a download's bar beside it. */
 .item-request { display: flex; align-items: center; margin-top: 10px; }
 .item-request > .download-bar { flex: none; margin: 0 0 0 12px; }
@@ -895,7 +1009,7 @@
   line-height: 20px;
   text-align: center;
 }
-.chip-count.danger { background: var(--danger); color: var(--bg); }
+.chip-count.danger { background: var(--danger); color: var(--danger-fg); }
 .chip[data-focused] .chip-count:not(.danger) { background: var(--on-accent); color: var(--accent-bright); }
 /* Discover's hero, under the way to the requests: its title's two lines end at 172 whatever their number, clear of it. */
 .discover-hero {
@@ -963,7 +1077,7 @@
   font-weight: 700;
   text-align: center;
 }
-.tab[data-focused] .tab-count { background: rgba(3, 19, 31, 0.16); color: var(--on-accent); }
+.tab[data-focused] .tab-count { background: rgba(var(--on-accent-rgb), 0.16); color: var(--on-accent); }
 .requests-filters { position: absolute; left: 96px; right: 48px; top: 124px; height: 44px; display: flex; align-items: center; }
 .requests-filters > * + * { margin-left: 10px; }
 /* The title field as high as the chips beside it. */
@@ -981,7 +1095,7 @@
   right: 0;
   bottom: 0;
   height: 40px;
-  background: linear-gradient(rgba(11, 13, 16, 0), var(--bg));
+  background: linear-gradient(rgba(var(--bg-rgb), 0), var(--bg));
   opacity: 0;
   transition: opacity 150ms linear;
   pointer-events: none;
@@ -1108,15 +1222,15 @@ html.avplay .engine-host { background: transparent; }
 .player-clock-row > * + * { margin-left: 12px; }
 /* How it plays: success for a file played as it is, info for a direct stream, the accent for a transcode; on art at 80 %. */
 .method-badge { padding: 3px 8px; border-radius: 2px; font-weight: 600; white-space: nowrap; background: var(--on-art); }
-.method-badge.direct { color: var(--success); background: linear-gradient(rgba(63, 178, 127, 0.2), rgba(63, 178, 127, 0.2)), var(--on-art); }
-.method-badge.stream { color: var(--info); background: linear-gradient(rgba(76, 154, 255, 0.2), rgba(76, 154, 255, 0.2)), var(--on-art); }
-.method-badge.transcode { color: var(--accent); background: linear-gradient(rgba(56, 189, 248, 0.2), rgba(56, 189, 248, 0.2)), var(--on-art); }
+.method-badge.direct { color: var(--success); background: linear-gradient(rgba(var(--success-rgb), 0.2), rgba(var(--success-rgb), 0.2)), var(--on-art); }
+.method-badge.stream { color: var(--info); background: linear-gradient(rgba(var(--info-rgb), 0.2), rgba(var(--info-rgb), 0.2)), var(--on-art); }
+.method-badge.transcode { color: var(--accent); background: linear-gradient(rgba(var(--accent-rgb), 0.2), rgba(var(--accent-rgb), 0.2)), var(--on-art); }
 .player-times { position: absolute; left: 48px; right: 48px; top: 399px; display: flex; justify-content: space-between; }
 .scrubber { position: absolute; left: 48px; top: 405px; width: 864px; height: 40px; }
-.scrubber .bar { position: absolute; left: 0; right: 0; top: 18px; height: 4px; border-radius: 2px; background: rgba(233, 235, 239, 0.25); overflow: hidden; }
+.scrubber .bar { position: absolute; left: 0; right: 0; top: 18px; height: 4px; border-radius: 2px; background: rgba(var(--fg-rgb), 0.25); overflow: hidden; }
 .bar-buffered,
 .bar-played { position: absolute; left: 0; top: 0; bottom: 0; }
-.bar-buffered { background: rgba(233, 235, 239, 0.45); }
+.bar-buffered { background: rgba(var(--fg-rgb), 0.45); }
 .bar-played { background: var(--accent); }
 .bar-gap { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #000; }
 /* The thumb, 10 px, grows to 12 (by a scale) with a 2 px ring 1 px clear of it (18 across) while focused; the ring fades with focus. */
@@ -1170,7 +1284,7 @@ html.avplay .engine-host { background: transparent; }
 .pbtn[data-focused] + .pbtn-label { opacity: 1; }
 
 .seek-preview { position: absolute; width: 240px; z-index: 4; }
-.preview-box { width: 240px; height: 135px; border-radius: 4px; overflow: hidden; background: var(--surface2); box-shadow: inset 0 0 0 2px rgba(233, 235, 239, 0.2); }
+.preview-box { width: 240px; height: 135px; border-radius: 4px; overflow: hidden; background: var(--surface2); box-shadow: inset 0 0 0 2px rgba(var(--fg-rgb), 0.2); }
 
 .skip-box { position: absolute; right: 48px; bottom: 51px; z-index: 5; }
 .skip-box.lifted { bottom: 185px; }
@@ -1182,12 +1296,12 @@ html.avplay .engine-host { background: transparent; }
   box-sizing: border-box;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.45);
-  box-shadow: inset 0 0 0 1px rgba(233, 235, 239, 0.25);
-  color: rgba(233, 235, 239, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(var(--fg-rgb), 0.25);
+  color: rgba(var(--fg-rgb), 0.85);
   display: flex;
   align-items: center;
 }
-.skip-pill[data-focused] { background: rgba(0, 0, 0, 0.6); box-shadow: inset 0 0 0 2px rgba(233, 235, 239, 0.9); color: var(--fg); }
+.skip-pill[data-focused] { background: rgba(0, 0, 0, 0.6); box-shadow: inset 0 0 0 2px rgba(var(--fg-rgb), 0.9); color: var(--fg); }
 .sleep-notice {
   position: absolute;
   left: 48px;
@@ -1204,7 +1318,7 @@ html.avplay .engine-host { background: transparent; }
 .keep-btn { padding: 4px 20px; min-height: 32px; display: flex; align-items: center; border-radius: 6px; background: var(--on-art); color: var(--fg); }
 .keep-btn[data-focused] { background: var(--accent); color: var(--on-accent); transform: scale(1.05); }
 
-.upnext-card { position: absolute; right: 48px; bottom: 51px; width: 300px; border-radius: 8px; overflow: hidden; background: rgba(25, 29, 36, 0.96); z-index: 6; animation: info-in 150ms linear; }
+.upnext-card { position: absolute; right: 48px; bottom: 51px; width: 300px; border-radius: 8px; overflow: hidden; background: rgba(var(--surface2-rgb), 0.96); z-index: 6; animation: info-in 150ms linear; }
 .upnext-image { position: relative; width: 300px; height: 169px; background: var(--surface3); }
 .upnext-image > img { width: 100%; height: 100%; object-fit: cover; }
 .upnext-buttons { display: flex; align-items: center; margin-top: 16px; }
@@ -1214,7 +1328,7 @@ html.avplay .engine-host { background: transparent; }
   padding: 4px 16px 4px 20px;
   box-sizing: border-box;
   border-radius: 6px;
-  background: rgba(233, 235, 239, 0.12);
+  background: rgba(var(--fg-rgb), 0.12);
   box-shadow: inset 0 0 0 1px var(--control);
   color: var(--fg);
   display: flex;
@@ -1222,10 +1336,10 @@ html.avplay .engine-host { background: transparent; }
 }
 .playnow[data-focused] { background: var(--accent); color: var(--on-accent); box-shadow: none; transform: scale(1.05); }
 
-.seek-badge { position: absolute; top: 238px; width: 64px; height: 64px; border-radius: 6px; background: rgba(11, 13, 16, 0.6); color: var(--fg); display: flex; align-items: center; justify-content: center; z-index: 5; }
+.seek-badge { position: absolute; top: 238px; width: 64px; height: 64px; border-radius: 6px; background: rgba(var(--bg-rgb), 0.6); color: var(--fg); display: flex; align-items: center; justify-content: center; z-index: 5; }
 .player-ring { position: absolute; left: 460px; top: 250px; width: 40px; height: 40px; z-index: 5; }
 /* 16 under the ring, centered on it, on the page color at 60 %. */
-.player-reconnecting { position: absolute; left: 480px; top: 306px; transform: translateX(-50%); padding: 6px 12px; border-radius: 6px; background: rgba(11, 13, 16, 0.6); white-space: nowrap; z-index: 5; }
+.player-reconnecting { position: absolute; left: 480px; top: 306px; transform: translateX(-50%); padding: 6px 12px; border-radius: 6px; background: rgba(var(--bg-rgb), 0.6); white-space: nowrap; z-index: 5; }
 .player-ring > div {
   width: 36px;
   height: 36px;
@@ -1247,7 +1361,7 @@ html.avplay .engine-host { background: transparent; }
 .readout-fact { display: flex; padding: 2px 16px; }
 .readout-label { width: 112px; flex: none; }
 .readout-value { flex: 1; min-width: 0; }
-.compact-readout { position: absolute; left: 48px; top: 27px; max-width: 480px; padding: 8px 12px; border-radius: 6px; background: rgba(11, 13, 16, 0.72); z-index: 4; }
+.compact-readout { position: absolute; left: 48px; top: 27px; max-width: 480px; padding: 8px 12px; border-radius: 6px; background: rgba(var(--bg-rgb), 0.72); z-index: 4; }
 .compact-readout .readout-fact { padding: 1px 0; }
 .toast.low { top: 79px; }
 
@@ -1258,21 +1372,21 @@ html.avplay .engine-host { background: transparent; }
 .live-number { color: var(--subtle); margin-right: 8px; }
 /* Every connection in use: what holds each, with Watch here instead where it may be taken over. */
 .live-busy { width: 560px; margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
-.live-busy-row { display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 6px 8px 6px 16px; box-sizing: border-box; border-radius: 8px; background: rgba(233, 235, 239, 0.06); border: 1px solid rgba(233, 235, 239, 0.1); }
+.live-busy-row { display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 6px 8px 6px 16px; box-sizing: border-box; border-radius: 8px; background: rgba(var(--fg-rgb), 0.06); border: 1px solid rgba(var(--fg-rgb), 0.1); }
 .live-busy-text { flex: 1; min-width: 0; }
 .live-star { color: var(--accent); margin-left: 6px; flex: none; }
 /* A logo on its well, kept within it whatever its shape; a channel without one shows its number on a gradient. */
 .live-logo { position: relative; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; background: var(--surface3); box-sizing: border-box; }
 .live-logo > img { max-width: 84%; max-height: 80%; object-fit: contain; }
-.live-logo-text { color: rgba(233, 235, 239, 0.88); text-align: center; padding: 0 6px; word-wrap: break-word; }
-.live-progress { position: relative; flex: 1; min-width: 0; height: 3px; border-radius: 2px; background: rgba(233, 235, 239, 0.2); overflow: hidden; }
+.live-logo-text { color: rgba(var(--fg-rgb), 0.88); text-align: center; padding: 0 6px; word-wrap: break-word; }
+.live-progress { position: relative; flex: 1; min-width: 0; height: 3px; border-radius: 2px; background: rgba(var(--fg-rgb), 0.2); overflow: hidden; }
 .live-progress > div { height: 100%; background: var(--accent); }
 .live-progress.wide { flex: none; width: 200px; margin: 0 10px; }
 .live-mark { flex: none; padding: 2px 5px; margin-right: 6px; border-radius: 2px; }
-.live-mark.live { background: #e5484d; color: #fff; }
-.live-mark.new { background: rgba(56, 189, 248, 0.2); color: var(--accent-bright); }
+.live-mark.live { background: var(--danger); color: var(--danger-fg); }
+.live-mark.new { background: rgba(var(--accent-rgb), 0.2); color: var(--accent-bright); }
 /* A channel number typed on the remote, at the top right while it waits for more. */
-.live-digits { position: absolute; right: 48px; top: 27px; z-index: 45; padding: 6px 18px; border-radius: 6px; background: rgba(11, 13, 16, 0.88); box-shadow: inset 0 0 0 1px var(--surface4); }
+.live-digits { position: absolute; right: 48px; top: 27px; z-index: 45; padding: 6px 18px; border-radius: 6px; background: rgba(var(--bg-rgb), 0.88); box-shadow: inset 0 0 0 1px var(--surface4); }
 .live-digits-n { display: block; font-size: 36px; line-height: 44px; font-weight: 700; letter-spacing: 4px; color: var(--fg); }
 
 /* The guide: channels down at 96, programs across from 288 to 912, four px a minute. */
@@ -1296,17 +1410,17 @@ html.avplay .engine-host { background: transparent; }
 .guide-channel[data-focused] .live-star { color: var(--on-accent); }
 .guide-cells { position: absolute; left: 288px; top: 0; width: 624px; height: 52px; overflow: hidden; }
 .guide-cell { position: absolute; top: 0; height: 52px; box-sizing: border-box; border-radius: 4px; background: var(--surface2); color: var(--fg); overflow: hidden; }
-.guide-cell.on { background: rgba(56, 189, 248, 0.12); box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.35); }
+.guide-cell.on { background: rgba(var(--accent-rgb), 0.12); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.35); }
 .guide-cell.past { opacity: 0.55; }
-.guide-cell.empty { background: rgba(233, 235, 239, 0.035); }
+.guide-cell.empty { background: rgba(var(--fg-rgb), 0.035); }
 .guide-cell-text { height: 100%; box-sizing: border-box; padding: 0 10px; display: flex; flex-direction: column; justify-content: center; }
 .guide-cell-title { display: flex; align-items: center; min-width: 0; }
 .guide-cell-sub { margin-top: 2px; color: var(--muted); }
 .guide-cell-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
 .guide-cell[data-focused] { background: var(--accent); color: var(--on-accent); opacity: 1; box-shadow: none; }
-.guide-cell[data-focused] .guide-cell-sub { color: rgba(3, 19, 31, 0.8); }
+.guide-cell[data-focused] .guide-cell-sub { color: rgba(var(--on-accent-rgb), 0.8); }
 .guide-cell[data-focused] .guide-cell-progress { background: var(--on-accent); }
-.guide-cell[data-focused] .live-mark.new { background: rgba(3, 19, 31, 0.15); color: var(--on-accent); }
+.guide-cell[data-focused] .live-mark.new { background: rgba(var(--on-accent-rgb), 0.15); color: var(--on-accent); }
 .guide-cell[data-pressed],
 .guide-channel[data-pressed] { background: var(--accent-bright); }
 .holding .guide-rows,
@@ -1321,8 +1435,8 @@ html.avplay .engine-host { background: transparent; }
 .reduced .live-cards-rows { transition: none !important; }
 .live-card-row { position: absolute; left: 0; right: 0; display: flex; padding-left: 96px; }
 .live-card-row > * + * { margin-left: 16px; }
-.live-card.loading { background: rgba(25, 29, 36, 0.6); }
-.guide-channel.loading { background: rgba(25, 29, 36, 0.6); }
+.live-card.loading { background: rgba(var(--surface2-rgb), 0.6); }
+.guide-channel.loading { background: rgba(var(--surface2-rgb), 0.6); }
 .live-list-row.loading .skeleton { margin-left: 0; }
 
 /* Live TV's categories: a panel at the left, over the page. */
@@ -1336,7 +1450,7 @@ html.avplay .engine-host { background: transparent; }
 .reduced .live-cats-rows { transition: none !important; }
 .live-cat { position: absolute; left: 0; right: 0; height: 40px; box-sizing: border-box; padding: 0 12px; border-radius: 6px; display: flex; align-items: center; color: var(--muted); }
 .live-cat.inner { left: 24px; }
-.live-cat.current { color: var(--accent-bright); background: rgba(56, 189, 248, 0.1); }
+.live-cat.current { color: var(--accent-bright); background: rgba(var(--accent-rgb), 0.1); }
 .live-cat-icon { flex: none; margin-right: 10px; }
 .live-cat-label { flex: 1; min-width: 0; }
 .live-cat-region { flex: none; min-width: 26px; padding: 2px 6px; margin-right: 10px; border-radius: 3px; background: var(--surface4); color: var(--fg); text-align: center; }
@@ -1344,8 +1458,8 @@ html.avplay .engine-host { background: transparent; }
 .live-cat-count { flex: none; margin-left: 10px; color: var(--subtle); }
 .live-cat[data-focused] { background: var(--accent); color: var(--on-accent); }
 .live-cat[data-focused] .live-cat-sub,
-.live-cat[data-focused] .live-cat-count { color: rgba(3, 19, 31, 0.75); }
-.live-cat[data-focused] .live-cat-region { background: rgba(3, 19, 31, 0.15); color: var(--on-accent); }
+.live-cat[data-focused] .live-cat-count { color: rgba(var(--on-accent-rgb), 0.75); }
+.live-cat[data-focused] .live-cat-region { background: rgba(var(--on-accent-rgb), 0.15); color: var(--on-accent); }
 .live-cat[data-pressed] { background: var(--accent-bright); }
 .live-cat-heading { position: absolute; left: 12px; right: 12px; height: 40px; display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 6px; box-sizing: border-box; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.8px; }
 .live-card { position: relative; flex: none; width: 400px; height: 92px; box-sizing: border-box; padding: 12px; border-radius: 6px; background: var(--surface2); color: var(--fg); display: flex; align-items: center; transition: transform 120ms var(--unfocus-ease); }
@@ -1360,8 +1474,8 @@ html.avplay .engine-host { background: transparent; }
 .live-card[data-pressed] { background: var(--accent-bright); transform: scale(1.02); }
 .live-card[data-focused] .live-card-sub,
 .live-card[data-focused] .live-number,
-.live-card[data-focused] .live-star { color: rgba(3, 19, 31, 0.8); }
-.live-card[data-focused] .live-progress { background: rgba(3, 19, 31, 0.2); }
+.live-card[data-focused] .live-star { color: rgba(var(--on-accent-rgb), 0.8); }
+.live-card[data-focused] .live-progress { background: rgba(var(--on-accent-rgb), 0.2); }
 .live-card[data-focused] .live-progress > div { background: var(--on-accent); }
 
 /* A program's details in the side panel. */
@@ -1392,6 +1506,8 @@ html.avplay .engine-host { background: transparent; }
 .live-stage .live-radio { width: 100%; }
 .live-stage .player-ring { left: 50%; margin-left: -20px; }
 .live-stage.aside .player-row { left: 32px; right: 32px; }
+/* Beside the channel list the row is narrow: a long way of playing ("Direct stream · Audio transcoding") is cut short of the buttons on the left. */
+.live-stage.aside .method-badge { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 .live-stage.aside .live-info { right: 32px; left: 32px; }
 .live-stage.aside .player-top { left: 32px; right: 32px; }
 .live-stage.aside .live-progress.wide { width: 100px; }
@@ -1401,18 +1517,20 @@ html.avplay .engine-host { background: transparent; }
 .live-info.in { opacity: 1; }
 .reduced .live-info { transition: none; }
 .live-now { display: flex; align-items: flex-start; }
-.live-now-logo { margin-right: 18px; border-radius: 6px; background: rgba(34, 39, 49, 0.85); }
+.live-now-logo { margin-right: 18px; border-radius: 6px; background: rgba(var(--surface3-rgb), 0.85); }
 .live-now-text { flex: 1; min-width: 0; max-width: 640px; }
 .live-now-title { display: flex; align-items: center; min-width: 0; margin-top: 4px; }
 .live-now-time { display: flex; align-items: center; margin-top: 6px; }
 /* LIVE in red at the live edge; how far behind it on gray otherwise. */
-.live-badge { display: inline-flex; align-items: center; height: 21px; padding: 0 8px; border-radius: 2px; background: rgba(233, 235, 239, 0.16); color: var(--fg); letter-spacing: 0.6px; }
-.live-badge.at-live { background: #e5484d; color: #fff; }
+.live-badge { display: inline-flex; align-items: center; height: 21px; padding: 0 8px; border-radius: 2px; background: rgba(var(--fg-rgb), 0.16); color: var(--fg); letter-spacing: 0.6px; }
+.live-badge.at-live { background: var(--danger); color: var(--danger-fg); }
 .live-dot { width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; opacity: 0.7; }
 .live-badge.at-live .live-dot { opacity: 1; animation: live-pulse 1600ms ease-in-out infinite; }
 .reduced .live-badge.at-live .live-dot { animation: none; }
 /* With the buttons: centered on the 36 px buttons' line; behind live, a button that goes back to it. */
 .live-chip-box { position: relative; height: 36px; display: flex; align-items: center; margin-right: 6px; }
+/* How it plays, left of LIVE, as far from it as from a title's clock. */
+.live-chip-box > .method-badge { margin-right: 12px; }
 @keyframes live-pulse {
   0% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -1421,9 +1539,9 @@ html.avplay .engine-host { background: transparent; }
 /* Tuning: the channel's logo and what's on, on black, until its picture comes. */
 .live-tuning { position: absolute; left: 0; top: 0; width: 960px; height: 540px; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 4; }
 .live-tuning-ring { width: 32px; height: 32px; margin-top: 20px; display: flex; justify-content: center; }
-.live-tuning-ring > div { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(233, 235, 239, 0.3); border-top-color: var(--accent); animation: spin 1000ms linear infinite; }
+.live-tuning-ring > div { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(var(--fg-rgb), 0.3); border-top-color: var(--accent); animation: spin 1000ms linear infinite; }
 /* Sound without a picture (a radio channel): its logo, in place of the black. */
-.live-radio { position: absolute; left: 0; top: 0; width: 960px; height: 540px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(to bottom, #12151a, #0b0d10); pointer-events: none; }
+.live-radio { position: absolute; left: 0; top: 0; width: 960px; height: 540px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(to bottom, var(--surface), var(--bg)); pointer-events: none; }
 .live-radio-line { display: flex; align-items: center; margin-top: 8px; }
 .live-radio-line > * + * { margin-left: 8px; }
 /* The channel list over the picture, in the wide side panel. */
@@ -1451,6 +1569,6 @@ html.avplay .engine-host { background: transparent; }
 .live-list-row[data-focused] .live-list-playing,
 .live-list-row[data-focused] .live-star,
 .live-list-row.current[data-focused] .live-list-name .t-label { color: var(--on-accent); }
-.live-list-row[data-focused] .live-progress { background: rgba(3, 19, 31, 0.2); }
+.live-list-row[data-focused] .live-progress { background: rgba(var(--on-accent-rgb), 0.2); }
 .live-list-row[data-focused] .live-progress > div { background: var(--on-accent); }
 .live-list-row[data-pressed] { background: var(--accent-bright); }

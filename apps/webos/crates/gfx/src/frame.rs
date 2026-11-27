@@ -291,8 +291,8 @@ impl Builder {
                     self.rounded(mesh, cx, xf.rect(*rect), radius * xf.s, Fill::Corners(cs))?;
                 }
             }
-            Cmd::RadialGradient { rect, center, radius, inner, outer } => {
-                self.radial(mesh, cx.atlas, *rect, *center, *radius, *inner, *outer)
+            Cmd::RadialGradient { rect, center, radius, squash, inner, outer } => {
+                self.radial(mesh, cx.atlas, *rect, *center, (*radius, *squash), *inner, *outer)
             }
             Cmd::Image { rect, image, src, radius, opacity } => {
                 let o = opacity.clamp(0.0, 1.0) * self.opacity();
@@ -542,14 +542,14 @@ impl Builder {
         atlas: &Atlas,
         rect: Rect,
         center: Point,
-        radius: f32,
+        (radius, squash): (f32, f32),
         inner: Color,
         outer: Color,
     ) {
         let xf = self.xf();
         let clip = xf.rect(rect).intersect(&self.clip());
         let r = radius * xf.s;
-        if clip.is_empty() || r <= 0.0 {
+        if clip.is_empty() || r <= 0.0 || squash <= 0.0 {
             return;
         }
         let opacity = self.opacity();
@@ -563,17 +563,18 @@ impl Builder {
         // the circle.
         let segments = ((r.sqrt() * 3.0) as usize).clamp(24, 128);
         let white = white(atlas);
-        let ring = far * 1.5 + 1.0;
+        // A flattened ring still reaches past the farthest corner.
+        let ring = far * 1.5 / squash.min(1.0) + 1.0;
         let at = |i: usize, d: f32| {
             let t = i as f32 / segments as f32 * std::f32::consts::TAU;
-            (cx0 + d * t.cos(), cy0 + d * t.sin())
+            (cx0 + d * t.cos(), cy0 + d * squash * t.sin())
         };
         for i in 0..segments {
             let (a, b) = (at(i, r), at(i + 1, r));
             if ci[3] > 0.0 || co[3] > 0.0 {
                 emit_triangle(mesh, &clip, [((cx0, cy0), ci), (a, co), (b, co)], white);
             }
-            if co[3] > 0.0 && far > r {
+            if co[3] > 0.0 && far > r * squash.min(1.0) {
                 let (a2, b2) = (at(i, ring), at(i + 1, ring));
                 emit_triangle(mesh, &clip, [(a, co), (a2, co), (b, co)], white);
                 emit_triangle(mesh, &clip, [(b, co), (a2, co), (b2, co)], white);
@@ -1236,6 +1237,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 960.0, 540.0),
             center: Point::new(960.0, 540.0),
             radius: 576.0,
+            squash: 1.0,
             inner: Color::rgb(0x0284c7).alpha(0.18),
             outer: Color::TRANSPARENT,
         }])

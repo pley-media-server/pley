@@ -1,5 +1,6 @@
 package app.pley.android.ui.phone.home
 
+import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -10,7 +11,7 @@ import org.junit.Test
  * puts them higher up.
  */
 class HomeBannerScrimTest {
-    private fun stops(wordsTop: Float) = scrimStops(wordsTop).map { it.first }
+    private fun stops(wordsTop: Float) = scrimStops(wordsTop, Color.Black).map { it.first }
 
     @Test
     fun aPhonesTallBannerKeepsItsScrim() {

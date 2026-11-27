@@ -139,9 +139,9 @@ readable by everyone, balanced and considered down to its last detail. The
 web app draws only in the theme's colors (white and black only on pictures
 and video), and `palettes.test.ts` holds every theme to WCAG's contrast. A
 new theme or a color change keeps it passing, and gets looked at over
-pictures in a dark and a light theme. Each device keeps its own theme.
-Every app draws the same themes and accents, TV apps included, from
-`packages/themes/themes.json`, which its tests hold it to.
+pictures in a dark and a light theme. Each profile keeps its own theme on
+each device. Every app draws the same themes and accents, TV apps included,
+from `packages/themes/themes.json`, which its tests hold it to.
 
 **Every app.** A feature people see is expected on every app (web and
 desktop, Android phone and TV, Samsung, LG, Kodi, Roku), the same way,

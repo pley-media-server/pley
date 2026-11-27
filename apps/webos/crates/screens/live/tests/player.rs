@@ -8,9 +8,10 @@ use common::TestApp;
 use pley_base::{Cmd, Key, KeyEvent};
 use pley_core::model::LiveCategory;
 use pley_fixtures::{CastBody, Mode, ServerEvent, ids};
+use pley_kit::button::ROUND_SIZE;
 use pley_live::picture_aside;
 use pley_shell::Route;
-use pley_ui::InputEvent;
+use pley_ui::{InputEvent, theme};
 
 /// The app on the live player of `channel`, channel up and down going through `category`; the
 /// channel watched.
@@ -102,6 +103,127 @@ fn ok_held_shows_the_controls_and_their_channels_opens_the_list() {
     assert!(!app.shows("Search channels"), "the held OK opened the list as it was let go");
     app.press(Key::Ok);
     assert!(app.until(|a| a.shows("Search channels")), "the list didn't open");
+}
+
+/// The controls, shown by holding OK: focus on their Channels.
+fn hold_ok(app: &mut TestApp) {
+    app.frame(vec![InputEvent::Key(KeyEvent { key: Key::Ok, pressed: true, repeat: false, code: 0 })]);
+    app.advance(0.6);
+    app.frame(vec![InputEvent::Key(KeyEvent { key: Key::Ok, pressed: false, repeat: false, code: 0 })]);
+    app.advance(0.2);
+    let channels = app.id(&["bar", "channels"]);
+    assert!(app.until(|a| a.focused() == Some(channels)), "the controls' Channels hasn't focus");
+}
+
+/// What the last frame drew under `label` of Playback details: the text on its line, to its right.
+fn fact(app: &TestApp, label: &str) -> Option<String> {
+    let cmds = &app.list.cmds;
+    let (x, y) = cmds.iter().find_map(|c| match c {
+        Cmd::Text { origin, layout, .. } if &*layout.text == label => Some((origin.x, origin.y)),
+        _ => None,
+    })?;
+    cmds.iter().find_map(|c| match c {
+        Cmd::Text { origin, layout, .. } if origin.y == y && origin.x > x => Some(layout.text.to_string()),
+        _ => None,
+    })
+}
+
+#[test]
+fn info_in_the_controls_opens_playback_details_asked_again_while_it_shows() {
+    let mut app = watching(ids::LIVE_CHANNEL, LiveCategory::All);
+    let engine = app.engine().unwrap();
+    assert!(app.until(|_| engine.playing()), "the channel didn't play");
+    hold_ok(&mut app);
+    app.press(Key::Right);
+    app.press(Key::Right);
+    let info = app.id(&["bar", "info"]);
+    assert_eq!(app.focused(), Some(info), "Info isn't the controls' last button");
+    // At the right end of the row, where the video player's Info is: its label shows under its middle.
+    let middle = |a: &TestApp| {
+        a.list.cmds.iter().find_map(|c| match c {
+            Cmd::Text { origin, layout, .. } if &*layout.text == "Info" => Some(origin.x + layout.size.w / 2.0),
+            _ => None,
+        })
+    };
+    assert!(app.until(|a| middle(a).is_some()), "Info has no label");
+    let end = theme::CANVAS_W - theme::SAFE_X - ROUND_SIZE / 2.0;
+    assert!(middle(&app).is_some_and(|x| (x - end).abs() < 0.01), "Info is at {:?}, not {end}", middle(&app));
+    app.press(Key::Ok);
+    // The fake server sends the channel as it is: it plays from its stream.ts.
+    assert!(app.until(|a| a.shows("Playback details") && fact(a, "Bitrate").is_some()), "no details");
+    assert_eq!(fact(&app, "Playback").as_deref(), Some("Direct play"));
+    // A video's rows and sections, in its words.
+    assert_eq!(fact(&app, "Video").as_deref(), Some("H.264 1080p"));
+    assert_eq!(fact(&app, "Audio").as_deref(), Some("AAC 2.0"));
+    assert_eq!(fact(&app, "Resolution").as_deref(), Some("1920×1080 (1080p)"));
+    assert_eq!(fact(&app, "Frame rate").as_deref(), Some("24 fps"));
+    assert_eq!(fact(&app, "Channels").as_deref(), Some("Stereo"));
+    assert!(app.shows("How it plays") && app.shows("This TV") && !app.shows("Why") && !app.shows("Encoder"));
+    // The controls stay under the panel, as the video player's do, and take no key.
+    assert!(app.shows("LIVE") && app.focused() != Some(info));
+    // The plan is asked again while it shows: what the provider sends moves on.
+    let first = fact(&app, "Bitrate");
+    assert!(app.until(|a| fact(a, "Bitrate") != first), "the bitrate stayed at {first:?}");
+    // Up and Down move the panel, not the channel, and the controls don't hide it after their 6 s.
+    app.press(Key::Down);
+    app.press(Key::Up);
+    app.advance(6.5);
+    assert!(app.shows("Playback details"));
+    assert_eq!(app.watches(2) + app.watches(ids::LIVE_CHANNELS), 0, "Up or Down changed channel");
+    // Channel up tunes under it, and it says how that channel plays.
+    app.press(Key::ChannelUp);
+    assert!(tuned(&mut app, 2), "channel up didn't tune under the details");
+    assert!(app.until(|a| fact(a, "Playback").is_some()), "no details of the channel tuned");
+    // Back goes to the controls, on Info; Back again to the picture.
+    app.press(Key::Back);
+    assert!(app.until(|a| a.focused() == Some(info) && !a.shows("Playback details")), "Back didn't close it");
+    assert!(matches!(app.route(), Some(Route::LivePlayer { .. })));
+    app.press(Key::Back);
+    app.advance(0.4);
+    assert!(!app.shows("LIVE"), "Back didn't hide the controls");
+    assert!(matches!(app.route(), Some(Route::LivePlayer { .. })));
+}
+
+/// Where the last frame drew `text`'s left, if it did.
+fn text_left(app: &TestApp, text: &str) -> Option<f32> {
+    app.list.cmds.iter().find_map(|c| match c {
+        Cmd::Text { origin, layout, .. } if &*layout.text == text => Some(origin.x),
+        _ => None,
+    })
+}
+
+#[test]
+fn the_bar_says_how_the_channel_plays_in_the_video_player_s_badge_beside_live() {
+    let mut app = watching(ids::LIVE_CHANNEL, LiveCategory::All);
+    let engine = app.engine().unwrap();
+    assert!(app.until(|_| engine.playing()), "the channel didn't play");
+    hold_ok(&mut app);
+    // The fake server sends the channel as it is, which the tune learned: the badge says so,
+    // before Live, with no panel open.
+    assert!(app.until(|a| a.shows("Direct play")), "no badge");
+    assert!(!app.shows("Playback details"));
+    let (badge, live) = (text_left(&app, "Direct play").unwrap(), text_left(&app, "LIVE").unwrap());
+    assert!(badge < live, "the badge at {badge} isn't before Live at {live}");
+}
+
+#[test]
+fn settings_playback_details_keeps_the_readout_over_the_picture_while_nothing_else_shows() {
+    let mut app = TestApp::start();
+    app.state.update_settings(|s| s.playback_details = true);
+    app.open(Route::LivePlayer { channel_id: ids::LIVE_CHANNEL, category: LiveCategory::All, pressed_at: 0.0 });
+    assert!(app.until(|a| a.engine().is_some()), "no player");
+    let engine = app.engine().unwrap();
+    assert!(app.until(|_| engine.playing()), "the channel didn't play");
+    // The video player's lines, from the live details, with no panel open.
+    assert!(app.until(|a| fact(a, "Playback").as_deref() == Some("Direct play")), "no readout");
+    assert_eq!(fact(&app, "Video").as_deref(), Some("H.264 1080p"));
+    assert_eq!(fact(&app, "Audio").as_deref(), Some("AAC 2.0"));
+    assert!(!app.shows("Playback details") && !app.shows("This TV"));
+    // The controls take its place, as they do the video player's.
+    hold_ok(&mut app);
+    assert!(app.until(|a| fact(a, "Playback").is_none()), "the readout stayed under the controls");
+    app.press(Key::Back);
+    assert!(app.until(|a| fact(a, "Playback").is_some()), "the readout didn't come back");
 }
 
 /// Where the last frame drew `text`'s top, if it did.

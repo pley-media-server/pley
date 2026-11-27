@@ -102,6 +102,21 @@ function fmtOneDecimal(value as dynamic) as string
     return i18nNumber(tenths / 10, 1)
 end function
 
+' 23.976, 29.97, 50: up to three decimals, trailing zeros left out, as a
+' frame rate is written ("23,976" in French and Spanish).
+function fmtThreeDecimals(value as dynamic) as string
+    thousandths = Int(value * 1000 + 0.5)
+    decimals = 0
+    if thousandths mod 1000 > 0
+        digits = Right("00" + urlValue(thousandths mod 1000), 3)
+        while Right(digits, 1) = "0"
+            digits = Left(digits, Len(digits) - 1)
+        end while
+        decimals = Len(digits)
+    end if
+    return i18nNumber(thousandths / 1000, decimals)
+end function
+
 ' "8.2 Mbps", "24 Mbps", "640 kbps"; "" without one.
 function fmtBitrate(bps as dynamic) as string
     value = httpNumber(bps, 0)

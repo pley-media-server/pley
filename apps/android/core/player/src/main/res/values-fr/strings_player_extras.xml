@@ -5,6 +5,10 @@
     <string name="live_stopped_by_admin">La TV en direct a été arrêtée par l’administrateur du serveur.</string>
     <string name="live_stopped_elsewhere">La TV en direct a été arrêtée depuis un autre appareil.</string>
     <string name="live_server_answered">Le serveur a répondu avec le code %1$d.</string>
+    <string name="live_why_interlaced">La vidéo entrelacée est convertie en progressif.</string>
+    <string name="live_why_video">Cet appareil ne lit pas la vidéo %1$s.</string>
+    <string name="live_why_audio">Cet appareil ne lit pas l’audio %1$s.</string>
+    <string name="live_details_interlaced">entrelacé</string>
 
     <string name="cast_playing_from">Lecture depuis %1$s</string>
     <string name="cast_playing_from_another">Lecture depuis un autre appareil</string>

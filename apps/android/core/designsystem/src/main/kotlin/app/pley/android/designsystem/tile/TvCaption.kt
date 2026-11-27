@@ -7,7 +7,6 @@ import android.text.TextUtils
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
@@ -31,7 +30,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.LayoutDirection
-import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyType
 import kotlin.math.ceil
 
@@ -46,8 +44,11 @@ import kotlin.math.ceil
  * pixel for pixel (in a right-to-left layout, to within a pixel or two).
  * Only for text in the caption's own font ([inCaptionFont]).
  */
-internal fun Modifier.tvCaption(title: String, subtitle: String, emphasized: Boolean): Modifier =
-    this then TvCaptionElement(title, subtitle, emphasized)
+internal fun Modifier.tvCaption(title: String, subtitle: String, emphasized: Boolean, colors: CaptionColors): Modifier =
+    this then TvCaptionElement(title, subtitle, emphasized, colors)
+
+/** A caption's colors, ARGB: the title's and the subtitle's, the theme's `fg` and `muted`. */
+internal data class CaptionColors(val title: Int, val subtitle: Int)
 
 /**
  * Whether [text] is all in Roboto's own scripts (Latin, Greek and Cyrillic)
@@ -61,10 +62,11 @@ private data class TvCaptionElement(
     val title: String,
     val subtitle: String,
     val emphasized: Boolean,
+    val colors: CaptionColors,
 ) : ModifierNodeElement<TvCaptionNode>() {
-    override fun create() = TvCaptionNode(title, subtitle, emphasized)
+    override fun create() = TvCaptionNode(title, subtitle, emphasized, colors)
 
-    override fun update(node: TvCaptionNode) = node.update(title, subtitle, emphasized)
+    override fun update(node: TvCaptionNode) = node.update(title, subtitle, emphasized, colors)
 
     override fun InspectorInfo.inspectableProperties() {
         name = "tvCaption"
@@ -78,6 +80,7 @@ private class TvCaptionNode(
     private var title: String,
     private var subtitle: String,
     private var emphasized: Boolean,
+    private var colors: CaptionColors,
 ) : Modifier.Node(), LayoutModifierNode, DrawModifierNode, CompositionLocalConsumerModifierNode {
     private val titleLine = CaptionLine()
     private val subtitleLine = CaptionLine()
@@ -85,17 +88,18 @@ private class TvCaptionNode(
 
     override val shouldAutoInvalidate: Boolean get() = false
 
-    fun update(title: String, subtitle: String, emphasized: Boolean) {
-        if (title == this.title && subtitle == this.subtitle && emphasized == this.emphasized) return
+    fun update(title: String, subtitle: String, emphasized: Boolean, colors: CaptionColors) {
+        if (title == this.title && subtitle == this.subtitle && emphasized == this.emphasized && colors == this.colors) return
         this.title = title
         this.subtitle = subtitle
         this.emphasized = emphasized
+        this.colors = colors
         invalidateMeasurement()
         invalidateDraw()
     }
 
     override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
-        val paints = CaptionPaints.of(this, currentValueOf(LocalFontFamilyResolver))
+        val paints = CaptionPaints.of(this, currentValueOf(LocalFontFamilyResolver), colors)
         titleLine.paint = if (emphasized) paints.titleBold else paints.title
         subtitleLine.paint = paints.subtitle
         lineHeight = paints.lineHeight
@@ -174,10 +178,11 @@ private class CaptionPaints private constructor(
         private var density = 0f
         private var fontScale = 0f
         private var resolver: FontFamily.Resolver? = null
+        private var colors: CaptionColors? = null
 
-        fun of(density: Density, resolver: FontFamily.Resolver): CaptionPaints {
+        fun of(density: Density, resolver: FontFamily.Resolver, colors: CaptionColors): CaptionPaints {
             made?.let {
-                if (density.density == this.density && density.fontScale == fontScale && resolver === this.resolver) return it
+                if (density.density == this.density && density.fontScale == fontScale && resolver === this.resolver && colors == this.colors) return it
             }
             val style = TileStyle.Tv
             val lineHeight = with(density) { ceil(style.captionTitle.lineHeight.toPx()).toInt() }
@@ -188,15 +193,16 @@ private class CaptionPaints private constructor(
             }
             val medium = style.captionTitle.fontWeight ?: PleyType.Medium
             return CaptionPaints(
-                title = paint(style.captionTitle, medium, PleyColors.Fg.toArgb()),
-                titleBold = paint(style.captionTitle, PleyType.Bold, PleyColors.Fg.toArgb()),
-                subtitle = paint(style.captionSubtitle, style.captionSubtitle.fontWeight ?: PleyType.Medium, PleyColors.Muted.toArgb()),
+                title = paint(style.captionTitle, medium, colors.title),
+                titleBold = paint(style.captionTitle, PleyType.Bold, colors.title),
+                subtitle = paint(style.captionSubtitle, style.captionSubtitle.fontWeight ?: PleyType.Medium, colors.subtitle),
                 lineHeight = lineHeight,
             ).also {
                 made = it
                 this.density = density.density
                 fontScale = density.fontScale
                 this.resolver = resolver
+                this.colors = colors
             }
         }
     }

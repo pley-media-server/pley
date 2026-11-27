@@ -13,6 +13,8 @@ public enum SettingsCategory
     Playback,
     Audio,
     Display,
+    /// <summary>The theme and accent this TV shows (<see cref="AppearancePage"/>).</summary>
+    Appearance,
     Server,
     Diagnostics,
     About,
@@ -202,6 +204,9 @@ public interface ISettingsSource
 
     /// <summary>The language picked on this TV with the globe before signing in, which Automatic is when there is one.</summary>
     string? DeviceLanguage { get; }
+
+    /// <summary>The theme and accent this TV shows.</summary>
+    ThemePick Theme { get; }
 }
 
 /// <summary>Settings' source in the app: <see cref="AppState"/>, with the TV's facts the Tizen app reads.</summary>
@@ -234,6 +239,8 @@ public sealed class AppSettingsSource : ISettingsSource
     public IReadOnlyList<string> TvLanguages => app.TvLanguages;
 
     public string? DeviceLanguage => app.DeviceLanguage;
+
+    public ThemePick Theme => app.Theme.Value;
 }
 
 /// <summary>
@@ -312,6 +319,7 @@ public sealed class SettingsModel : IDisposable
         SettingsCategory.Playback => "row-quality",
         SettingsCategory.Audio => "row-passthrough-" + Settings.PassthroughFormats[0],
         SettingsCategory.Display => "row-subtitle-size",
+        SettingsCategory.Appearance => "row-theme",
         SettingsCategory.Server => "row-server",
         SettingsCategory.Diagnostics => "row-diagnostics",
         SettingsCategory.About => "row-version",
@@ -376,6 +384,12 @@ public sealed class SettingsModel : IDisposable
                 items.Add(new SettingsItem.Row("row-subtitle-font", SettingsText.SubtitleFont, new SettingAction.Pick(new SettingPick.SubtitleFont()), SettingsText.FontLabel(s.SubtitleFont), "pencil"));
                 items.Add(new SettingsItem.Row("row-subtitle-position", SettingsText.SubtitlePosition, new SettingAction.Pick(new SettingPick.SubtitleRaise()), SettingsText.RaiseLabel(s.SubtitleRaise), "arrow-up"));
                 items.Add(new SettingsItem.Row("row-reduce-motion", SettingsText.ReduceMotion, new SettingAction.Toggle(SettingSwitch.ReduceMotion), SettingsText.ReduceMotionHint, "sparkles", s.ReduceMotion));
+                break;
+            case SettingsCategory.Appearance:
+                // Both open the picker, at the themes or at the accents.
+                var theme = source.Theme;
+                items.Add(new SettingsItem.Row("row-theme", ThemeText.Theme, new SettingAction.Open(new AppearancePage()), ThemeText.Name(theme.Theme), "palette", Chevron: true));
+                items.Add(new SettingsItem.Row("row-accent", ThemeText.Accent, new SettingAction.Open(new AppearancePage(Accents: true)), ThemeText.AccentName(theme.Accent), "paintbrush", Chevron: true));
                 break;
             case SettingsCategory.Server:
                 items.Add(new SettingsItem.Row("row-server", server != null ? SettingsText.HostPort(server) : SettingsText.ServerUnknown, new SettingAction.None(), SettingsText.ServerValue, "server"));

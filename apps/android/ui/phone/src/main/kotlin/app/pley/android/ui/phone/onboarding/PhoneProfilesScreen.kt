@@ -210,6 +210,7 @@ private fun ProfileGrid(state: ProfilesUiState, onPick: (Long) -> Unit, onRetry:
 /** A profile: its 88 dp avatar (ringed in accent when it's the one in use, a lock when it has a PIN) and its name. */
 @Composable
 private fun ProfileCell(profile: ProfileTile, busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val palette = PleyColors.palette
     val description = when {
         profile.current -> stringResource(R.string.onboarding_profile_current, profile.name)
         profile.locked -> stringResource(R.string.onboarding_profile_pin, profile.name)
@@ -228,7 +229,7 @@ private fun ProfileCell(profile: ProfileTile, busy: Boolean, enabled: Boolean, o
                 .size(100.dp)
                 .graphicsLayer { alpha = if (busy) 0.6f else 1f }
                 .drawBehind {
-                    if (profile.current) drawCircle(PleyColors.Accent, radius = size.minDimension / 2f - 1.dp.toPx(), style = Stroke(2.dp.toPx()))
+                    if (profile.current) drawCircle(palette.accent, radius = size.minDimension / 2f - 1.dp.toPx(), style = Stroke(2.dp.toPx()))
                 },
             contentAlignment = Alignment.Center,
         ) {

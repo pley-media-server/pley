@@ -67,11 +67,7 @@
             <Label id="title" translation="[96, 54]" width="1300" maxLines="1" color="0xE9EBEFFF" />
             <Label id="line" translation="[96, 106]" width="1300" maxLines="1" color="0xA1A9B6FF" />
             <Label id="clock" translation="[1424, 60]" width="400" horizAlign="right" color="0xA1A9B6FF" />
-            <Group id="method" visible="false">
-                <Poster id="methodBack" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="46" />
-                <Poster id="methodTint" uri="pkg:/images/ui/r4.9.png" height="46" />
-                <Label id="methodText" translation="[16, 0]" height="46" vertAlign="center" />
-            </Group>
+            <MethodBadge id="method" visible="false" />
             <Label id="endsAt" translation="[1224, 112]" width="600" horizAlign="right" color="0xA1A9B6FF" visible="false" />
             <!-- The scrubber, x 96 to 1824, its track's center at y 850. -->
             <Label id="elapsed" translation="[96, 798]" color="0xE9EBEFFF" />

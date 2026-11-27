@@ -1,9 +1,10 @@
 # Themes
 
 Pley is drawn in one of nine themes, picked on Account → Appearance, in the
-theme's own accent or one of six others. The pick belongs to the device it
-was made on: each browser, the desktop app and each TV keeps its own, and
-starts in Midnight until one is picked there. Every app draws the same
+theme's own accent or one of six others. Each profile picks its own on
+each device: a browser, the desktop app or a TV keeps a pick for every
+profile used on it, and a profile starts in Midnight on a device until it
+picks there. Every app draws the same
 themes from the same colors ([In every app](#in-every-app)); one that
 doesn't offer them yet draws Midnight. This document is for anyone changing
 how Pley looks: what a theme is, the rules every theme keeps, and how to add
@@ -40,9 +41,17 @@ one.
 | `sunshine` | Sunshine | Light | For children: sunny cream with bubbles of colored light, a sidebar in a soft rainbow, sky and lilac controls, a bright violet, rounder shapes and a toy-box logo. |
 | `blacklight` | Blacklight | Dark | Black and white: white words on black, and a white accent unless another is picked. States differ by their gray, and by their words and icons as everywhere. |
 
-A device keeps its pick in its own storage (the web app: `pley.theme` in
-`localStorage`); the server keeps none. A device that picked none, or whose
-stored id it doesn't know, shows Midnight.
+A device keeps each profile's pick in its own storage (the web app:
+`pley.theme.<profile id>` in `localStorage`); the server keeps none. A
+profile that picked none on the device, or whose stored id the device
+doesn't know, shows Midnight.
+
+Outside a profile, Pley is drawn in Midnight in its own accent: choosing a
+server, signing in, "Who's watching?", setup, and the screen that says the
+server can't be reached. The profile's own pick comes back as soon as the
+app is inside it again. The web app also keeps the theme it shows
+(`pley.theme`), its profile's or Midnight, for its next visit's first
+page, which is drawn before it can ask who is signed in.
 
 Each light theme has a **dark twin**: Midday's is Midnight, Starlight's is
 Moonlight, Greenlight's is Nightshade and Sunshine's is Midnight. In a light
@@ -62,9 +71,13 @@ the same way:
   the web's, in every language (`account.theme` in
   `apps/web/src/i18n/locales/<language>/pages.json`), copied into the app's
   own catalogs.
-- **Kept on the device,** by the ids above. An id the app doesn't know
-  shows Midnight, or the theme's own accent. Each device keeps its own pick:
-  a TV doesn't take the phone's.
+- **Kept for each profile on the device,** by the ids above, as
+  [The themes](#the-themes) says, and Midnight outside a profile. An app
+  that knows the profile signed in as it starts draws its pick from the
+  first frame. An app that can sign in to several servers
+  keeps a profile's pick under its server too, since profile ids repeat
+  from one server to the next. An id the app doesn't know shows Midnight,
+  or the theme's own accent. A TV doesn't take the phone's pick.
 - **The colors** come from `packages/themes/themes.json`: each theme's
   colors (`colors`, by the tokens below), its kind, its twin, the tokens an
   accent replaces in it (`follows`), and each accent's colors for the dark
@@ -86,6 +99,23 @@ the same way:
   draw a soft gradient; where it can't, the page is the theme's plain `bg`,
   and the app's doc says so.
 
+Each app's tests hold its colors to `themes.json`, and its doc says what it
+draws:
+
+| App | Appearance | Backdrops | Its doc |
+|---|---|---|---|
+| Web | Account → Appearance | All | This one |
+| Desktop | The web's; the app's own server picker, title bar and icon follow the web's pick | All on the server picker | `apps/desktop/src-tauri/src/lib.rs` |
+| Android phone and tablet | Settings → Appearance | The glows; not Sunshine's rainbow | [ANDROID.md](ANDROID.md) |
+| Android TV, Fire TV | Settings → Appearance | The glows, and Sunshine's rainbow on the open side menu | [ANDROID.md](ANDROID.md) |
+| Samsung | Settings → Appearance | Sunshine's rainbow on the open rail | [TV_PLATFORMS.md](TV_PLATFORMS.md) |
+| Samsung, native | Settings → Appearance | None | [TV_PLATFORMS.md](TV_PLATFORMS.md) |
+| LG | Settings → Appearance | All, on mid- and high-tier TVs | [LG.md](LG.md) |
+
+Kodi and the Apple apps don't offer themes yet, and draw Midnight. The
+window an Android device draws before Pley starts is Midnight's, and the
+Mac's Dock keeps Pley's own icon.
+
 ## Accents
 
 An accent can replace a theme's own: Sky, Violet, Miami, Gold, Mint or
@@ -97,11 +127,11 @@ Sky's are Midnight's and Midday's, Miami's Twilight's, Gold's Moonlight's
 and Starlight's, Mint's Nightshade's and Greenlight's, so an accent that
 matches a theme's own leaves that theme's logo as it was. Violet's and
 Amber's, and Miami's in the light themes, follow the same steps from light
-to deep. Sunshine keeps its toy-box logo under any accent. Like the
-theme, it belongs to the device (the web app: `pley.accent` in
-`localStorage`), and a device that picked none, or whose stored id it
-doesn't know, shows the theme's own. It stays when the theme changes. The
-other apps draw the theme's own for now.
+to deep. Sunshine keeps its toy-box logo under any accent. It is kept as
+the theme is, for each profile on each device (the web app:
+`pley.accent.<profile id>` in `localStorage`), and a profile that picked
+none there, or whose stored id the device doesn't know, shows the theme's
+own. It stays when the theme changes.
 
 Each accent has a color for the dark themes and a deeper one for the light
 themes, each with its hover and the words on it. In a light theme the players
@@ -132,8 +162,11 @@ orange; with Amber, warning turns yellow.
   them, so the picker's swatch of the theme's own shows inside a page with
   another.
 - `apps/web/src/theme` holds the ids, shows a theme and an accent, keeps
-  the device's picks in storage, and follows a pick made in another of its
-  tabs. `public/theme.js` puts them on the page before it first draws (the
+  each profile's picks in storage, shows the profile's own once the app
+  knows it (`showProfile`, from `RequireAuth`), draws Midnight on a screen
+  outside a profile (`useOutsideProfile`: `AuthLayout`, `SetupLayout`,
+  "Who's watching?", the offline screen), and follows a pick made in
+  another of its tabs. `public/theme.js` puts them on the page before it first draws (the
   CSP runs no script written into the page), with the browser's bars in the
   theme's page color; it holds each theme's color itself, since the styles
   load after it, so a new theme goes there too.

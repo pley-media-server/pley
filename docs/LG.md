@@ -199,6 +199,39 @@ and `decimal`; counts by CLDR's plural forms, one and other in English,
 one, many and other in French and Spanish, only other in Chinese), times
 of day in the TV's 12- or 24-hour clock.
 
+### Appearance
+
+Settings → Appearance picks the theme and accent, as Account → Appearance
+does on the web ([THEMES.md](THEMES.md)). Its two rows, Theme
+and Accent, say what is picked and open the page of choices on either:
+"Theme" and its hint, the nine themes, five to a line, each a card with a
+small Pley in its colors, its name and caption, then "Accent" and its hint
+and the accents, Default (the theme's own) first, each a swatch of the color
+it gives the theme shown. The theme picked has an accent edge and a check;
+the accent picked is filled with the accent. Up and Down between the themes
+and the accents land on what is picked.
+OK shows a choice at once, every color in the same frame. It is kept for
+each profile on this TV, by server and profile (`themes` in its settings),
+and nothing goes to the server: a profile that picked none here shows
+Midnight in its own accent, and switching profile switches the theme at
+once. The pages outside a profile (the servers, an address, the sign-in
+code, "Who's watching?" and the PIN pad) are no profile's: they draw
+Midnight in its own accent, and the profile's pick comes back as the app
+goes into it again. A start with a saved sign-in knows its profile before
+the first frame, so its pages draw that profile's pick from the first
+frame. Delete all local data goes back to Midnight. The players, and what
+shows over them, draw a light theme in its dark twin's colors.
+
+The colors are built in from `packages/themes/themes.json`
+(`crates/ui/src/palette.rs`), whose tests hold every theme under every
+accent to the file. Each frame the shell shows the palette picked, and every
+color the screens draw reads it from there (`pley_ui::theme`). The
+backdrops (Twilight's sunset, Moonlight's moon, Nightshade's light,
+Sunshine's bubbles, and Sunshine's rainbow down the open rail) are a few
+vertex gradients under the page, drawn on Mid- and High-tier TVs; a
+Low-tier TV draws the theme's plain page color. A title's picture fades
+into the page color, so a backdrop shows around pictures, not through them.
+
 ### Audio and subtitles
 
 - The server picks the audio track that this TV plays best in the
@@ -287,7 +320,17 @@ and goes with `live_channels_changed`. On LG:
 - **The channel's own stream:** a channel the server sends as it is, or
   whose only change is sound the TV decodes itself (AC-3, E-AC-3, MP2),
   plays from its `stream.ts`, from its first keyframe rather than after the
-  first HLS segments. The pipeline can't send the token, so the app reads
+  first HLS segments. So does a channel the server would convert, when
+  the TV plays what the provider sends, and the server makes no transcode
+  for it: video in H.264, HEVC or MPEG-2 that a decoder of the
+  [capability report](#what-an-lg-tv-plays) takes at its bit depth (8
+  when the plan doesn't say), size and frame rate, and sound in AAC, AC-3,
+  E-AC-3, MP2 or MP3 that the report decodes or passes through. Those are
+  the formats LG lists for an MPEG-TS, and the report is the one files
+  play by. Interlaced video stays with the server while its Deinterlace
+  setting is on, as does every converted channel while the TV has no
+  report yet (`crates/player/src/live/session.rs`).
+- **Handing it on:** the pipeline can't send the token, so the app reads
   the stream with it and hands it on from the TV's loopback address
   (`http://127.0.0.1:<port>/relay/<128 random bits>/stream.ts`): only that
   one stream, to at most four players (a place taken only by a request
@@ -326,7 +369,37 @@ and goes with `live_channels_changed`. On LG:
 - **The player:** Up and Down, CH+ and CH−, Next and Previous change
   channel within the category; digits tune a number. OK, the menu or the
   guide key opens the channel list beside the picture, which moves aside
-  to make room; holding OK shows the controls, as in the Samsung app.
+  to make room; holding OK shows the controls, as in the Samsung app:
+  the channel list and the favorite at the left, and Info at the right
+  end of their row, where the video player has it.
+- **Playback details:** Info in the controls opens the video player's
+  panel for the channel, over the controls, and it reads as a video's.
+  Under How it plays, Playback says Direct play (the provider's
+  `stream.ts`), Direct stream (the server's HLS with the video copied,
+  and "Audio transcoding" beside it when the server converts the sound)
+  or Transcoding. Why says what keeps a channel the server converts from
+  Direct play, in a sentence: interlaced video, or the video or sound this
+  TV doesn't play, the video's codec with its bit depth above 8 bits
+  ("This TV doesn't play HEVC 12-bit video."). Video and Audio say what the provider sends and, after an arrow,
+  what the server makes of it ("HEVC 4K → H.264 1080p", "EAC3 5.1 → AAC
+  2.0"); Bitrate what the provider sends now, with a transcode's video
+  bitrate; Encoder the transcode's; then the TV's network speed. The
+  Video and Audio sections say the provider's codec, size, frame rate,
+  bit depth and channels, as a video's say its file's, and This TV what
+  the pipeline says of itself, with the channel's stalls (counted anew
+  for another channel) and the time from tuning to its first picture. A
+  channel has no file, subtitles or quality to list. The details come
+  from the session's plan, asked again every 2.5 s while the panel shows;
+  what it doesn't say is left out, and a channel on HLS whose plan hasn't
+  come says "Asking the server…". The panel stays through a change of
+  channel; Back goes to the controls, on Info
+  (`crates/player/src/live/details.rs`). The bar says the way too, in the
+  video player's badge beside Live, once it is known: from the plan the
+  tune learned, or, for a channel on HLS whose tune didn't, the plan asked
+  once as its picture starts; asking starts no transcode. With Settings →
+  Playback details on, the video player's readout stays over the picture
+  while nothing else shows over it: the way, the details' rows, and what
+  the pipeline decodes and buffers.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change
   of channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).
@@ -826,7 +899,7 @@ but keeps time, seeks, changes speed, waits and ends as the TV's does.
 | `--data <dir>` | Keep the app's data here (by default `pley-lg-sim` in the temporary folder, or a new folder each run with `--fixtures`); the log is `logs/pley.log` in it |
 | `--drive <dir>` | A folder of the computer's stands in for a USB drive plugged into the TV; `--drive fixtures` makes a sample drive in the data folder (`crates/fixtures`: films that are heads only, with tracks, chapters, HDR10+, Dolby Vision profile 7, a subtitle file, a folder and what a drive holds that is never listed) |
 | `--size <w>x<h>` | The window's size (1280x720; `1920x1080` for the TV's) |
-| `--route <route>` | Open a page: `home`, `item:12`, `library:3`, `search:<query>`, `settings:about`, `storage` (the drive's top) or `storage:<folder>`… |
+| `--route <route>` | Open a page: `home`, `item:12`, `library:3`, `search:<query>`, `settings:about`, `appearance`, `storage` (the drive's top) or `storage:<folder>`… |
 | `--keys "<script>"` | Keys to press once the first page shows: `up down left right ok back menu info play pause playpause stop ff rew next prev chup chdown red green yellow blue`, digits, `hold:<key>:<ms>` (held, repeating as the remote does), `wait:<ms>`, `text:<chars>`, `point:<x>,<y>` (dp), `click`, and `drive:out` and `drive:in` (the drive pulled out and plugged in again) |
 | `--screenshot <file>` | After the keys (and a `wait:` at their end), once the frames go quiet, write the frame as PNG and leave |
 | `--screenshot-after <ms>` | Take the screenshot this long after the keys instead: a playing video never goes quiet, and otherwise the shot comes 15 s after the last key |
@@ -925,6 +998,7 @@ keep a release's.
   [CLI guide](https://webostv.developer.lge.com/develop/tools/cli-dev-guide),
   [appinfo.json](https://webostv.developer.lge.com/develop/references/appinfo-json),
   [streaming protocols](https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm),
+  [video and audio formats](https://webostv.developer.lge.com/develop/specifications/video-audio-250),
   [resuming media](https://webostv.developer.lge.com/develop/guides/resuming-media-with-mediaoption),
   [Back button](https://webostv.developer.lge.com/develop/guides/back-button),
   [uMediaServer for webOS OSE](https://www.webosose.org/docs/reference/ls2-api/com-webos-media/).

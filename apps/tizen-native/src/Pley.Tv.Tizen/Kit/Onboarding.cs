@@ -1,3 +1,4 @@
+using Pley.Tv.Core.Ui;
 using Tizen.NUI;
 using Tizen.NUI.BaseComponents;
 
@@ -41,7 +42,7 @@ static class Onboarding
         var row = new View { Size = new Size(0, px) };
         var mark = new ImageView
         {
-            ResourceUrl = $"{(global::Tizen.Applications.Application.Current.DirectoryInfo.SharedResource)}pley-mark.svg",
+            ResourceUrl = MarkFile(),
             Size = new Size(px, px),
             DesiredWidth = px,
             DesiredHeight = px,
@@ -60,6 +61,31 @@ static class Onboarding
         row.Add(mark);
         row.Add(word);
         return row;
+    }
+
+    /// <summary>
+    /// The mark in the theme's colors (Core's LogoMark): written once per set of colors to the app's
+    /// cache, as NUI draws an SVG from a file; Midnight's own as the app ships it, when it can't be written.
+    /// </summary>
+    static string MarkFile()
+    {
+        var palette = PleyColors.Now.Palette;
+        var shipped = $"{(global::Tizen.Applications.Application.Current.DirectoryInfo.SharedResource)}pley-mark.svg";
+        var path = System.IO.Path.Combine(global::Tizen.Applications.Application.Current.DirectoryInfo.Cache, LogoMark.FileName(palette));
+        try
+        {
+            if (!System.IO.File.Exists(path))
+            {
+                // Whole or not at all: a file cut short by the app ending would stay a broken mark.
+                System.IO.File.WriteAllText(path + ".part", LogoMark.Svg(palette));
+                System.IO.File.Move(path + ".part", path);
+            }
+            return path;
+        }
+        catch (System.Exception e) when (e is System.IO.IOException or System.UnauthorizedAccessException)
+        {
+            return shipped;
+        }
     }
 
     /// <summary>Width in dp of a view made here.</summary>

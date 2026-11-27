@@ -123,7 +123,13 @@
     "joinHint": "Puedes unirte a un canal que ya se está viendo, o volver a intentarlo cuando se detenga alguno.",
     "watchAgain": "Volver a ver",
     "otherChannels": "Otros canales",
-    "backToGuide": "Volver a la guía"
+    "backToGuide": "Volver a la guía",
+    "details": {
+      "interlacedWhy": "El video entrelazado se convierte a progresivo.",
+      "noVideo": "Este dispositivo no reproduce el video {{codec}}.",
+      "noAudio": "Este dispositivo no reproduce el audio {{codec}}.",
+      "interlaced": "entrelazado"
+    }
   },
   "panel": {
     "changeGroup": "Cambiar de grupo",

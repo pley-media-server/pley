@@ -125,6 +125,7 @@ internal fun PhoneGuide(
     onWatch: (LiveChannel) -> Unit,
     onDetails: (LiveChannel, LiveProgram) -> Unit,
 ) {
+    val palette = PleyColors.palette
     val metrics = LocalPhoneMetrics.current
     val layout = if (metrics.widthClass == WidthClass.Compact) GuideLayout.Narrow else GuideLayout.Wide
     val density = LocalDensity.current
@@ -155,7 +156,7 @@ internal fun PhoneGuide(
                     .fillMaxWidth()
                     .height(layout.headerHeight)
                     .background(PleyColors.Bg)
-                    .drawBehind { drawLine(PleyColors.Surface4, Offset(0f, size.height - 0.5f), Offset(size.width, size.height - 0.5f), 1f) },
+                    .drawBehind { drawLine(palette.border, Offset(0f, size.height - 0.5f), Offset(size.width, size.height - 0.5f), 1f) },
             ) {
                 Box(Modifier.width(layout.channelWidth).fillMaxHeight().padding(start = 12.dp), contentAlignment = Alignment.CenterStart) {
                     Text(dayOf(maxOf(leftEdge, start), now), style = MaterialTheme.typography.labelMedium, color = PleyColors.Fg, maxLines = 1)
@@ -169,7 +170,7 @@ internal fun PhoneGuide(
                             Modifier
                                 .offset { IntOffset((x - scroll.x).roundToInt(), 0) }
                                 .fillMaxHeight()
-                                .drawBehind { drawLine(PleyColors.Surface4, Offset(0f, size.height * 0.3f), Offset(0f, size.height), 1f) }
+                                .drawBehind { drawLine(palette.border, Offset(0f, size.height * 0.3f), Offset(0f, size.height), 1f) }
                                 .padding(start = 8.dp),
                             contentAlignment = Alignment.CenterStart,
                         ) {
@@ -302,13 +303,14 @@ private fun GuideRow(
     onWatch: () -> Unit,
     onDetails: (LiveProgram) -> Unit,
 ) {
+    val palette = PleyColors.palette
     val density = LocalDensity.current
     val visible = remember(programs, viewFrom, viewTo, start) { LiveTv.between(programs, maxOf(viewFrom, start), viewTo) }
     Row(
         Modifier
             .fillMaxWidth()
             .height(layout.rowHeight)
-            .drawBehind { drawLine(PleyColors.Surface4.copy(alpha = 0.7f), Offset(0f, size.height - 0.5f), Offset(size.width, size.height - 0.5f), 1f) },
+            .drawBehind { drawLine(palette.border.copy(alpha = 0.7f), Offset(0f, size.height - 0.5f), Offset(size.width, size.height - 0.5f), 1f) },
     ) {
         val watch = stringResource(R.string.livetv_watch, listOfNotNull(channel.number, name).joinToString(" "))
         Row(

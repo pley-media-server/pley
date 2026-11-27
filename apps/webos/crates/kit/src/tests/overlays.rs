@@ -43,9 +43,9 @@ fn a_side_panel_slides_in_keeps_focus_and_gives_it_back_when_closed() {
     assert_eq!(press(&mut h, Key::Ok, &mut screen), row(1));
     let f = h.idle(&mut screen);
     // 360 wide at the right edge (drawn 8 past it so only its left corners round), content 24 in.
-    assert!(fills_of(&f.list, theme::SURFACE2).contains(&Rect::new(600.0, 0.0, 368.0, 540.0)));
-    assert!(fills_of(&f.list, theme::BG.alpha(0.6)).contains(&Rect::new(0.0, 0.0, 960.0, 540.0)));
-    assert!(fills_of(&f.list, theme::ACCENT).contains(&Rect::new(624.0, 27.0 + 46.0, 288.0, 44.0)));
+    assert!(fills_of(&f.list, theme::surface2()).contains(&Rect::new(600.0, 0.0, 368.0, 540.0)));
+    assert!(fills_of(&f.list, theme::scrim()).contains(&Rect::new(0.0, 0.0, 960.0, 540.0)));
+    assert!(fills_of(&f.list, theme::accent()).contains(&Rect::new(624.0, 27.0 + 46.0, 288.0, 44.0)));
     // Focus stays inside.
     assert_eq!(press(&mut h, Key::Left, &mut screen), row(1));
     assert_eq!(press(&mut h, Key::Up, &mut screen), row(0));
@@ -59,7 +59,7 @@ fn a_side_panel_slides_in_keeps_focus_and_gives_it_back_when_closed() {
     h.step(Step::Press(Key::Back), &mut screen);
     h.wait(0.1, &mut screen);
     let f = h.idle(&mut screen);
-    let panel = fills_of(&f.list, theme::SURFACE2);
+    let panel = fills_of(&f.list, theme::surface2());
     assert!(panel.iter().any(|r| r.x > 600.0 && r.x < 960.0), "{panel:?}");
     // Sliding out, its rows are drawn but no longer take focus.
     assert!(f.list.says("Year"));
@@ -89,10 +89,10 @@ fn a_dialog_sits_in_the_middle_keeps_focus_and_back_dismisses_it() {
     let f = settle(&mut h, &mut screen);
     assert_eq!(f.focused, Some(Id::new("dialog").with(0usize)));
     // At least 320 wide, centered.
-    let card = fills_of(&f.list, theme::SURFACE2)[0];
+    let card = fills_of(&f.list, theme::surface2())[0];
     assert_eq!((card.w, card.x), (320.0, 320.0));
     assert!(((card.y + card.h / 2.0) - 270.0).abs() < 0.01);
-    assert_eq!(text_color(&f.list, "Delete"), Some(theme::DANGER_TEXT));
+    assert_eq!(text_color(&f.list, "Delete"), Some(theme::danger()));
     assert_eq!(press(&mut h, Key::Right, &mut screen), Some(Id::new("dialog").with(1usize)));
     assert_eq!(press(&mut h, Key::Down, &mut screen), Some(Id::new("dialog").with(1usize)));
     h.step(Step::Press(Key::Ok), &mut screen);
@@ -111,7 +111,7 @@ fn a_dialog_with_a_width_keeps_it_and_focuses_the_button_asked() {
     h.idle(&mut screen);
     let f = settle(&mut h, &mut screen);
     assert_eq!(f.focused, Some(Id::new("exit").with(1usize)));
-    let card = fills_of(&f.list, theme::SURFACE2)[0];
+    let card = fills_of(&f.list, theme::surface2())[0];
     assert_eq!((card.w, card.x), (360.0, 300.0));
 }
 
@@ -164,7 +164,7 @@ fn an_action_sheet_lists_its_actions_and_focuses_the_first() {
     assert_eq!(f.focused, Some(Id::new("sheet").with(0usize)));
     // Title at (96, 58), subtitle under it, rows 24 below.
     assert_eq!(super::text_at(&f.list, "Severance"), Some(Point::new(96.0, 58.0)));
-    assert!(fills_of(&f.list, theme::ACCENT).contains(&Rect::new(96.0, 58.0 + 34.0 + 20.0 + 24.0, 464.0, 44.0)));
+    assert!(fills_of(&f.list, theme::accent()).contains(&Rect::new(96.0, 58.0 + 34.0 + 20.0 + 24.0, 464.0, 44.0)));
     press(&mut h, Key::Down, &mut screen);
     h.step(Step::Press(Key::Ok), &mut screen);
     assert_eq!(chosen.get(), Some(1));

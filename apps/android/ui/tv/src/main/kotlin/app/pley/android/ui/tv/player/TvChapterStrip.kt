@@ -237,6 +237,8 @@ private fun ChapterPicture(
     hold: CardHold,
     controller: PlaybackController,
 ) {
+    val ring = PleyColors.AccentBright
+    val palette = PleyColors.palette
     val own = remember(chapter.imageUrl) { chapter.imageUrl?.let { ArtworkImage(listOf(it), maxWidth = PREVIEW_IMAGE_WIDTH) } }
     val load = remember(own) { ArtworkLoad() }
     val fromPreview = own == null || load.failed
@@ -252,10 +254,10 @@ private fun ChapterPicture(
     Box(
         Modifier
             .size(CARD_WIDTH, PREVIEW_HEIGHT)
-            .drawBehind { if (focused) drawCardRing() }
+            .drawBehind { if (focused) drawCardRing(ring) }
             .clip(PleyShape.TileTv)
             // The well until a picture shows, then the black around it.
-            .drawBehind { drawRect(if (if (fromPreview) frame != null else load.loaded) Color.Black else PleyColors.Surface2) },
+            .drawBehind { drawRect(if (if (fromPreview) frame != null else load.loaded) Color.Black else palette.surface2) },
     ) {
         val picture = frame
         when {
@@ -266,11 +268,11 @@ private fun ChapterPicture(
 }
 
 /** The focused card's ring: a [PleyFocus.RingStroke] of accent bright just outside its picture, round its corners. */
-private fun DrawScope.drawCardRing() {
+private fun DrawScope.drawCardRing(ring: Color) {
     val stroke = PleyFocus.RingStroke.toPx()
     val half = stroke / 2f
     drawRoundRect(
-        PleyColors.AccentBright,
+        ring,
         topLeft = Offset(-half, -half),
         size = Size(size.width + stroke, size.height + stroke),
         cornerRadius = CornerRadius(PleyShape.TileTvRadius.toPx() + half),

@@ -35,6 +35,7 @@ import app.pley.android.data.AppSettings
 import app.pley.android.data.SessionState
 import app.pley.android.data.Settings
 import app.pley.android.data.SubtitleBackground
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.player.PlaybackController
 import app.pley.android.player.PlaybackServices
 import app.pley.android.player.PlayerEngine
@@ -160,7 +161,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
 
         val settingsFlow: Flow<Settings> = settings?.settings ?: flowOf(Settings())
         setContent {
-            PhoneTheme {
+            PhoneTheme(Appearance.palette.dark) {
                 // Asked as it is drawn: the window moves to the phone's screen, and is phone-sized again, as the car goes.
                 CarSized(onCarScreen()) {
                     val current = controller.value

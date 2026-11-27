@@ -703,8 +703,9 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   browser.
 - It hands only web and mail links to the system, and opens finished
   downloads in the system's player or file manager.
-- Server pages get none of its commands; only the pages bundled with the
-  app do.
+- Server pages get one of its commands, which tells it the theme and
+  accent they show (ids it knows, from the server shown only); the others
+  are for the pages bundled with the app alone.
 - While the window isn't in front, it follows that server's event stream
   with the window's own session, sent to that server's origin only, and
   tells of requests in the system's notifications: titles, seasons and

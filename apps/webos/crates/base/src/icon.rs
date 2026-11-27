@@ -66,6 +66,7 @@ pub enum Icon {
     Monitor,
     Moon,
     Music,
+    Palette,
     Pause,
     Pencil,
     Play,

@@ -175,12 +175,12 @@ impl StorageScreen {
         let (title, body) = problem.words();
         let y = LIST_TOP + if listing.has_up() { MESSAGE_BELOW_UP } else { MESSAGE_ALONE };
         let icon = Rect::new(theme::GUTTER + (WIDTH - MESSAGE_ICON) / 2.0, y, MESSAGE_ICON, MESSAGE_ICON);
-        ui.icon(icon, problem.icon(), theme::MUTED);
+        ui.icon(icon, problem.icon(), theme::muted());
         let y = icon.bottom() + MESSAGE_ICON_GAP;
         let centred = |lines| TextOpts::wrap(WIDTH, lines).aligned(Align::Center);
-        let h = ui.text(Point::new(theme::GUTTER, y), title, &theme::TITLE, &centred(2), theme::FG).h;
+        let h = ui.text(Point::new(theme::GUTTER, y), title, &theme::TITLE, &centred(2), theme::fg()).h;
         let at = Point::new(theme::GUTTER, y + h + 10.0);
-        let h = h + 10.0 + ui.text(at, body, &theme::BODY, &centred(3), theme::MUTED).h;
+        let h = h + 10.0 + ui.text(at, body, &theme::BODY, &centred(3), theme::muted()).h;
         if listing.lines.is_empty() {
             ui.initial_focus(message_id);
             ui.focusable(message_id, Rect::new(theme::GUTTER, icon.y, WIDTH, icon.h + MESSAGE_ICON_GAP + h));
@@ -202,10 +202,16 @@ impl Screen for StorageScreen {
         }
         self.take_reading(ui, list_id, message_id);
         let title = self.page_title();
-        ui.text(Point::new(theme::GUTTER, theme::SAFE_Y), title, &theme::PAGE_TITLE, &TextOpts::line(WIDTH), theme::FG);
+        ui.text(
+            Point::new(theme::GUTTER, theme::SAFE_Y),
+            title,
+            &theme::PAGE_TITLE,
+            &TextOpts::line(WIDTH),
+            theme::fg(),
+        );
         if let Some(caption) = self.listing.as_ref().map(|l| l.caption.as_str()).filter(|c| !c.is_empty()) {
             let at = Point::new(theme::GUTTER, CAPTION_Y);
-            ui.text(at, caption, &theme::CAPTION, &TextOpts::line(WIDTH), theme::MUTED);
+            ui.text(at, caption, &theme::CAPTION, &TextOpts::line(WIDTH), theme::muted());
         }
         let picked = self.lines(ui, list_id);
         self.message(ui, message_id);

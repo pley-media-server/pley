@@ -143,6 +143,7 @@ internal fun TvPadKey(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val palette = PleyColors.palette
     val reduced = reducedMotion()
     val scope = rememberCoroutineScope()
     val scale = remember { Animatable(1f) }
@@ -173,9 +174,9 @@ internal fun TvPadKey(
             }
             .drawBehind {
                 val fill = when {
-                    flashing -> PleyColors.Surface4
-                    focused -> PleyColors.Accent
-                    else -> PleyColors.Surface3
+                    flashing -> palette.border
+                    focused -> palette.accent
+                    else -> palette.surface3
                 }
                 drawRoundRect(fill, cornerRadius = CornerRadius(PleyShape.ControlRadius.toPx()))
             },

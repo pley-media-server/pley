@@ -334,6 +334,32 @@ private func group(_ name: String, _ count: Int = 1) -> LiveGroup {
         #expect(await eventually { server.liveSessions.isEmpty })
     }
 
+    @Test func playbackDetailsShowThePlanOnceTheServerKnowsIt() async throws {
+        let server = try await started()
+        defer { server.stop() }
+        let live = try await liveRepository(server)
+        let playback = LivePlayback(live: live, clientId: "apple-test", engines: { QuietLiveEngine() })
+        let model = LivePlayerModel(request: LiveRequest(channelId: 1, category: .all), live: live,
+                                    playback: playback, planEvery: .milliseconds(50))
+        defer { model.close() }
+        #expect(await eventually { playback.sessionId != nil })
+        #expect(model.plan == nil)
+        // The server doesn't know it yet: nothing to show, and it is asked again.
+        server.setLivePlanKnown(false)
+        model.showDetails()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(model.plan == nil)
+        server.setLivePlanKnown(true)
+        #expect(await eventually { model.plan?.video == "copy" })
+        // Another channel: the plan is its own session's.
+        let first = playback.sessionId
+        let other = try await live.channel(2)
+        model.tune(other)
+        #expect(await eventually { playback.sessionId != nil && playback.sessionId != first })
+        #expect(await eventually { model.plan?.video == "copy" })
+        model.hideDetails()
+    }
+
     @Test func liveAndVideoAreNeverOpenTogether() async throws {
         let server = try await started()
         defer { server.stop() }

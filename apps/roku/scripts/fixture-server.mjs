@@ -926,6 +926,14 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.writeHead(200, { "Content-Type": "application/vnd.apple.mpegurl" });
       return res.end("#EXTM3U\n#EXT-X-VERSION:6\n#EXT-X-TARGETDURATION:2\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:2.000000,\ns0.ts\n");
     }
+    // What the channel is and what the server makes of it: an HEVC one
+    // made H.264, its sound made AAC.
+    if ((match = path.match(/^\/api\/live\/sessions\/(\w+)\/plan$/)) && req.method === "GET") {
+      if (!fixture.liveSessions.has(match[1])) return json(404, { code: "not_found", message: "not watching" });
+      fixture.livePlans.push(match[1]);
+      return json(200, { video_codec: "hevc", width: 3840, height: 2160, frame_rate: 50, interlaced: false, bit_depth: 10, audio_codec: "eac3", audio_channels: 6,
+        video: "libx264", audio: "aac", out_height: 1080, video_kbps: 8000, kbps: 12300 });
+    }
     if ((match = path.match(/^\/api\/live\/sessions\/(\w+)$/)) && req.method === "DELETE") {
       fixture.liveLeft.push(match[1]);
       const known = fixture.liveSessions.delete(match[1]);
@@ -985,7 +993,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
   const fixture = { issuer: "", down: false, qr: true, proofs: 0, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], serverLanguage: "en", language: null, languagesSaved: [], languageRoute: true, languagesRefused: [], categories: true, streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
     switched: [], subtitlesAdded: [], picturesMissing: false, picturesAsked: [], picturesFetched: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, videoReports: 0, closed, close: () => server.close(),
-    liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };
+    liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], livePlans: [], liveLeft: [] };
   // The channels, each with what's on now and next, by the half hour.
   function liveProgram(channelId, start) {
     const titles = { 1: ["Fixture Morning", "Fixture at One"], 2: ["Match Day", "Tennis Live"] }[channelId];

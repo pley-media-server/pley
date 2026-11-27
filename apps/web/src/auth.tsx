@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, type ReactNode } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { errorMessage, isApiError } from "@/api/client";
@@ -14,6 +14,7 @@ import { Button, EmptyState, Spinner } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { rememberProfile } from "@/lib/lastProfile";
 import { useSetupFrame } from "@/lib/setupFrame";
+import { showProfile } from "@/theme";
 import { TriangleAlert } from "lucide-react";
 
 const AuthContext = createContext<User | null>(null);
@@ -85,6 +86,10 @@ export function RequireAuth() {
   // Signing in here again goes straight in as it (LoginPage).
   useEffect(() => {
     if (profileId !== null) rememberProfile(profileId);
+  }, [profileId]);
+  // The profile's own theme on this device, before its first page draws.
+  useLayoutEffect(() => {
+    if (profileId !== null) showProfile(profileId);
   }, [profileId]);
 
   if (server.isPending) return <Splash />;

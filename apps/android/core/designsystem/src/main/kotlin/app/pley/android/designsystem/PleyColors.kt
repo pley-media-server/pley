@@ -1,116 +1,203 @@
 package app.pley.android.designsystem
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import app.pley.android.designsystem.theme.LocalPleyPalette
+import app.pley.android.designsystem.theme.PleyPalette
 
 /**
- * pley's colors (design spec §1.1): the web's (apps/web/src/index.css),
- * dark only, with four native changes for contrast: `subtle` is lighter,
- * its old value is now [Disabled] and [Control], and [DangerText] is new.
- * The phone builds its Material 3 scheme from these and the TV its
- * tv-material one; neither defines a color of its own.
+ * Pley's colors (design spec §1.1) in the theme shown: the palette of
+ * [LocalPleyPalette], which the shells provide from this device's pick
+ * (docs/THEMES.md). Each is a token of packages/themes/themes.json, or made
+ * of them; the phone builds its Material 3 scheme from these and the TV its
+ * tv-material one, and neither defines a color of its own.
  *
- * Contrast ratios are against [Bg] unless said otherwise.
+ * Read in composition: what draws later (a draw block, a click) takes the
+ * color read where it was made, which a pick makes again.
  */
 object PleyColors {
-    /** The window, painted once as the window background. */
-    val Bg = Color(0xFF0B0D10)
+    /** The palette itself, for what keeps several colors or hands them on. */
+    val palette: PleyPalette
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current
 
-    /** The expanded rail, settings groups. */
-    val Surface = Color(0xFF12151A)
+    /** The window, painted once as the window background. `bg`. */
+    val Bg: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.bg
 
-    /** Tile wells, inputs, dialogs, panels, skeletons. */
-    val Surface2 = Color(0xFF191D24)
+    /** The expanded rail, settings groups. `surface`. */
+    val Surface: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.surface
 
-    /** Unfocused buttons and chips, the current page in lists. */
-    val Surface3 = Color(0xFF222731)
+    /** Tile wells, inputs, dialogs, panels, skeletons. `surface-2`. */
+    val Surface2: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.surface2
 
-    /** Dividers, hairlines, the progress track. The web's `--color-border`. */
-    val Surface4 = Color(0xFF2A303B)
+    /** Unfocused buttons and chips, the current page in lists. `surface-3`. */
+    val Surface3: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.surface3
 
-    /** Decorative borders only (badges on [Bg]), 1.9:1: never the only edge of a control. The web's `--color-border-strong`. */
-    val Outline = Color(0xFF3A4250)
+    /** Dividers, hairlines, the progress track. `border`. */
+    val Surface4: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.border
 
-    /** Edges of interactive things: input outlines, empty PIN dots, outlined pills. 4.2:1, 3.2 on [Surface3]. */
-    val Control = Color(0xFF6C7584)
+    /** Decorative borders only (badges on [Bg]): never the only edge of a control. `border-strong`. */
+    val Outline: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.borderStrong
 
-    /** Primary text and icons, 16.3:1. Text is never pure white. */
-    val Fg = Color(0xFFE9EBEF)
+    /** Edges of interactive things: input outlines, empty PIN dots, outlined pills ([PleyPalette.control]). */
+    val Control: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.control
 
-    /** Secondary text, 8.2:1 (7.1 on [Surface2]). */
-    val Muted = Color(0xFFA1A9B6)
+    /** Primary text and icons. `fg`. */
+    val Fg: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.fg
 
-    /** Tertiary text: dates, separators, 6.4:1. */
-    val Subtle = Color(0xFF8B95A5)
+    /** Secondary text. `muted`. */
+    val Muted: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.muted
 
-    /** Disabled text and icons only, never information (4.2:1). The web's `--color-subtle`. */
-    val Disabled = Color(0xFF6C7584)
+    /** Tertiary text: dates, separators, hints. `subtle`. */
+    val Subtle: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.subtle
 
-    /** TV focus fills; phone primary actions; progress; checks (9.1:1). */
-    val Accent = Color(0xFF38BDF8)
+    /** Disabled text and icons only, never information ([PleyPalette.disabled]). */
+    val Disabled: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.disabled
 
-    /** The TV focus ring; text links on the phone; a pressed accent (11.7:1). The web's `--color-accent-hover`. */
-    val AccentBright = Color(0xFF7DD3FC)
+    /** TV focus fills; phone primary actions; progress; checks. `accent`. */
+    val Accent: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.accent
 
-    /** Content on [Accent] (8.8:1) and [AccentBright] (11.3:1). The web's `--color-accent-fg`. */
-    val OnAccent = Color(0xFF03131F)
+    /** The TV focus ring; text links on the phone; a pressed accent. `accent-hover`. */
+    val AccentBright: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.accentHover
+
+    /** Content on [Accent] and [AccentBright]. `accent-fg`. */
+    val OnAccent: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.accentFg
 
     /** The phone's primary container: [Accent] at 20 % over [Bg]. */
-    val PrimaryContainer = Color(0xFF14303E)
+    val PrimaryContainer: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.primaryContainer
 
-    /** The logo, the TV banner and the sign-in screens' brand gradient. */
-    val BrandLight = Color(0xFFBAE6FD)
+    /** The logo's front poster, from this to [Brand]; the TV banner and the sign-in screens' brand gradient. `brand-light`. */
+    val BrandLight: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.brandLight
 
-    /** Brand gradients only: never behind text (3.4:1 with [Fg]). */
-    val BrandDeep = Color(0xFF0284C7)
+    /** The logo's front poster, from [BrandLight] to this. `brand`. */
+    val Brand: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.brand
 
-    /** The logo's back poster. */
-    val BrandFar = Color(0xFF0C4A6E)
+    /** The logo's middle poster; brand gradients, never behind text. `brand-deep`. */
+    val BrandDeep: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.brandDeep
 
-    /** The logo's tile. */
-    val BrandTile = Color(0xFF0A1622)
+    /** The logo's back poster. `brand-far`. */
+    val BrandFar: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.brandFar
 
-    /** "Signed in", "On this network" dots; a request ready to watch (6.9:1 on [Surface]). */
-    val Success = Color(0xFF3FB27F)
+    /** The logo's tile. `brand-tile`. */
+    val BrandTile: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.brandTile
 
-    /** Waiting on someone: a request waiting for approval (9.4:1 on [Surface]). */
-    val Amber = Color(0xFFF2B347)
+    /** "Signed in", "On this network" dots; a request ready to watch. `success`. */
+    val Success: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.success
 
-    /** Destructive fills, with [Bg] content (5.0:1). Never text on surfaces: that is [DangerText]. */
-    val Danger = Color(0xFFE5484D)
+    /** Waiting on someone: a request waiting for approval. `warning`, with [Bg] words on it. */
+    val Warning: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.warning
 
-    /** Error text: 7.0:1, 6.1 on [Surface2], 5.4 on [Surface3]. */
-    val DangerText = Color(0xFFFF6B70)
+    /** Destructive fills, with [DangerFg] content. `danger`. */
+    val Danger: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.danger
 
-    /** Informational notices. */
-    val Info = Color(0xFF4C9AFF)
+    /** Words and icons on a [Danger] fill. `danger-fg`. */
+    val DangerFg: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.dangerFg
 
-    /** QR codes only. */
+    /** Error text: `danger`, which reads on every surface. */
+    val DangerText: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.danger
+
+    /** Informational notices. `info`. */
+    val Info: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.info
+
+    /** Shadows. `shade`. */
+    val Shade: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.shade
+
+    /** Badges, the watched tick and round buttons on art: [Bg] at 80 %. */
+    val OnArt: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.onArt
+
+    /** The hairline inside a tile's well, so art the page's color doesn't dissolve into it: [Fg] at 6 %. */
+    val TileHairline: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.tileHairline
+
+    /** Behind dialogs, sheets and panels: [Shade], dimmer. */
+    val Scrim: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.scrim
+
+    /** The web's name for [Surface4]. */
+    val Border: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.border
+
+    /** The web's name for [Outline]. */
+    val BorderStrong: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.borderStrong
+
+    /** The web's name for [AccentBright]. */
+    val AccentHover: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.accentHover
+
+    /** The web's name for [OnAccent]. */
+    val AccentFg: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalPleyPalette.current.accentFg
+
+    /** QR codes only, in every theme: a scanner reads dark on light. */
     val QrDark = Color(0xFF000000)
 
     /** QR codes only. */
     val QrLight = Color(0xFFFFFFFF)
 
-    /** Badges, the watched tick and round buttons on art: [Bg] at 80 %. */
-    val OnArt = Bg.copy(alpha = 0.8f)
-
-    /** The progress track over art: black at 60 %. */
+    /** The progress track over art: black at 60 %, on the picture in every theme. */
     val ProgressTrackOnArt = Color.Black.copy(alpha = 0.6f)
-
-    /** The hairline inside a tile's well, so dark art doesn't dissolve into [Bg]: white at 6 %. */
-    val TileHairline = Color.White.copy(alpha = 0.06f)
-
-    /** Behind dialogs, sheets and panels: [Bg] at 60 %. */
-    val Scrim = Bg.copy(alpha = 0.6f)
-
-    /** The web's name for [Surface4]. */
-    val Border get() = Surface4
-
-    /** The web's name for [Outline]. */
-    val BorderStrong get() = Outline
-
-    /** The web's name for [AccentBright]. */
-    val AccentHover get() = AccentBright
-
-    /** The web's name for [OnAccent]. */
-    val AccentFg get() = OnAccent
 }

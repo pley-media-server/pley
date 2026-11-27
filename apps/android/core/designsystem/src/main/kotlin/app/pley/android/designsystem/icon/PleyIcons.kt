@@ -142,6 +142,17 @@ object PleyIcons {
         "M4 7a3 3 0 1 0 6 0a3 3 0 1 0 -6 0z",
     )
 
+    /** Lucide `palette`. */
+    val Palette = PleyIcon(
+        "palette",
+        false,
+        "M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z",
+        "M13 6.5a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0z",
+        "M17 10.5a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0z",
+        "M6 12.5a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0z",
+        "M8 7.5a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0z",
+    )
+
     /** Lucide `sliders-horizontal`. */
     val SlidersHorizontal = PleyIcon(
         "sliders-horizontal",

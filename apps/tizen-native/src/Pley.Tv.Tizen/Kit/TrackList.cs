@@ -369,7 +369,7 @@ sealed class TrackLineView : View
         if (duration != null) duration.TextColor = secondary;
         if (number != null) number.TextColor = focused ? PleyColors.OnAccent : PleyColors.Subtle;
         if (glyph != null) glyph.Color = focused ? PleyColors.OnAccent : PleyColors.Accent;
-        if (tile != null) tile.BackgroundColor = focused ? new Color(0, 0, 0, 0.18f) : PleyColors.Surface2;
+        if (tile != null) tile.BackgroundColor = focused ? PleyColors.Alpha(PleyColors.OnAccent, 0.18f) : PleyColors.Surface2;
         if (icon != null) icon.Color = focused ? PleyColors.OnAccent : PleyColors.Muted;
         if (barFill != null) barFill.BackgroundColor = focused ? PleyColors.OnAccent : PleyColors.Accent;
     }

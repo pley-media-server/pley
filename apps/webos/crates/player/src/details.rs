@@ -201,7 +201,8 @@ pub struct PlaybackDetails {
     pub transcode: Option<TranscodeInfo>,
 }
 
-fn encoder_name(encoder: &str) -> &str {
+/// An encoder by the name people know: `h264_nvenc` is "NVIDIA NVENC".
+pub(crate) fn encoder_name(encoder: &str) -> &str {
     match encoder {
         "libx264" => "x264",
         "libx265" => "x265",

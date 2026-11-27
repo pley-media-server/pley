@@ -5,14 +5,14 @@ use std::cell::{Cell, RefCell};
 use pley_base::{Cmd, Color, Icon, Point, Rect, TextOpts};
 
 use crate::testing::{Harness, StubShaper};
-use crate::theme::{self, BG, FG};
+use crate::theme::{self, bg, fg};
 use crate::{Group, Id, Ui};
 
 #[test]
 fn draws_in_order_with_balanced_scopes() {
     let size = Cell::new(None);
     let mut screen = |ui: &mut Ui| {
-        ui.fill(Rect::new(0.0, 0.0, 960.0, 540.0), BG, 0.0);
+        ui.fill(Rect::new(0.0, 0.0, 960.0, 540.0), bg(), 0.0);
         // Nothing to see: not recorded.
         ui.fill(Rect::new(0.0, 0.0, 10.0, 10.0), Color::TRANSPARENT, 0.0);
         ui.clip(Rect::new(96.0, 0.0, 864.0, 540.0), |ui| {
@@ -22,11 +22,11 @@ fn draws_in_order_with_balanced_scopes() {
                     "Continue watching",
                     &theme::SECTION,
                     &TextOpts::line(400.0),
-                    FG,
+                    fg(),
                 )));
             });
         });
-        ui.opacity(0.4, |ui| ui.icon(Rect::new(10.0, 10.0, 20.0, 20.0), Icon::Play, FG));
+        ui.opacity(0.4, |ui| ui.icon(Rect::new(10.0, 10.0, 20.0, 20.0), Icon::Play, fg()));
         // A whole opacity or no move records no scope.
         ui.opacity(1.0, |ui| ui.translate(Point::ZERO, |ui| ui.punch(Rect::new(0.0, 0.0, 1.0, 1.0))));
     };
@@ -52,7 +52,7 @@ fn draws_in_order_with_balanced_scopes() {
         .collect();
     assert_eq!(kinds, ["fill", "clip", "move", "text", "/move", "/clip", "fade", "icon", "/fade", "punch"]);
     assert!(f.list.says("Continue watching"));
-    assert_eq!(f.list.clear, BG);
+    assert_eq!(f.list.clear, bg());
     // 17 characters of 9 dp (18 / 2) in the stub's measure.
     let s = size.get().unwrap();
     assert_eq!((s.w, s.h), (17.0 * 9.0, 24.0));
@@ -100,7 +100,7 @@ fn pictures_are_asked_for_at_device_pixels() {
 
 #[test]
 fn a_ramp_spans_the_rectangle_drawn() {
-    let mut screen = |ui: &mut Ui| ui.ramp(Rect::new(0.0, 0.0, 960.0, 540.0), false, &theme::BACKDROP_LEFT_SCRIM);
+    let mut screen = |ui: &mut Ui| ui.ramp(Rect::new(0.0, 0.0, 960.0, 540.0), false, &theme::backdrop_left_scrim());
     let mut h = Harness::new();
     let f = h.idle(&mut screen);
     let Cmd::LinearGradient { vertical, stops, .. } = &f.list.cmds[0] else { panic!("{:?}", f.list.cmds) };

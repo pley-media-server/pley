@@ -160,6 +160,34 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 - **The player:** Up and Down, CH+ and CH−, Previous and Next change
   channel. The menu key (and CH LIST) opens the channel list beside the
   picture, which moves aside into the 520 px left of it.
+- **Playback info:** Info, last in the player's controls, opens the panel
+  a title's player has. This app plays Live TV through the server's HLS
+  alone, never the provider's own stream (`stream.ts`), so a channel is a
+  **Direct stream** (the server copies its video; "· Audio transcoding"
+  after it when it converts the sound) or **Transcoding**, never
+  Direct play, and the panel has no Why. Under Playback come the
+  provider's video and sound with what the server makes of them
+  ("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "AC3 5.1 → AAC
+  2.0", as a title's sound is written), the provider's bitrate as it is
+  now with a transcode's after it, and the encoder; what isn't known is
+  left out. Then This TV, as for
+  a title: the player, what it decodes, dropped frames, the buffer, the
+  channel's stalls and the time from tuning to its first picture.
+  The plan (`GET /api/live/sessions/{id}/plan`) is asked as the panel
+  opens and again 2.5 s after each answer; the panel says "Asking the
+  server…" until the server knows the channel. It stays open over a
+  change of channel and says the new channel's, and nothing more is asked
+  once it closes or watching ends. A failure's card closes it.
+- **The badge:** the controls say the way in a title's badge, its words
+  and colors, left of Live, as on Android TV. The plan is asked once as
+  each channel shows, for it (asking starts no transcode); a channel the
+  server doesn't know by then has no badge until Playback info has asked,
+  and none shows while a channel tunes.
+- **Settings → Playback details** keeps the compact readout over a
+  channel as over a title, while the controls, the channel list and
+  Playback info are closed: the way, the panel's Video, Audio, Bitrate and
+  Encoder lines, then what the TV's player decodes, drops and holds. The
+  plan is asked again 2.5 s after each answer while it shows.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change of
   channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).
@@ -445,6 +473,50 @@ apps.
   files, so a wrong one fails the type check; English stands in for a word
   missing elsewhere, and the tests check every language has every word.
 
+### Appearance
+
+The TV draws in one of Pley's nine themes, with one of six accents or the
+theme's own ([THEMES.md](THEMES.md)), the light themes included.
+
+- **Settings → Appearance** shows the theme and the accent; either row
+  opens the picker, laid out as on every TV app and on one screen: the
+  themes five to a row, each a small Pley in its colors over its name and
+  caption, then the accents, Default first. The theme in use has the
+  accent's border and a tick, the accent in use the accent's fill; Up and
+  Down between the two land on them. OK picks, and every color changes at
+  once.
+- **Kept for each profile on this TV**, never on the server: by the
+  server's address and the user's id (`pley.theme.<server>.<user id>`,
+  `pley.accent.<server>.<user id>`), as user ids repeat from one server to
+  the next. A profile's pages draw its pick, and a profile that has none
+  here sees Midnight in its own accent; a switch of profile switches the
+  theme as soon as the server says who is watching. A start as the profile
+  the TV was left on draws its pick from the first frame. An id the TV
+  doesn't know counts as none.
+- **Outside a profile** (Choose your server, the sign-in code, "Who's
+  watching?" and its PIN, and a start before the profile is known), the
+  TV draws Midnight in its own accent whatever was picked; the profile's
+  pick comes back with its pages, Back out of "Who's watching?" too.
+  `packages/tv/test/fixtures/appearance.json` pins these rules for both
+  Samsung apps.
+- **The colors** come from `packages/themes/themes.json`, bundled into
+  the app: `ui/themes.ts` gives each of the app's colors its token and
+  writes them as one stylesheet, written again on a pick, so nothing is
+  looked up while the remote moves. `test/ui/themes.test.ts` holds every
+  theme under every accent to the file, and fails on a color in the
+  stylesheets that isn't the theme's (black and white over pictures and
+  video aside).
+- **The players stay dark:** while a player is on top, the app takes the
+  light theme's dark twin, with the same accent, toasts and dialogs over
+  it too.
+- **Backdrops:** Sunshine's rainbow runs down the open rail. The others
+  (Twilight's sunset, Moonlight's moon, Nightshade's light) aren't drawn:
+  the pages fade their pictures, and hide the rows sliding under the rail,
+  with the page's own color, so a backdrop behind them would show only in
+  pieces. The page is the theme's plain background.
+- Sunshine's rounder corners and rounded type are the web's: the TV draws
+  the same shapes and Roboto in every theme.
+
 ## Building and testing
 
 ### Commands
@@ -492,6 +564,7 @@ its packages into the SDK by hand and it runs on WHPX.
 | `i18n/` | The words in English, French, Spanish and Chinese, `t()` and `Trans`, plural forms, the language shown, dates and numbers in it |
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
+| `ui/themes.ts`, `ui/theme.css` | The themes and accents from `packages/themes/themes.json`, as the app's colors; the styles that draw in them |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |
 | `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, sleep timer, reports, music, the remote and casts |
 | `live/` | Live TV: categories, the guide's pages, a channel on the TV's player |
@@ -618,12 +691,13 @@ watch history page; playlists (their covers, a playlist's page with
 moving and removing entries, Rename and Delete, Add to playlist, New
 playlist and saving a library's filters as a smart playlist); Settings
 (its categories and their rows, the side panels of choices, the web
-page's address and QR code, signing out); Diagnostics (the TV's facts and
+page's address and QR code, signing out, and Appearance's themes and accents,
+[Appearance](#appearance)); Diagnostics (the TV's facts and
 what it tells the server it plays); Live TV's page (the categories and
 their search, the guide and the channels' tiles, a program's details
 and favorites) and its live player (changing channel, number keys, what's
-on, the channel list on OK and the controls on OK held, and why a channel
-doesn't play); music's artist and
+on, the channel list on OK and the controls on OK held, Playback details,
+and why a channel doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
 (the scrubber, the controls, the sleep timer and the queue), with the
 music playing on behind the other pages, driven by the remote's media keys
@@ -694,10 +768,21 @@ The engine says it is prepared apart (`Opened`), for the audio chosen to
 be switched to before it plays.
 
 A channel starts as on Android: its `stream.ts` (the provider's MPEG-TS,
-from its last keyframe) is read while the server says what it makes of the
-channel, and plays when that is the channel as it is, or with sound every
-Samsung TV decodes itself (AC3, E-AC3, MP2), which the server converts for
-other players; otherwise, or when it fails, the channel's HLS. The TV's
+from its last keyframe) is read while the server says what the channel is
+and what it makes of it, and plays when that is the channel as it is, or
+with sound every Samsung TV decodes itself (AC3, E-AC3, MP2), which the
+server converts for other players; otherwise, or when it fails, the
+channel's HLS. A channel the server would convert plays from `stream.ts`
+too when the TV decodes it as the provider sends it, and the server makes
+no transcode of it: video that a decoder in the TV's report
+takes at its bit depth (8 when the server doesn't say), size and frame
+rate (the report a film's direct play goes by, `Player/TizenCaps.cs`), and
+sound the TV decodes or passes to the receiver. Only what the TV's player
+reads out of MPEG-TS counts (H.264, HEVC and MPEG-2 video; AAC, AC3,
+E-AC3, MP2 and MP3 sound), so an AV1 channel stays with its HLS though the
+TV plays AV1 files, and interlaced video stays with the server while its
+Deinterlace setting is on. The rule is
+`LiveRules.PlaysAsSent`, as Android's `playsAsSent`. The TV's
 player can't send the `Authorization` header `stream.ts` needs, and the
 server takes an app's token nowhere else, so the app reads it with its
 token and hands it on to the player as it comes, on the TV's loopback
@@ -710,6 +795,33 @@ for its buffer after every seek too, not only after a stall, so films wait
 for 0.5 s there, where Android waits 1.5 s or 2 s after a stall: a seek
 took 2 s, now under one. A film asks the server for its stream before its player
 screen is made, which takes the UI thread half a second the first time.
+
+The live player's controls (OK held) have Info, the film player's button
+by name and icon, last as there: after the channel list and the favorite,
+as on Android TV. It opens Playback details in the film player's Info
+panel, under the same title and headings. How it plays says the way in a
+film's words (Direct play from `stream.ts`; from its HLS, Direct stream
+when the server sends the video as it is, with "Audio transcoding" after
+it when it converts the sound, else Transcoding), why it isn't Direct play
+when the server's plan and the TV's report say, in a sentence
+(**Interlaced video is made progressive.**, **This device doesn't play
+HEVC 10-bit video.**, **This device doesn't play DTS audio.**), the
+provider's video, audio and bitrate with what the server makes of them,
+the encoder of a transcode and the TV's network speed. A channel has no
+file or tracks to list, so its Video and Audio lines say what a film's
+sections of those names do ("HEVC 10-bit · 3840×2160 · 50 fps → H.264
+1080p", "EAC3 5.1 → AAC 2.0"). The video's bit depth is written only above
+8, in its line and in the reason, and a transcode's size by a film's name
+for it ("4K", "1080p").
+This TV has a film's lines: what the TV's player says it decodes, its
+buffer, the channel's stalls and the time to its first picture. A line
+whose value isn't known is left out. While the panel shows, the plan is
+asked again 2.5 s after each answer, for the provider's bitrate as it is
+now; asking starts no transcode. A channel that stops closes the panel for
+its card. The bar over the picture says the way too, in the film player's
+badge beside Live, as on Android TV: from the plan the player asked for as
+it tuned, with nothing more asked of the server, so a channel on HLS whose
+plan isn't known has no badge until Playback details have asked for it.
 
 Someone taking over a channel's connection (the server's
 `live_taken_over`) stops it at once, as on Android TV: the card says "Live
@@ -820,6 +932,47 @@ rules, which resx has no form for (Chinese has only `other`), and no
 satellite assemblies to package. A word a language lacks shows in English.
 The Core's tests hold every language to English's keys, its own plural
 forms and the same values, French and Spanish to their punctuation.
+
+### Appearance
+
+Settings → Appearance shows the theme and the accent this TV draws in
+([THEMES.md](THEMES.md)); its Theme and Accent rows open the picker, with
+focus on the theme or the accent shown. The nine themes come first, five
+to a row, each a small Pley in its colors with its name and caption, then
+Default (the theme's own) and the six accents, each with its swatch in the
+theme shown. The pick shown has the accent's edge and a check. OK shows a
+pick at once: every page is drawn again where it was, in the new colors,
+the picker with focus on what was picked, and Settings under it back on
+the row that opened it. The pages are made again rather than recolored:
+NUI keeps each view's colors as it is made, and every view following the
+theme would cost each of them as it draws. The pick is kept on the TV
+for each profile (pley.theme.<server>.<id>, pley.accent.<server>.<id>
+in its preferences) and never sent to the server: inside a profile, its
+own shows, Midnight in its own accent where it picked none on this TV,
+and switching profile switches to its pick at once. Outside a profile
+(Choose your server, signing in, Who's watching? with its PIN and
+approval) the app is in Midnight in its own accent, and the profile's
+pick comes back with its pages. A start with the profile saved draws its
+first page in its pick; one that doesn't know who is watching yet starts
+in Midnight. An id the app doesn't know shows as Midnight, or the theme's
+own accent.
+
+The colors come from packages/themes/themes.json, built into the Core
+library as it is (src/Pley.Tv.Core/Ui/Themes.cs); the app's colors by
+what they are for (PleyPalette, which the screens read through
+PleyColors) are each a token of it, or a token at a set strength for a
+wash, made once per pick. ThemeTests holds every one to the file in
+every theme under every accent. In a light theme the players, their
+panels and what they draw over the video take the theme's dark twin's
+colors, with the same accent. The logo on the sign-in screens is drawn in
+the theme's colors: the app writes it as an SVG file with them into its
+cache, one file per set of colors, as NUI draws a vector from a file.
+
+The themes' backdrops (Twilight's sunset, Moonlight's moon, Nightshade's
+light, Sunshine's bubbles and rainbow sidebar) aren't drawn: the pages are
+the theme's plain page color. The pages fade their pictures into that
+color with gradients drawn over them (NUI has no mask for a picture), so a
+glow behind them would show its edges where a picture ends.
 
 ### How it is built
 

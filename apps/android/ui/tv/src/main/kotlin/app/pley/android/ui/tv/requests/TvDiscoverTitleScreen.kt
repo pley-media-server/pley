@@ -24,6 +24,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -636,7 +637,9 @@ private val HeroMin = 372.dp
 
 /** The text column: x 96 to 560. */
 private val TextColumn = 464.dp
-private val SummaryColor = PleyColors.Fg.copy(alpha = 0.85f)
+private val SummaryColor: Color
+    @Composable @ReadOnlyComposable
+    get() = PleyColors.Fg.copy(alpha = 0.85f)
 
 /** Without a backdrop, the poster at the right of the hero. */
 private val PosterX = 664.dp

@@ -14,6 +14,8 @@ pley-ui = { path = "../../ui" }
 pley-kit = { path = "../../kit" }
 pley-shell = { path = "../../shell" }
 pley-player = { path = "../../player" }
+# Playback details shows in the video player's Info panel.
+pley-player-ui = { path = "../player" }
 pley-i18n = { path = "../../i18n" }
 log = "0.4.29"
 

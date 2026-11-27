@@ -123,7 +123,7 @@ internal fun ProgramBadge(text: String, live: Boolean, modifier: Modifier = Modi
     Text(
         text.uppercase(),
         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing),
-        color = if (live) PleyColors.Bg else PleyColors.AccentBright,
+        color = if (live) PleyColors.DangerFg else PleyColors.AccentBright,
         maxLines = 1,
         modifier = modifier
             .clip(PleyShape.Badge)

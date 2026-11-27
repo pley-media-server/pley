@@ -75,7 +75,7 @@ export function Backdrop(p: { candidates: string[]; title: string; scrim: ScrimK
       <div class="left-scrim" />
       <div
         class="bottom-scrim"
-        style={`top:${scrim.from}px;background:linear-gradient(to bottom, rgba(11,13,16,0) 0, rgba(11,13,16,1) ${scrim.to - scrim.from}px, rgba(11,13,16,1) 100%)`}
+        style={`top:${scrim.from}px;background:linear-gradient(to bottom, rgba(var(--bg-rgb), 0) 0, rgba(var(--bg-rgb), 1) ${scrim.to - scrim.from}px, rgba(var(--bg-rgb), 1) 100%)`}
       />
     </div>
   );

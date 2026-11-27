@@ -4,6 +4,7 @@ import { useOptionalAuth } from "@/auth";
 import { AuthBackground } from "@/components/AuthBackground";
 import { Logo } from "@/components/Logo";
 import { LanguagePicker } from "@/i18n/LanguagePicker";
+import { useOutsideProfile } from "@/theme";
 
 /**
  * Centered card used by the login and setup screens. Without an account
@@ -25,6 +26,8 @@ export function AuthLayout({
   /** No card around it, for a choice whose options are cards of their own (how to start, in setup). */
   bare?: boolean;
 }) {
+  // Signing in, and approving an app or a TV, are drawn as Pley's own, outside a profile.
+  useOutsideProfile();
   const signedIn = useOptionalAuth() !== null;
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">

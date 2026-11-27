@@ -99,6 +99,7 @@ internal fun MiniPlayerSlot(nowPlaying: NowPlaying?, modifier: Modifier = Modifi
 
 @Composable
 private fun MiniPlayer(nowPlaying: NowPlaying, modifier: Modifier = Modifier) {
+    val palette = PleyColors.palette
     val navigator = LocalPhoneNavigator.current
     val music = rememberMusicControl()
     val position by rememberMusicPosition({ music?.position() ?: MusicPosition() }, nowPlaying.playing, key = trackKey(nowPlaying))
@@ -117,8 +118,8 @@ private fun MiniPlayer(nowPlaying: NowPlaying, modifier: Modifier = Modifier) {
                 val h = 2.dp.toPx()
                 val p = position
                 val f = if (p.durationMs > 0) p.fraction else 0f
-                drawLine(PleyColors.Surface4, Offset(0f, h / 2f), Offset(size.width, h / 2f), h)
-                if (f > 0f) drawLine(PleyColors.Accent, Offset(0f, h / 2f), Offset(size.width * f, h / 2f), h)
+                drawLine(palette.border, Offset(0f, h / 2f), Offset(size.width, h / 2f), h)
+                if (f > 0f) drawLine(palette.accent, Offset(0f, h / 2f), Offset(size.width * f, h / 2f), h)
             }
             .clickable(role = Role.Button, onClickLabel = stringResource(R.string.shell_now_playing)) { navigator.open(PleyKey.NowPlaying) }
             .padding(start = if (car) CarGap else 8.dp, end = if (car) CarGap else 4.dp)

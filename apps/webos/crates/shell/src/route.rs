@@ -45,6 +45,7 @@ pub enum SettingsSection {
     Playback,
     Audio,
     SubtitlesAndDisplay,
+    Appearance,
     Server,
     Diagnostics,
     About,
@@ -53,11 +54,12 @@ pub enum SettingsSection {
 
 impl SettingsSection {
     /// Every category in the order Settings lists them.
-    pub const ALL: [SettingsSection; 8] = [
+    pub const ALL: [SettingsSection; 9] = [
         SettingsSection::Profile,
         SettingsSection::Playback,
         SettingsSection::Audio,
         SettingsSection::SubtitlesAndDisplay,
+        SettingsSection::Appearance,
         SettingsSection::Server,
         SettingsSection::Diagnostics,
         SettingsSection::About,
@@ -71,6 +73,7 @@ impl SettingsSection {
             SettingsSection::Playback => pley_i18n::t!("settings.categories.playback"),
             SettingsSection::Audio => pley_i18n::t!("settings.categories.audio"),
             SettingsSection::SubtitlesAndDisplay => pley_i18n::t!("settings.categories.display"),
+            SettingsSection::Appearance => pley_i18n::t!("settings.categories.appearance"),
             SettingsSection::Server => pley_i18n::t!("settings.categories.server"),
             SettingsSection::Diagnostics => pley_i18n::t!("settings.categories.diagnostics"),
             SettingsSection::About => pley_i18n::t!("settings.categories.about"),
@@ -85,6 +88,7 @@ impl SettingsSection {
             SettingsSection::Playback => "playback",
             SettingsSection::Audio => "audio",
             SettingsSection::SubtitlesAndDisplay => "subtitles",
+            SettingsSection::Appearance => "appearance",
             SettingsSection::Server => "server",
             SettingsSection::Diagnostics => "diagnostics",
             SettingsSection::About => "about",
@@ -260,6 +264,10 @@ pub enum Route {
     Settings {
         section: Option<SettingsSection>,
     },
+    /// This TV's theme and accent (docs/THEMES.md), focused on the accents with `accents`.
+    Appearance {
+        accents: bool,
+    },
     /// What this profile watched, newest first.
     History,
     /// What this TV decodes and shows, and why.
@@ -314,6 +322,7 @@ impl Route {
             Route::Player(_) => "player",
             Route::Storage { .. } => "storage",
             Route::Settings { .. } => "settings",
+            Route::Appearance { .. } => "appearance",
             Route::History => "history",
             Route::Diagnostics => "diagnostics",
             Route::Licences => "licences",
@@ -360,6 +369,7 @@ impl Route {
             Route::Storage { .. } => t!("shell.rail.storage").into(),
             Route::Settings { section: Some(s) } => t!("shell.pages.settingsSection", section = s.label()),
             Route::Settings { section: None } => t!("shell.rail.settings").into(),
+            Route::Appearance { .. } => t!("settings.categories.appearance").into(),
             Route::History => t!("shell.pages.history").into(),
             Route::Diagnostics => t!("shell.pages.diagnostics").into(),
             Route::Licences => t!("shell.pages.licences").into(),
@@ -461,6 +471,8 @@ impl Route {
             },
             "player" => Route::Player(PlayRequest::item(id()?)),
             "settings" => Route::Settings { section: a.and_then(SettingsSection::parse) },
+            // `appearance`, or `appearance:accent` on the accents.
+            "appearance" => Route::Appearance { accents: a == Some("accent") },
             "history" => Route::History,
             "diagnostics" => Route::Diagnostics,
             "licences" | "licenses" => Route::Licences,
@@ -503,6 +515,7 @@ impl Route {
             Route::Player(PlayRequest::item(12)),
             Route::Storage { path: None },
             Route::Settings { section: None },
+            Route::Appearance { accents: false },
             Route::History,
             Route::Diagnostics,
             Route::Licences,
@@ -521,7 +534,7 @@ mod tests {
         unique.sort_unstable();
         unique.dedup();
         assert_eq!(unique.len(), names.len(), "{names:?}");
-        assert_eq!(names.len(), 35);
+        assert_eq!(names.len(), 36);
     }
 
     #[test]

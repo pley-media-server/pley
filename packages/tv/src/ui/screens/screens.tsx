@@ -14,6 +14,7 @@ import { CollectionScreen, CollectionsScreen, MergedCollectionScreen } from "./c
 import { AlbumScreen, ArtistScreen, NowPlayingScreen } from "./music";
 import { AddToPlaylistScreen, NewPlaylistScreen, PlaylistScreen, PlaylistsScreen } from "./playlists";
 import { DiagnosticsScreen, HistoryScreen, SettingsScreen } from "./settings";
+import { AppearanceScreen } from "./appearance";
 import { DiscoverListScreen, DiscoverScreen, DiscoverSearchScreen } from "./discover";
 import { TitleScreen } from "./title";
 import { RequestsScreen } from "./requests-page";
@@ -85,6 +86,9 @@ export function Screen(p: { entry: Entry; state: AppState }) {
       break;
     case "settings":
       page = <SettingsScreen entry={p.entry} />;
+      break;
+    case "appearance":
+      page = <AppearanceScreen accent={key.accent} />;
       break;
     case "history":
       page = <HistoryScreen entry={p.entry} />;

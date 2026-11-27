@@ -171,6 +171,7 @@ fun ActionButton(
     labelStyle: TextStyle = MaterialTheme.typography.labelMedium,
     glyph: @Composable () -> Unit,
 ) {
+    val palette = PleyColors.palette
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     Column(
@@ -184,7 +185,7 @@ fun ActionButton(
         Box(
             Modifier
                 .size(40.dp)
-                .drawBehind { if (pressed) drawCircle(PleyColors.Surface3) },
+                .drawBehind { if (pressed) drawCircle(palette.surface3) },
             contentAlignment = Alignment.Center,
         ) {
             glyph()

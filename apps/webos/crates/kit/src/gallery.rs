@@ -83,7 +83,7 @@ const TYPING: u64 = 13;
 const GRID: u64 = 14;
 
 fn header(ui: &mut Ui, y: f32, text: &str) {
-    ui.text(Point::new(theme::GUTTER, y), text, &theme::SECTION, &pley_base::TextOpts::line(816.0), theme::FG);
+    ui.text(Point::new(theme::GUTTER, y), text, &theme::SECTION, &pley_base::TextOpts::line(816.0), theme::fg());
 }
 
 /// Draws the gallery: a page of sections holding every control, with a side panel, a dialog, an
@@ -178,7 +178,7 @@ fn buttons(ui: &mut Ui, y: f32, state: &mut GalleryState) {
         ("watched", BarItem::Round(RoundButton::new(Icon::CircleCheck, "Mark as watched"))),
         ("more", BarItem::Round(RoundButton::new(Icon::Ellipsis, "More").on_art(false))),
         ("text", BarItem::Button(Button::text("Change server"))),
-        ("link", BarItem::Button(Button::link("An artist").color(theme::ACCENT_BRIGHT))),
+        ("link", BarItem::Button(Button::link("An artist").color(theme::accent_bright()))),
         ("off", BarItem::Button(Button::pill("Unavailable").enabled(false))),
     ];
     let first = ui.id("first");
@@ -188,7 +188,7 @@ fn buttons(ui: &mut Ui, y: f32, state: &mut GalleryState) {
         ("dialog", BarItem::Button(Button::pill("Dialog"))),
         ("sheet", BarItem::Button(Button::pill("Actions").icon(Icon::Ellipsis))),
         ("toast", BarItem::Button(Button::text("Toast"))),
-        ("error", BarItem::Button(Button::text("Error toast").color(theme::DANGER_TEXT))),
+        ("error", BarItem::Button(Button::text("Error toast").color(theme::danger()))),
     ];
     let second = ui.id("second");
     let r = button_bar(ui, second, Point::new(theme::GUTTER, y + 112.0), &items);
@@ -225,7 +225,13 @@ fn chips(ui: &mut Ui, y: f32, state: &mut GalleryState) {
             }
             x += chip.size(ui).w + theme::BUTTON_GAP;
         }
-        ui.text(Point::new(x, y + 49.0), "342 movies", &theme::CAPTION, &pley_base::TextOpts::default(), theme::MUTED);
+        ui.text(
+            Point::new(x, y + 49.0),
+            "342 movies",
+            &theme::CAPTION,
+            &pley_base::TextOpts::default(),
+            theme::muted(),
+        );
     });
     let tabs_id = ui.id("tabs");
     ui.group(tabs_id, Group::row().edge(Dir::Left, Edge::Out).edge(Dir::Right, Edge::Stop), |ui| {

@@ -166,11 +166,11 @@ impl<'a> ListRow<'a> {
     }
 
     fn paint(&self, ui: &mut Ui, id: Id, rect: Rect, p: f32, q: f32) {
-        let fill = mix(mix(Color::TRANSPARENT, theme::ACCENT, p), theme::ACCENT_BRIGHT, q);
+        let fill = mix(mix(Color::TRANSPARENT, theme::accent(), p), theme::accent_bright(), q);
         ui.fill(rect, fill, radius::CONTROL);
-        let rest = if self.danger { theme::DANGER_TEXT } else { theme::FG };
-        let fg = mix(rest, theme::ON_ACCENT, p.max(q));
-        let second = mix(theme::MUTED, theme::ON_ACCENT_SECONDARY, p.max(q));
+        let rest = if self.danger { theme::danger() } else { theme::fg() };
+        let fg = mix(rest, theme::on_accent(), p.max(q));
+        let second = mix(theme::muted(), theme::on_accent_secondary(), p.max(q));
         let mut x = rect.x + self.padding;
         if let Some((art, seed)) = self.art {
             let r = Rect::new(x, rect.y + (rect.h - ART_SIZE) / 2.0, ART_SIZE, ART_SIZE);
@@ -184,8 +184,11 @@ impl<'a> ListRow<'a> {
             x += ART_SIZE + LEAD_GAP;
         } else if let Some(icon) = self.icon {
             // Settings rows' icons rest in Muted; panel rows' take the label's color.
-            let tint =
-                if self.padding > 16.0 && !self.danger { mix(theme::MUTED, theme::ON_ACCENT, p.max(q)) } else { fg };
+            let tint = if self.padding > 16.0 && !self.danger {
+                mix(theme::muted(), theme::on_accent(), p.max(q))
+            } else {
+                fg
+            };
             let r = Rect::new(x, rect.y + (rect.h - theme::ICON_SIZE) / 2.0, theme::ICON_SIZE, theme::ICON_SIZE);
             ui.icon(r, icon, tint);
             x += theme::ICON_SIZE + LEAD_GAP;
@@ -208,18 +211,18 @@ impl<'a> ListRow<'a> {
         match self.trailing {
             Trailing::None | Trailing::Check(false) => {}
             Trailing::Check(true) => {
-                ui.icon(icon_rect(right - theme::ICON_SIZE), Icon::Check, mix(theme::ACCENT, theme::ON_ACCENT, p))
+                ui.icon(icon_rect(right - theme::ICON_SIZE), Icon::Check, mix(theme::accent(), theme::on_accent(), p))
             }
             Trailing::Chevron => ui.icon(
                 icon_rect(right - theme::ICON_SIZE),
                 Icon::ChevronRight,
-                mix(theme::SUBTLE, theme::ON_ACCENT, p),
+                mix(theme::subtle(), theme::on_accent(), p),
             ),
             Trailing::Value(v) => {
                 ui.icon(
                     icon_rect(right - theme::ICON_SIZE),
                     Icon::ChevronRight,
-                    mix(theme::SUBTLE, theme::ON_ACCENT, p),
+                    mix(theme::subtle(), theme::on_accent(), p),
                 );
                 let layout = ui.layout(v, &theme::CAPTION, &TextOpts::line(140.0));
                 let vx = right - theme::ICON_SIZE - 4.0 - layout.size.w;
@@ -239,10 +242,10 @@ impl<'a> ListRow<'a> {
 /// The thumb slides in 150 ms.
 pub fn switch(ui: &mut Ui, id: Id, track: Rect, on: bool, focus: f32) {
     let t = ui.animate(id.with("kit.switch"), if on { 1.0 } else { 0.0 }, Motion::FOCUS);
-    let rest_track = mix(theme::SURFACE4, theme::ACCENT, t);
-    let focus_track = mix(theme::ON_ACCENT.alpha(0.3), theme::ON_ACCENT, t);
-    let rest_thumb = mix(theme::CONTROL, theme::ON_ACCENT, t);
-    let focus_thumb = mix(theme::ON_ACCENT, theme::ACCENT, t);
+    let rest_track = mix(theme::surface4(), theme::accent(), t);
+    let focus_track = mix(theme::on_accent().alpha(0.3), theme::on_accent(), t);
+    let rest_thumb = mix(theme::control(), theme::on_accent(), t);
+    let focus_thumb = mix(theme::on_accent(), theme::accent(), t);
     ui.fill(track, mix(rest_track, focus_track, focus), track.h / 2.0);
     let d = 16.0;
     let x = track.x + 3.0 + (track.w - 6.0 - d) * t;
@@ -311,9 +314,9 @@ impl<'a> Stepper<'a> {
             }
         }
         let p = focus_progress(ui, id, r.focused);
-        ui.fill(rect, mix(Color::TRANSPARENT, theme::ACCENT, p), radius::CONTROL);
-        let fg = mix(theme::FG, theme::ON_ACCENT, p);
-        let second = mix(theme::MUTED, theme::ON_ACCENT_SECONDARY, p);
+        ui.fill(rect, mix(Color::TRANSPARENT, theme::accent(), p), radius::CONTROL);
+        let fg = mix(theme::fg(), theme::on_accent(), p);
+        let second = mix(theme::muted(), theme::on_accent_secondary(), p);
         let mut y = rect.y + (rect.h - block) / 2.0;
         let title_h = title.size.h;
         ui.draw_text(Point::new(rect.x + pad, y), title, fg);
@@ -357,12 +360,12 @@ pub enum Heading {
 impl Heading {
     fn spec(self) -> (TextStyle, Color, f32, f32, f32, u16) {
         match self {
-            Heading::PanelTitle => (theme::TITLE, theme::FG, 8.0, 8.0, 16.0, 2),
-            Heading::Section => (theme::TITLE, theme::FG, 16.0, 8.0, 16.0, 2),
-            Heading::Small => (theme::CAPTION, theme::MUTED, 16.0, 4.0, 16.0, 1),
-            Heading::Label => (theme::LABEL, theme::MUTED, 16.0, 6.0, 16.0, 1),
-            Heading::Settings => (theme::LABEL, theme::SUBTLE, 16.0, 6.0, 20.0, 1),
-            Heading::Note => (theme::BODY, theme::MUTED, 8.0, 8.0, 16.0, 0),
+            Heading::PanelTitle => (theme::TITLE, theme::fg(), 8.0, 8.0, 16.0, 2),
+            Heading::Section => (theme::TITLE, theme::fg(), 16.0, 8.0, 16.0, 2),
+            Heading::Small => (theme::CAPTION, theme::muted(), 16.0, 4.0, 16.0, 1),
+            Heading::Label => (theme::LABEL, theme::muted(), 16.0, 6.0, 16.0, 1),
+            Heading::Settings => (theme::LABEL, theme::subtle(), 16.0, 6.0, 20.0, 1),
+            Heading::Note => (theme::BODY, theme::muted(), 8.0, 8.0, 16.0, 0),
         }
     }
 

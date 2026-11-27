@@ -213,6 +213,7 @@ private fun TitlePage(page: TitleUiState.Ready, texts: RequestTexts, vm: Discove
  */
 @Composable
 private fun TitleHeader(page: TitleUiState.Ready, texts: RequestTexts, on: TitleActionHandlers, onRetry: () -> Unit) {
+    val palette = PleyColors.palette
     val metrics = LocalPhoneMetrics.current
     val tier = LocalPhoneDeviceTier.current
     val wide = metrics.widthClass != WidthClass.Compact
@@ -232,8 +233,8 @@ private fun TitleHeader(page: TitleUiState.Ready, texts: RequestTexts, on: Title
                 .drawWithCache {
                     val fade = Brush.verticalGradient(
                         0f to Color.Transparent,
-                        0.45f to PleyColors.Bg.copy(alpha = 0.35f),
-                        1f to PleyColors.Bg,
+                        0.45f to palette.bg.copy(alpha = 0.35f),
+                        1f to palette.bg,
                         startY = size.height * 0.4f,
                         endY = size.height,
                     )
