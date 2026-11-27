@@ -90,6 +90,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.theme.ThemedWindow
 import app.pley.android.player.CastFrom
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.ScreensGraph
@@ -160,6 +161,8 @@ fun PhoneApp(
     graph: () -> ScreensGraph,
 ) {
     PhoneTheme {
+        // The window under the pages, in this device's theme (docs/THEMES.md).
+        ThemedWindow(PleyColors.palette)
         // On a car's screen (Android Auto, parked), every page is car-sized, as Google's car criteria ask of a parked
         // app: 64 dp buttons, no text under 24 sp.
         CarSized(onCarScreen()) {
@@ -353,6 +356,7 @@ private fun GettingIn(navigation: PhoneNavigation, shell: PhoneShellState, entri
 /** In: the navigation bar or rail, each tab's back stack, the remote's bar, the mini player and the toasts above the bar. */
 @Composable
 private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (NavKey) -> NavEntry<NavKey>) {
+    val palette = PleyColors.palette
     val stacks: Map<PhoneTab, NavBackStack<NavKey>> = PhoneTab.entries.associateWith { rememberNavBackStack(it.root) }
     DisposableEffect(stacks) {
         navigation.attach(stacks)
@@ -370,7 +374,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
         selectedTextColor = PleyColors.Fg,
         // Under the page, no pill behind the chosen tab: its accent icon and bright label say it. In the rail, where
         // there's no label, the web's sidebar mark: a faint fill behind it and an accent bar on its edge (railMark).
-        selectedIndicatorColor = if (rail) RailFill else Color.Transparent,
+        selectedIndicatorColor = if (rail) PleyColors.Fg.copy(alpha = RAIL_FILL) else Color.Transparent,
         unselectedIconColor = PleyColors.Muted,
         unselectedTextColor = PleyColors.Muted,
     )
@@ -391,7 +395,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                     },
                     label = if (iconsAlone) null else ({ FittedLabel(name) }),
                     colors = itemColors,
-                    modifier = Modifier.testTag(TAB_TAG + item.name).then(if (rail && item == tab) Modifier.railMark() else Modifier),
+                    modifier = Modifier.testTag(TAB_TAG + item.name).then(if (rail && item == tab) Modifier.railMark(palette.accent) else Modifier),
                 )
             }
         },
@@ -420,9 +424,9 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                     val hair = 1.dp.toPx()
                     if (rail) {
                         val x = if (rtl) size.width - hair / 2f else hair / 2f
-                        drawLine(PleyColors.Surface4, Offset(x, 0f), Offset(x, size.height), hair)
+                        drawLine(palette.border, Offset(x, 0f), Offset(x, size.height), hair)
                     } else {
-                        drawLine(PleyColors.Surface4, Offset(0f, size.height - hair / 2f), Offset(size.width, size.height - hair / 2f), hair)
+                        drawLine(palette.border, Offset(0f, size.height - hair / 2f), Offset(size.width, size.height - hair / 2f), hair)
                     }
                 },
         ) {
@@ -546,14 +550,14 @@ private fun fadeThrough(reduced: Boolean): ContentTransform {
     return fadeIn(tween(PleyMotion.SCREEN_MS - out, delayMillis = out, easing = LinearEasing)) togetherWith fadeOut(tween(out, easing = LinearEasing))
 }
 
-/** The chosen tab's fill in the rail: white at 7 %, the web sidebar's. */
-private val RailFill = Color.White.copy(alpha = 0.07f)
+/** The chosen tab's fill in the rail: the words' color at 7 %, the web sidebar's. */
+private const val RAIL_FILL = 0.07f
 
 /**
  * The chosen tab's bar in the rail, as the web's sidebar marks its link: 3 dp of accent on the edge toward the
  * screen's, 6 dp short of the item's top and bottom, its outer corners square.
  */
-private fun Modifier.railMark(): Modifier = drawBehind {
+private fun Modifier.railMark(accent: Color): Modifier = drawBehind {
     val width = 3.dp.toPx()
     val inset = 6.dp.toPx()
     val radius = CornerRadius(width, width)
@@ -569,7 +573,7 @@ private fun Modifier.railMark(): Modifier = drawBehind {
             ),
         )
     }
-    drawPath(path, PleyColors.Accent)
+    drawPath(path, accent)
 }
 
 /** The test tag of each tab's item in the bar or rail: this and the tab's name. */

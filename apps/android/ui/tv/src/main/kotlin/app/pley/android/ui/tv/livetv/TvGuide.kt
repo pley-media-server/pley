@@ -594,6 +594,7 @@ private fun GuideRow(
     index: Int,
     fill: RowFill,
 ) {
+    val palette = PleyColors.palette
     // What the row last drew (not state: kept as it is drawn, it composes nothing), and what its turn let it draw.
     val last = remember { arrayOfNulls<RowCells>(1) }
     var turned by remember { mutableStateOf<RowCells?>(null) }
@@ -609,7 +610,7 @@ private fun GuideRow(
         Modifier
             .fillMaxWidth()
             .height(ROW_HEIGHT)
-            .drawBehind { drawLine(PleyColors.Surface4.copy(alpha = 0.6f), Offset(0f, size.height - 0.5f), Offset(size.width, size.height - 0.5f), 1f) },
+            .drawBehind { drawLine(palette.border.copy(alpha = 0.6f), Offset(0f, size.height - 0.5f), Offset(size.width, size.height - 0.5f), 1f) },
     ) {
         ChannelCell(channel, name, origin, rowFocused)
         Box(Modifier.weight(1f).fillMaxHeight().padding(end = TvSafeArea.Horizontal).clipToBounds()) {

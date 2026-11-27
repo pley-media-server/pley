@@ -244,14 +244,15 @@ private fun DownloadRow(
 /** A 3 dp bar: accent for what is down, fg 20 % for the rest. */
 @Composable
 private fun ProgressLine(fraction: Float) {
+    val palette = PleyColors.palette
     Box(
         Modifier
             .fillMaxWidth()
             .height(3.dp)
             .drawBehind {
                 val r = CornerRadius(size.height / 2f)
-                drawRoundRect(PleyColors.Fg.copy(alpha = 0.2f), cornerRadius = r)
-                drawRoundRect(PleyColors.Accent, size = Size(size.width * fraction.coerceIn(0f, 1f), size.height), cornerRadius = r)
+                drawRoundRect(palette.fg.copy(alpha = 0.2f), cornerRadius = r)
+                drawRoundRect(palette.accent, size = Size(size.width * fraction.coerceIn(0f, 1f), size.height), cornerRadius = r)
             },
     )
 }

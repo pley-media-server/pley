@@ -369,6 +369,7 @@ internal fun BoxScope.SeekRunBadge(state: PlayerScreenState) {
 /** The volume or brightness while a drag sets it: an icon over a 4 dp bar, on the side dragged. */
 @Composable
 internal fun BoxScope.LevelIndicator(state: PlayerScreenState) {
+    val palette = PleyColors.palette
     PlayerProbe.composed?.invoke("level")
     // Which level shows is read here; how far, only while drawing, so a drag moves the bar without recomposing.
     val shown by remember(state) { derivedStateOf { state.levelDrag?.volume } }
@@ -392,9 +393,9 @@ internal fun BoxScope.LevelIndicator(state: PlayerScreenState) {
                 .size(4.dp, 120.dp)
                 .drawBehind {
                     val r = CornerRadius(size.width / 2f)
-                    drawRoundRect(PleyColors.Fg.copy(alpha = 0.25f), cornerRadius = r)
+                    drawRoundRect(palette.fg.copy(alpha = 0.25f), cornerRadius = r)
                     val h = size.height * state.levelDrag?.level.let { it ?: 0f }
-                    drawRoundRect(PleyColors.Accent, topLeft = Offset(0f, size.height - h), size = Size(size.width, h), cornerRadius = r)
+                    drawRoundRect(palette.accent, topLeft = Offset(0f, size.height - h), size = Size(size.width, h), cornerRadius = r)
                 },
         )
     }

@@ -57,11 +57,13 @@ import app.pley.android.data.SubtitleFont
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
+import app.pley.android.designsystem.R as DesignR
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.text.formatWords
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.model.SubtitleMode
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.screens.PleyGraphOwner
@@ -94,6 +96,7 @@ internal enum class Category(val icon: PleyIcon) {
     Playback(PleyIcons.Play),
     Audio(PleyIcons.AudioLines),
     Display(PleyIcons.Captions),
+    Appearance(PleyIcons.Palette),
     Server(PleyIcons.Server),
     Diagnostics(PleyIcons.Activity),
     About(PleyIcons.Info),
@@ -118,7 +121,7 @@ private sealed interface Picking {
 
 /**
  * The TV's settings, in two panes (design spec §4.8): the categories on
- * the left (Profile, Playback, Audio, Display, Server, Diagnostics,
+ * the left (Profile, Playback, Audio, Display, Appearance, Server, Diagnostics,
  * About, Sign out), the focused category's rows on the right. Focus on a
  * category shows its rows; Right or Select goes into them. Choices open a
  * side panel; switches toggle on Select. Sign out asks first, and "Manage
@@ -298,6 +301,7 @@ private fun firstRowOf(c: Category, me: MeUiState): String = when (c) {
     Category.Playback -> "row-quality"
     Category.Audio -> "row-passthrough-${Settings.PASSTHROUGH_FORMATS.first()}"
     Category.Display -> "row-subtitle-size"
+    Category.Appearance -> "row-appearance"
     Category.Server -> "row-server"
     Category.Diagnostics -> "row-diagnostics"
     Category.About -> "row-version"
@@ -558,6 +562,19 @@ private fun LazyListScope.pane(
                 )
             }
         }
+        Category.Appearance -> {
+            // Its own page: the themes as previews, then the accents (docs/THEMES.md).
+            item(key = "row-appearance", contentType = SETTING_ROW) {
+                TvSettingRow(
+                    stringResource(DesignR.string.appearance_theme),
+                    value = appearanceValue(Appearance.palette),
+                    icon = PleyIcons.Palette,
+                    chevron = true,
+                    onClick = { onOpen(PleyKey.Appearance) },
+                    modifier = keyed("row-appearance"),
+                )
+            }
+        }
         Category.Server -> {
             item(key = "row-server", contentType = SETTING_ROW) {
                 TvSettingRow(
@@ -811,6 +828,7 @@ private fun categoryLabel(c: Category): String = stringResource(
         Category.Playback -> R.string.tv_settings_playback
         Category.Audio -> R.string.tv_settings_audio
         Category.Display -> R.string.tv_settings_display
+        Category.Appearance -> DesignR.string.appearance_title
         Category.Server -> R.string.tv_settings_server
         Category.Diagnostics -> R.string.tv_settings_diagnostics
         Category.About -> R.string.tv_settings_about

@@ -22,8 +22,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -32,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.theme.LocalPleyPalette
 
 /**
  * The loading look of a screen with nothing saved yet (design spec §8):
@@ -140,7 +143,7 @@ private data class SkeletonElement(val state: SkeletonState, val shape: Shape) :
     }
 }
 
-private class SkeletonNode(private var state: SkeletonState, private var shape: Shape) : Modifier.Node(), DrawModifierNode {
+private class SkeletonNode(private var state: SkeletonState, private var shape: Shape) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
     // Counted while attached: the look's shimmer runs while any of its skeletons is.
     override fun onAttach() = state.attach()
 
@@ -157,8 +160,9 @@ private class SkeletonNode(private var state: SkeletonState, private var shape: 
     }
 
     override fun ContentDrawScope.draw() {
+        val palette = currentValueOf(LocalPleyPalette)
         val outline = shape.createOutline(size, layoutDirection, this)
-        drawOutline(outline, PleyColors.Surface2)
+        drawOutline(outline, palette.surface2)
         if (state.animated) {
             val t = state.shimmer
             val band = size.width.coerceAtLeast(1f)
@@ -166,7 +170,7 @@ private class SkeletonNode(private var state: SkeletonState, private var shape: 
             drawOutline(
                 outline,
                 Brush.linearGradient(
-                    colors = listOf(PleyColors.Surface2, PleyColors.Surface3, PleyColors.Surface2),
+                    colors = listOf(palette.surface2, palette.surface3, palette.surface2),
                     start = Offset(x - band / 2f, 0f),
                     end = Offset(x + band / 2f, 0f),
                 ),

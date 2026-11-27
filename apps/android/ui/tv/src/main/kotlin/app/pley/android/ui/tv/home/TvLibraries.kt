@@ -309,6 +309,7 @@ private fun LibraryCard(
     onDrop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val palette = PleyColors.palette
     val shape = RoundedCornerShape(PleyShape.CardRadius)
     val bring = remember { BringIntoViewRequester() }
     LaunchedEffect(index, moving) { if (moving) runCatching { bring.bringIntoView() } }
@@ -342,7 +343,7 @@ private fun LibraryCard(
                     val stroke = PleyFocus.RingStroke.toPx()
                     val r = PleyShape.CardRadius.toPx()
                     drawRoundRect(
-                        PleyColors.AccentBright,
+                        palette.accentHover,
                         topLeft = Offset(stroke / 2, stroke / 2),
                         size = Size(size.width - stroke, size.height - stroke),
                         cornerRadius = CornerRadius(r, r),

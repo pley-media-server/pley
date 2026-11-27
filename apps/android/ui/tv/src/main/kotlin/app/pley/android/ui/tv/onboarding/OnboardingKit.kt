@@ -74,12 +74,12 @@ internal fun PleyLogo(modifier: Modifier = Modifier, height: Dp = 40.dp) {
 
 /**
  * The sign-in screens' background (design spec §2.8): [bg][PleyColors.Bg]
- * with [brandDeep][PleyColors.BrandDeep] at 18 % glowing from the
+ * with [deep] ([brandDeep][PleyColors.BrandDeep]) at 18 % glowing from the
  * bottom-right corner, gone by 60 % of the width. One gradient, drawn once.
  */
-internal fun Modifier.brandGlow(): Modifier = drawWithCache {
+internal fun Modifier.brandGlow(deep: Color): Modifier = drawWithCache {
     val brush = Brush.radialGradient(
-        0f to PleyColors.BrandDeep.copy(alpha = 0.18f),
+        0f to deep.copy(alpha = 0.18f),
         1f to Color.Transparent,
         center = Offset(size.width, size.height),
         radius = size.width * 0.6f,

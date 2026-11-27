@@ -119,6 +119,7 @@ internal fun TvTrackLine(
  */
 @Composable
 internal fun FaintArt(art: ArtworkImage?, title: String, alpha: Float = 0.2f) {
+    val palette = PleyColors.palette
     if (art == null) return
     TrackArt(
         art,
@@ -128,7 +129,7 @@ internal fun FaintArt(art: ArtworkImage?, title: String, alpha: Float = 0.2f) {
             .graphicsLayer { this.alpha = alpha }
             .drawWithContent {
                 drawContent()
-                drawRect(Brush.verticalGradient(0.4f to Color.Transparent, 1f to PleyColors.Bg))
+                drawRect(Brush.verticalGradient(0.4f to Color.Transparent, 1f to palette.bg))
             },
         placeholder = false,
     )

@@ -92,6 +92,7 @@ import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.GradientBitmaps
 import app.pley.android.designsystem.image.drawStretched
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.theme.Backdrop
 import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.tv.R
@@ -257,6 +258,10 @@ internal fun TvRail(
     onProfile: () -> Unit,
     offline: Boolean = false,
 ) {
+    val palette = PleyColors.palette
+    val edge = remember(palette) { railEdge(palette.surface) }
+    // Sunshine's rainbow down the open rail, as the web's sidebar (--sidebar): a stretched picture too.
+    val rainbow = remember(palette.theme) { Backdrop.sidebar(palette.theme)?.let { GradientBitmaps.vertical(*it.toTypedArray()) } }
     val open = rail.hasFocus
     val opening = rememberRailOpening(open)
     val pill = openPillWidth(items, profile)
@@ -277,9 +282,10 @@ internal fun TvRail(
                 val width = lerp(PleyTv.RailCollapsed.toPx(), panel.toPx(), shown)
                 // It slides at full strength and fades over the last of the way: closed, it meets the page's fade under the entries.
                 val strength = (shown / RAIL_FADE).coerceAtMost(1f)
-                drawRect(PleyColors.Surface.copy(alpha = 0.96f * strength), size = Size(width, size.height))
+                drawRect(palette.surface.copy(alpha = 0.96f * strength), size = Size(width, size.height))
+                if (rainbow != null) drawStretched(rainbow, Offset.Zero, Size(width, size.height), alpha = strength)
                 // A stretched picture rather than a gradient shader (GradientBitmaps): cheaper on TV GPUs.
-                drawStretched(RailEdge, Offset(width, 0f), Size(RailShadow.toPx(), size.height), alpha = shown)
+                drawStretched(edge, Offset(width, 0f), Size(RailShadow.toPx(), size.height), alpha = shown)
             },
     ) {
         Column(
@@ -503,7 +509,7 @@ private fun RailEntry(
             }
             .onFocusChanged { if (it.isFocused) onFocused() }
             .testTag("${TestTags.TV_RAIL}.${item.id}")
-            .then(if (selected && !open) Modifier.currentMark() else Modifier),
+            .then(if (selected && !open) Modifier.currentMark(PleyColors.Accent) else Modifier),
     ) { ink ->
         BasicText(label(item), style = PleyType.Tv.Label.copy(color = ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -753,10 +759,10 @@ private fun Avatar(profile: RailProfile?, offline: Boolean) {
 }
 
 /** Collapsed, the current entry's 4 by 20 accent mark, 4 dp left of its pill and 8 from its icon (a state line, not focus). */
-private fun Modifier.currentMark(): Modifier = drawBehind {
+private fun Modifier.currentMark(accent: Color): Modifier = drawBehind {
     val w = 4.dp.toPx()
     val h = 20.dp.toPx()
-    drawRoundRect(PleyColors.Accent, Offset(-w, (size.height - h) / 2f), Size(w, h), CornerRadius(w / 2f, w / 2f))
+    drawRoundRect(accent, Offset(-w, (size.height - h) / 2f), Size(w, h), CornerRadius(w / 2f, w / 2f))
 }
 
 /**
@@ -824,4 +830,4 @@ private const val RAIL_FADE = 0.15f
 private const val SETTLE_FRAMES = 3
 
 /** That edge: surface at 85 % to clear. */
-private val RailEdge by lazy { GradientBitmaps.horizontal(0f to PleyColors.Surface.copy(alpha = 0.85f), 1f to PleyColors.Surface.copy(alpha = 0f)) }
+private fun railEdge(surface: Color) = GradientBitmaps.horizontal(0f to surface.copy(alpha = 0.85f), 1f to surface.copy(alpha = 0f))

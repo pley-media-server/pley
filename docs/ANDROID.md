@@ -155,6 +155,40 @@ quality the server converts to keeps its name in every language ("8 Mbps
 language shown does ("23,976 i/s" in French); Diagnostics writes frame
 rates as the decoder gives them, the same in every language.
 
+### Appearance
+
+Pley's nine themes and six accents ([THEMES.md](THEMES.md)) are in
+Settings: on phones the Appearance group's Theme row, on TVs the
+Appearance section beside the others, whose Theme row says the theme and
+accent shown ("Midday · Miami"). It opens Appearance: the themes, two to
+a row on a phone held upright, three on a wider screen and on TVs, each
+a small preview of Pley in its colors with its name and caption, then
+the accents, Default (the theme's own) first, each a swatch in the color
+it would give the page. What is shown is outlined and checked; on a TV,
+focus starts on the theme shown. A pick shows at once on every screen
+open, the players' too.
+
+The pick is kept for each profile on this phone or TV, in the app's own
+preferences, by its server and user id (one device can sign in to several
+servers, where ids repeat); nothing goes to the server. A profile with no
+pick on the device, or one this app doesn't know, shows Midnight in its
+own accent. The device also keeps the pick it showed last, which shows as
+the app starts and wherever no profile is known yet (choosing a server,
+signing in, "Who's watching?"), and stays after signing out; switching
+profile shows that profile's pick at once.
+
+Colors come only from `packages/themes/themes.json`, which
+`PleyPaletteTest` holds every theme and accent to. In a light theme the
+players and Live TV's player, and all they draw over the picture, take
+the theme's dark twin in the same accent. The logo is in the theme's
+colors. Twilight's sunset, Moonlight's moon, Nightshade's light and
+Sunshine's bubbles are one small picture the window's background
+stretches, so neither scrolling nor focus draws them again, and the TV's
+open rail has Sunshine's rainbow; a phone's tab rail and bar don't. On a
+light theme a TV's backdrops are fainter, as the web's are. The system
+draws the window before the app starts in Midnight's color, so a light
+theme comes in after it.
+
 ### Phones and tablets
 
 - **Pictures**, here and on TVs: a title without one, or whose picture

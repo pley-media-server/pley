@@ -137,7 +137,7 @@ fun railCurrent(root: PleyKey, items: List<RailItem>): String? = when (root) {
     PleyKey.Discover, PleyKey.Requests, is PleyKey.DiscoverList, is PleyKey.DiscoverTitle ->
         (items.firstOrNull { it.key == root } ?: items.firstOrNull { it.slot == RailSlot.Discover || it.slot == RailSlot.Requests })?.id
     is PleyKey.Drive -> DriveItem.id
-    PleyKey.Settings -> SettingsItem.id
+    PleyKey.Settings, PleyKey.Appearance -> SettingsItem.id
     is PleyKey.Profiles -> PROFILE_ITEM
     else -> items.firstOrNull { it.key == root }?.id
 }

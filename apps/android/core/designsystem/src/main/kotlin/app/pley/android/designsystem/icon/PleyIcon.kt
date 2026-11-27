@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.theme.PleyPalette
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -99,8 +100,10 @@ fun Icon(
 
 /**
  * The Pley mark: three posters on a shelf, play cut out of the front one,
- * on its dark tile ([PleyMark.Tile]) or alone ([PleyMark.Glyph]).
- * apps/web/src/components/Logo.tsx.
+ * on its tile ([PleyMark.Tile]) or alone ([PleyMark.Glyph]), in the theme's
+ * colors (docs/THEMES.md, "In every app"): the front poster a gradient from
+ * `brand-light` to `brand`, the middle one `brand-deep`, the back one
+ * `brand-far`, the tile `brand-tile`. apps/web/src/components/Logo.tsx.
  */
 object PleyMark {
     private const val BACK = "M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z"
@@ -108,25 +111,36 @@ object PleyMark {
     private const val FRONT = "M16 15.5h14a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4v-25a4 4 0 0 1 4-4zM19 27v10a1 1 0 0 0 1.51.86l8.5-5a1 1 0 0 0 0-1.72l-8.5-5A1 1 0 0 0 19 27z"
     private const val TILE = "M15,0h34a15,15 0,0 1,15 15v34a15,15 0,0 1,-15 15h-34a15,15 0,0 1,-15 -15v-34a15,15 0,0 1,15 -15z"
 
-    private fun gradient(): Brush = Brush.linearGradient(
-        0f to PleyColors.BrandLight,
-        1f to PleyColors.Accent,
+    private fun gradient(palette: PleyPalette): Brush = Brush.linearGradient(
+        0f to palette.brandLight,
+        1f to palette.brand,
         start = androidx.compose.ui.geometry.Offset(12f, 15f),
         end = androidx.compose.ui.geometry.Offset(34f, 49f),
     )
 
-    private fun build(name: String, tile: Boolean): ImageVector {
+    private fun build(name: String, tile: Boolean, palette: PleyPalette): ImageVector {
         val builder = ImageVector.Builder(name, 64.dp, 64.dp, 64f, 64f)
-        if (tile) builder.addPath(addPathNodes(TILE), fill = SolidColor(PleyColors.BrandTile))
-        builder.addPath(addPathNodes(BACK), fill = SolidColor(PleyColors.BrandFar))
-        builder.addPath(addPathNodes(MIDDLE), fill = SolidColor(PleyColors.BrandDeep))
-        builder.addPath(addPathNodes(FRONT), pathFillType = PathFillType.EvenOdd, fill = gradient())
+        if (tile) builder.addPath(addPathNodes(TILE), fill = SolidColor(palette.brandTile))
+        builder.addPath(addPathNodes(BACK), fill = SolidColor(palette.brandFar))
+        builder.addPath(addPathNodes(MIDDLE), fill = SolidColor(palette.brandDeep))
+        builder.addPath(addPathNodes(FRONT), pathFillType = PathFillType.EvenOdd, fill = gradient(palette))
         return builder.build()
     }
 
-    /** The mark on its rounded `brandTile` square, as app icons and the web's header show it. */
-    val Tile: ImageVector by lazy { build("pley-mark-tile", tile = true) }
+    private val tiles = ConcurrentHashMap<PleyPalette, ImageVector>(2)
+    private val glyphs = ConcurrentHashMap<PleyPalette, ImageVector>(2)
 
-    /** The mark alone, for dark surfaces. */
-    val Glyph: ImageVector by lazy { build("pley-mark", tile = false) }
+    /** The mark on its rounded `brand-tile` square in [palette], as app icons and the web's header show it; made once per palette. */
+    fun tile(palette: PleyPalette): ImageVector = tiles.getOrPut(palette) { build("pley-mark-tile", tile = true, palette) }
+
+    /** The mark alone in [palette]. */
+    fun glyph(palette: PleyPalette): ImageVector = glyphs.getOrPut(palette) { build("pley-mark", tile = false, palette) }
+
+    /** The mark on its tile in the theme shown. */
+    val Tile: ImageVector
+        @Composable get() = tile(PleyColors.palette)
+
+    /** The mark alone in the theme shown. */
+    val Glyph: ImageVector
+        @Composable get() = glyph(PleyColors.palette)
 }

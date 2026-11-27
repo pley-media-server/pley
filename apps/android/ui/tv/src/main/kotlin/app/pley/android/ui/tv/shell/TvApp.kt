@@ -63,6 +63,7 @@ import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.image.LocalArtworkHold
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.theme.ThemedWindow
 import app.pley.android.player.CastFrom
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.requests.RequestsEntry
@@ -125,6 +126,8 @@ fun TvApp(
     // Settings → Display → Reduce motion, on top of the system's "Remove animations".
     val chosen by source.reduceMotion.collectAsStateWithLifecycle(false)
     TvTheme(tier, reducedMotion ?: true.takeIf { chosen }) {
+        // The window under the pages, in this device's theme (docs/THEMES.md).
+        ThemedWindow(PleyColors.palette)
         val gate = remember { KeyRepeatGate() }
         val root = remember { TvScrolling.root() }
         CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalArtworkHold provides gate, LocalBringIntoViewSpec provides root) {
@@ -151,6 +154,7 @@ private fun TvShell(
     opened: Flow<Long?>,
     onOpened: (Long) -> Unit,
 ) {
+    val palette = PleyColors.palette
     val backStack = rememberNavBackStack(start)
     val libraries by source.libraries.collectAsStateWithLifecycle(emptyList())
     val profile by source.profile.collectAsStateWithLifecycle(null)
@@ -250,9 +254,9 @@ private fun TvShell(
                 .drawWithContent {
                     drawContent()
                     // The open rail dims the page behind it, at once.
-                    if (rail.hasFocus) drawRect(RailDim)
+                    if (rail.hasFocus) drawRect(palette.bg.copy(alpha = RAIL_DIM))
                     val a = curtain.value
-                    if (a > 0f) drawRect(PleyColors.Bg.copy(alpha = a))
+                    if (a > 0f) drawRect(palette.bg.copy(alpha = a))
                 },
         ) {
             CompositionLocalProvider(
@@ -315,7 +319,7 @@ private fun TvShell(
 }
 
 /** The page under the open rail: [bg][PleyColors.Bg] at 50 %. */
-private val RailDim = PleyColors.Bg.copy(alpha = 0.5f)
+private const val RAIL_DIM = 0.5f
 
 /**
  * Another activity (the player) had the window: when it comes back, focus

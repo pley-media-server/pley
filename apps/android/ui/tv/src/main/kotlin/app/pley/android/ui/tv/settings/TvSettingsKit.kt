@@ -153,21 +153,22 @@ internal fun TvSettingRow(
  */
 @Composable
 internal fun TvSwitch(checked: Boolean, focused: Boolean, modifier: Modifier = Modifier) {
+    val palette = PleyColors.palette
     Box(
         modifier
             .size(40.dp, 22.dp)
             .drawBehind {
                 val track = when {
-                    focused && checked -> PleyColors.OnAccent
-                    focused -> PleyColors.OnAccent.copy(alpha = 0.3f)
-                    checked -> PleyColors.Accent
-                    else -> PleyColors.Surface4
+                    focused && checked -> palette.accentFg
+                    focused -> palette.accentFg.copy(alpha = 0.3f)
+                    checked -> palette.accent
+                    else -> palette.border
                 }
                 val thumb = when {
-                    focused && checked -> PleyColors.Accent
-                    focused -> PleyColors.OnAccent
-                    checked -> PleyColors.OnAccent
-                    else -> PleyColors.Control
+                    focused && checked -> palette.accent
+                    focused -> palette.accentFg
+                    checked -> palette.accentFg
+                    else -> palette.control
                 }
                 val r = size.height / 2f
                 drawRoundRect(track, cornerRadius = CornerRadius(r, r))
@@ -306,7 +307,7 @@ internal fun absolute(path: String, origin: String): String =
     if (path.startsWith("http://") || path.startsWith("https://")) path else origin.trimEnd('/') + "/" + path.trimStart('/')
 
 /** Fills a rounded rect of [size] at [topLeft]: drawn, for skeleton blocks. */
-internal fun Modifier.block(color: Color = PleyColors.Surface2): Modifier = drawBehind {
+internal fun Modifier.block(color: Color): Modifier = drawBehind {
     drawRoundRect(color, Offset.Zero, Size(size.width, size.height), CornerRadius(4.dp.toPx(), 4.dp.toPx()))
 }
 

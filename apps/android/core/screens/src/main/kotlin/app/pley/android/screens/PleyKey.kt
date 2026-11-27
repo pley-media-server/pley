@@ -132,6 +132,10 @@ sealed interface PleyKey : NavKey {
     @Serializable
     data object Settings : PleyKey
 
+    /** This device's theme and accent (docs/THEMES.md), from Settings. */
+    @Serializable
+    data object Appearance : PleyKey
+
     /** What this device decodes and shows, for when something doesn't play. */
     @Serializable
     data object Diagnostics : PleyKey

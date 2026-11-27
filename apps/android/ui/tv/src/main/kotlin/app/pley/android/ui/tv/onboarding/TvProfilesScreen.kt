@@ -227,6 +227,7 @@ private fun Picker(state: ProfilesUiState, onPick: (Long) -> Unit, onRetry: () -
  */
 @Composable
 private fun ProfileChoice(profile: ProfileTile, busy: Boolean, initial: Boolean, onClick: () -> Unit) {
+    val palette = PleyColors.palette
     val reduced = reducedMotion()
     val scope = rememberCoroutineScope()
     val progress = remember { Animatable(0f) }
@@ -263,7 +264,7 @@ private fun ProfileChoice(profile: ProfileTile, busy: Boolean, initial: Boolean,
                         val s = 1f + (PleyFocus.AVATAR_SCALE - 1f) * a
                         val offset = PleyFocus.RingOffset.toPx() / s
                         drawCircle(
-                            PleyColors.AccentBright.copy(alpha = a),
+                            palette.accentHover.copy(alpha = a),
                             radius = size.minDimension / 2f + offset,
                             style = Stroke(PleyFocus.RingStroke.toPx() / s),
                         )
@@ -442,13 +443,14 @@ internal fun TvPinPad(
 /** A 14 dp dot: an empty 2 dp [control][PleyColors.Control] ring, or filled with [fg][PleyColors.Fg]. */
 @Composable
 private fun PinDot(filled: Boolean) {
+    val palette = PleyColors.palette
     Box(
         Modifier.size(14.dp).drawWithContent {
             if (filled) {
-                drawCircle(PleyColors.Fg)
+                drawCircle(palette.fg)
             } else {
                 val w = 2.dp.toPx()
-                drawCircle(PleyColors.Control, radius = size.minDimension / 2f - w / 2f, center = Offset(size.width / 2f, size.height / 2f), style = Stroke(w))
+                drawCircle(palette.control, radius = size.minDimension / 2f - w / 2f, center = Offset(size.width / 2f, size.height / 2f), style = Stroke(w))
             }
         },
     )
@@ -475,9 +477,12 @@ internal object ProfileColors {
         return palette[(hash % palette.size).toInt()]
     }
 
+    /** Dark words on a light avatar, in every theme: an avatar's color is its own, as the web's (Avatar.tsx). */
+    private val DarkText = Color(0xFF0B0D10)
+
     /** The web's luminance test, on unconverted channels. */
     fun textOn(color: Color): Color =
-        if (0.2126f * color.red + 0.7152f * color.green + 0.0722f * color.blue > 0.45f) PleyColors.Bg else Color.White
+        if (0.2126f * color.red + 0.7152f * color.green + 0.0722f * color.blue > 0.45f) DarkText else Color.White
 
     private fun parse(hex: String): Color? {
         val digits = hex.removePrefix("#")

@@ -1,6 +1,7 @@
 package app.pley.android.ui.tv.kit
 
 import androidx.compose.foundation.background
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -281,7 +282,9 @@ fun TvTextButton(
 private const val DISABLED_ALPHA = 0.4f
 
 /** A text button's fill at rest: fg 8 %, under a pill's 12 %. */
-private val TextButtonFill = PleyColors.Fg.copy(alpha = 0.08f)
+private val TextButtonFill: Color
+    @Composable @ReadOnlyComposable
+    get() = PleyColors.Fg.copy(alpha = 0.08f)
 
 /** A pill's least width, and the room either side of its label. */
 private val PillMinWidth = 116.dp

@@ -424,9 +424,9 @@ private fun LiveBadge() {
             .testTag(TV_LIVE_PLAYER_LIVE),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(7.dp).background(Color.White, PleyShape.Circle))
+        Box(Modifier.size(7.dp).background(PleyColors.DangerFg, PleyShape.Circle))
         Spacer(Modifier.width(7.dp))
-        BasicText(stringResource(R.string.tv_live_player_live).uppercase(), style = PleyType.Tv.Badge.copy(color = Color.White))
+        BasicText(stringResource(R.string.tv_live_player_live).uppercase(), style = PleyType.Tv.Badge.copy(color = PleyColors.DangerFg))
     }
 }
 
@@ -574,11 +574,12 @@ private fun holders(c: BusyConnection): String = when {
 /** A spinning ring in the accent, while a channel tunes or waits for data. */
 @Composable
 private fun Spinner(modifier: Modifier = Modifier) {
+    val palette = PleyColors.palette
     val turn = rememberInfiniteTransition(label = "spinner")
     val angle by turn.animateFloat(0f, 360f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "angle")
     Canvas(modifier.size(36.dp)) {
         val stroke = 3.dp.toPx()
-        drawArc(PleyColors.Accent, startAngle = angle, sweepAngle = 270f, useCenter = false, style = Stroke(stroke, cap = StrokeCap.Round))
+        drawArc(palette.accent, startAngle = angle, sweepAngle = 270f, useCenter = false, style = Stroke(stroke, cap = StrokeCap.Round))
     }
 }
 

@@ -30,9 +30,12 @@ import app.pley.android.data.GridDensity
 import app.pley.android.data.Settings
 import app.pley.android.data.SubtitleBackground
 import app.pley.android.data.SubtitleFont
+import app.pley.android.designsystem.R as DesignR
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.text.asString
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.player.subtitles.CaptionLook
+import app.pley.android.screens.PleyKey
 import app.pley.android.screens.downloads.DownloadsViewModel
 import app.pley.android.screens.settings.LanguageUiState
 import app.pley.android.screens.settings.LanguageViewModel
@@ -58,7 +61,7 @@ import app.pley.android.screens.R as ScreensR
  * This phone's settings (design spec §4.8; P5-ACCOUNT): the account's
  * language, quality on Wi-Fi and on mobile data, matching the refresh rate
  * (only when seamless, or off), autoplay, the playback details overlay,
- * the subtitles' size and background, the grid's density, the private
+ * the subtitles' size and background, the theme (Appearance), the grid's density, the private
  * sign-in tab, and About (with TMDB's notice). Every change is saved at
  * once.
  */
@@ -199,6 +202,17 @@ internal fun SettingsScreen() {
                         value = stringResource(raiseLabel(s.subtitleRaise)),
                         icon = PleyIcons.ArrowUp,
                         onClick = { sheet = Sheet.SubtitleRaise },
+                    )
+                }
+            }
+            item(key = "appearance") {
+                // Its own page: the themes as previews, then the accents (docs/THEMES.md).
+                SettingsGroup(stringResource(DesignR.string.appearance_title), Modifier.widthIn(max = MAX_WIDTH)) {
+                    SettingsRow(
+                        stringResource(DesignR.string.appearance_theme),
+                        value = appearanceValue(Appearance.palette),
+                        icon = PleyIcons.Palette,
+                        onClick = { navigator.open(PleyKey.Appearance) },
                     )
                 }
             }

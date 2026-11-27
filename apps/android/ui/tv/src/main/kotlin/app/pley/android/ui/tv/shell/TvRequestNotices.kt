@@ -176,6 +176,7 @@ internal fun BoxScope.TvRequestNotices(
  */
 @Composable
 private fun BoxScope.NoticeCard(notice: TvNotice, rail: RailState, onClose: (open: Boolean) -> Unit) {
+    val palette = PleyColors.palette
     val texts = rememberRequestTexts()
     val text = remember(notice, texts) { texts.notice(notice.notice) }
     val openFocus = remember { FocusRequester() }
@@ -218,7 +219,7 @@ private fun BoxScope.NoticeCard(notice: TvNotice, rail: RailState, onClose: (ope
                 clip = true
             }
             .background(PleyColors.Surface2.copy(alpha = 0.96f))
-            .drawBehind { drawRect(PleyColors.Surface4, size = Size(size.width, PleyElevation.Level2Hairline.toPx())) }
+            .drawBehind { drawRect(palette.border, size = Size(size.width, PleyElevation.Level2Hairline.toPx())) }
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 touches++

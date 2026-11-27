@@ -260,11 +260,11 @@ internal fun StaleBanner(stale: DashboardStale, modifier: Modifier = Modifier) {
             .adminWidth
             .padding(bottom = 8.dp)
             .clip(PleyShape.Card)
-            .background(PleyColors.Amber.copy(alpha = 0.08f))
+            .background(PleyColors.Warning.copy(alpha = 0.08f))
             .padding(16.dp)
             .testTag(STALE_BANNER),
     ) {
-        Icon(PleyIcons.ServerOff, contentDescription = null, size = 18.dp, tint = PleyColors.Amber)
+        Icon(PleyIcons.ServerOff, contentDescription = null, size = 18.dp, tint = PleyColors.Warning)
         Spacer(Modifier.width(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(stringResource(R.string.admin_dashboard_stale_title, time), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Fg)

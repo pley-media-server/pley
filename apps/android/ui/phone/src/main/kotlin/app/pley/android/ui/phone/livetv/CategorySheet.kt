@@ -138,7 +138,7 @@ private fun Heading(text: String, count: Int) {
 }
 
 /** What the entries are drawn on. */
-private val LocalEntrySurface = staticCompositionLocalOf { PleyColors.Surface2 }
+private val LocalEntrySurface = staticCompositionLocalOf { Color.Unspecified }
 
 /** One category: its icon (none for a group), its name and count; the chosen one, and a region that [holds] it, in the accent. */
 @Composable

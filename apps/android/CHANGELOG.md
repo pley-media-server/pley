@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Themes: Settings → Appearance on phones and TVs picks one of the nine
+  themes and an accent over it, kept for each profile on this phone or
+  TV.
+
 ## [0.1.19] - 2026-11-25
 
 ### Added

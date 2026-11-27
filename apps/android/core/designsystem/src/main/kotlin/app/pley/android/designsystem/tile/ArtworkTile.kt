@@ -45,7 +45,7 @@ fun ArtworkTile(
         modifier = modifier
             .clearAndSetSemantics { contentDescription = model.description }
             .artworkPlaceholder(model.title, titleStyle = null, load = load, well = PleyColors.Surface2, shape = shape, mark = model.mark)
-            .tileOverlays(model, kind, style, load),
+            .tileOverlays(model, kind, style, load, PleyColors.palette),
     )
 }
 

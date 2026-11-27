@@ -11,7 +11,9 @@ import app.pley.android.common.AppLanguage
 import app.pley.android.common.TraceNames
 import app.pley.android.common.perf.FrameRate
 import app.pley.android.common.perf.StartupSignals
+import app.pley.android.data.ProfileScope
 import app.pley.android.designsystem.PleyImageLoader
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.downloads.AppDownloads
 import app.pley.android.downloads.DownloadsOwner
 import app.pley.android.player.PlayerGraph
@@ -30,8 +32,11 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The app. Starting builds nothing on the main thread: it starts the one
@@ -72,6 +77,7 @@ class PleyApplication : Application(), PleyGraphOwner, PlayerGraphOwner, Downloa
             super.onCreate()
             AppBuild.commit = BuildConfig.COMMIT
             AppLanguage.started(this)
+            Appearance.attach(this)
             language = LanguageSync(this)
             if (BuildConfig.DEBUG) watchForSlowCalls()
             // The frame-rate counter's switch, read in the background; off, it only follows the activities.
@@ -123,6 +129,15 @@ class PleyApplication : Application(), PleyGraphOwner, PlayerGraphOwner, Downloa
             }
             graph.data
             launch { language.follow(graph.data.language) }
+            // The theme kept for the profile signed in on this device, once it is known; signing out keeps it.
+            launch {
+                graph.data.session.session
+                    .mapNotNull { session -> session?.me?.id?.let { ProfileScope.serverKey(session.issuer) to it } }
+                    .distinctUntilChanged()
+                    .collect { (server, id) ->
+                        withContext(Dispatchers.Main.immediate) { Appearance.showProfile(this@PleyApplication, server, id) }
+                    }
+            }
             val start = startup.await()
             val server = start.server
             if (server != null && start.signedIn) {

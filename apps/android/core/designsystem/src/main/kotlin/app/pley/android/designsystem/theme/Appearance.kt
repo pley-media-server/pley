@@ -1,0 +1,112 @@
+package app.pley.android.designsystem.theme
+
+import android.content.Context
+import android.content.SharedPreferences
+import android.os.StrictMode
+import androidx.annotation.VisibleForTesting
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.core.content.edit
+
+/**
+ * The theme and accent shown (docs/THEMES.md, "In every app"), picked on
+ * Appearance and kept on this device for each profile, by its server and
+ * user id (user ids repeat across servers), in the device's own preferences; nothing goes to the server. A profile with
+ * no pick on this device shows Midnight in the theme's own accent, and so
+ * does a stored id this app doesn't know.
+ *
+ * The device also keeps the pick it showed last, which shows before a
+ * profile is known (the first frame, the servers, signing in, "Who's
+ * watching?") so nothing flashes, and stays after signing out. It is read
+ * once as the app starts ([attach]); the profile's comes once the app knows
+ * who is signed in ([showProfile]).
+ *
+ * Kept as Compose state: the shells read [palette], so a pick or a switch
+ * of profile redraws every screen open, in every activity, in the same
+ * frame.
+ */
+object Appearance {
+    private const val PREFERENCES = "appearance"
+    private const val THEME = "theme"
+    private const val ACCENT = "accent"
+
+    private var shown by mutableStateOf(PleyPalette.Default)
+
+    /** The profile whose pick shows, once known: "<server>.<user id>". */
+    @Volatile
+    private var profile: String? = null
+
+    /** The theme shown. */
+    val theme: PleyTheme get() = shown.theme
+
+    /** The accent shown; `null`: the theme's own. */
+    val accent: PleyAccent? get() = shown.pick
+
+    /** The palette shown. Read in composition, it recomposes as it changes. */
+    val palette: PleyPalette get() = shown
+
+    /** As the app starts, before anything is drawn: the pick this device showed last. */
+    fun attach(context: Context) {
+        // One small file, read on the main thread as the app starts: the first
+        // screen is drawn in its colors, and nothing is drawn before it.
+        val policy = StrictMode.allowThreadDiskReads()
+        try {
+            shown = read(preferences(context), suffix = "")
+        } finally {
+            StrictMode.setThreadPolicy(policy)
+        }
+    }
+
+    /**
+     * The signed-in profile is known, or another one signed in ([userId] on
+     * [server], a stable name of the server the sign-in is kept by), on the
+     * main thread: its pick on this device shows, Midnight and the theme's
+     * own accent if it has none, and is the device's last shown.
+     */
+    fun showProfile(context: Context, server: String, userId: Long) {
+        val key = "$server.$userId"
+        if (profile == key) return
+        profile = key
+        val preferences = preferences(context)
+        val palette = read(preferences, suffix = ".$key")
+        shown = palette
+        preferences.edit { keep(palette, suffix = "") }
+    }
+
+    /** Shows [theme] from now on, on the main thread, and keeps it for the profile and as the last shown; the accent stays. */
+    fun pick(context: Context, theme: PleyTheme) = show(context, PleyPalette.of(theme, shown.pick))
+
+    /** Shows [accent] (`null`: the theme's own) over the theme from now on, and keeps it as [pick] does. */
+    fun pickAccent(context: Context, accent: PleyAccent?) = show(context, PleyPalette.of(shown.theme, accent))
+
+    private fun show(context: Context, palette: PleyPalette) {
+        if (palette === shown) return
+        shown = palette
+        val profile = profile
+        preferences(context).edit {
+            keep(palette, suffix = "")
+            if (profile != null) keep(palette, suffix = ".$profile")
+        }
+    }
+
+    /** Tests: as a new process, before [attach]. */
+    @VisibleForTesting
+    internal fun forget() {
+        profile = null
+        shown = PleyPalette.Default
+    }
+
+    private fun preferences(context: Context) = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+
+    /** The pick kept under [suffix] ("" for the last shown, ".<server>.<user id>" for a profile's). */
+    private fun read(preferences: SharedPreferences, suffix: String): PleyPalette =
+        PleyPalette.of(PleyTheme.of(preferences.getString(THEME + suffix, null)), PleyAccent.of(preferences.getString(ACCENT + suffix, null)))
+
+    private fun SharedPreferences.Editor.keep(palette: PleyPalette, suffix: String) {
+        // Midnight and the theme's own accent are what nothing kept shows: nothing to keep.
+        if (palette.theme == PleyTheme.Default) remove(THEME + suffix) else putString(THEME + suffix, palette.theme.id)
+        val accent = palette.pick
+        if (accent == null) remove(ACCENT + suffix) else putString(ACCENT + suffix, accent.id)
+    }
+}

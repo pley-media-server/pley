@@ -10,6 +10,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Density
+import app.pley.android.designsystem.theme.Appearance
+import app.pley.android.designsystem.theme.LocalPleyPalette
+import app.pley.android.designsystem.theme.PleyPalette
 import kotlin.math.min
 import androidx.tv.material3.ColorScheme
 import androidx.tv.material3.MaterialTheme
@@ -18,7 +21,6 @@ import androidx.tv.material3.Typography
 import androidx.tv.material3.darkColorScheme
 import app.pley.android.common.Tier
 import app.pley.android.designsystem.LocalReducedMotion
-import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
@@ -26,7 +28,9 @@ import app.pley.android.designsystem.PleyType
 
 /**
  * The TV's look: tv-material's theme built from pley's tokens (design spec
- * §1.1, §1.2, §1.4), plus the device's [tier] and whether to move less.
+ * §1.1, §1.2, §1.4) in [palette] (this device's theme, [Appearance], or a
+ * player's dark twin of it, [PleyPalette.dark]), plus the device's [tier]
+ * and whether to move less.
  *
  * The TV never uses Compose Material 3: the two libraries each have a
  * MaterialTheme, and mixing them mixes colors, type and shapes
@@ -41,11 +45,13 @@ import app.pley.android.designsystem.PleyType
 fun TvTheme(
     tier: Tier = Tier.T2,
     reducedMotion: Boolean? = null,
+    palette: PleyPalette = Appearance.palette,
     content: @Composable () -> Unit,
 ) {
     val reduced = reducedMotion ?: PleyMotion.systemReducedMotion(LocalContext.current)
-    CompositionLocalProvider(LocalDensity provides tvCanvasDensity()) {
-        MaterialTheme(colorScheme = TvColors, shapes = TvShapes, typography = TvTypography) {
+    val colors = remember(palette) { tvColors(palette) }
+    CompositionLocalProvider(LocalDensity provides tvCanvasDensity(), LocalPleyPalette provides palette) {
+        MaterialTheme(colorScheme = colors, shapes = TvShapes, typography = TvTypography) {
             CompositionLocalProvider(
                 LocalTvTier provides tier,
                 LocalReducedMotion provides reduced,
@@ -88,39 +94,39 @@ internal const val MAX_FONT_SCALE = 1.3f
 val LocalTvTier = staticCompositionLocalOf { Tier.T2 }
 
 /**
- * The scheme of design spec §1.1, the phone's roles with `border` as the
- * focus ring's color and no tint on surfaces.
+ * The scheme of design spec §1.1 in [p], the phone's roles with
+ * `accent-hover` as the focus ring's color and no tint on surfaces.
  */
-internal val TvColors: ColorScheme = darkColorScheme(
-    primary = PleyColors.Accent,
-    onPrimary = PleyColors.OnAccent,
-    primaryContainer = PleyColors.PrimaryContainer,
-    onPrimaryContainer = PleyColors.AccentBright,
-    inversePrimary = PleyColors.BrandDeep,
-    secondary = PleyColors.Surface3,
-    onSecondary = PleyColors.Fg,
-    secondaryContainer = PleyColors.Surface3,
-    onSecondaryContainer = PleyColors.Fg,
-    tertiary = PleyColors.BrandLight,
-    onTertiary = PleyColors.OnAccent,
-    tertiaryContainer = PleyColors.Surface3,
-    onTertiaryContainer = PleyColors.BrandLight,
-    background = PleyColors.Bg,
-    onBackground = PleyColors.Fg,
-    surface = PleyColors.Bg,
-    onSurface = PleyColors.Fg,
-    surfaceVariant = PleyColors.Surface2,
-    onSurfaceVariant = PleyColors.Muted,
+internal fun tvColors(p: PleyPalette): ColorScheme = darkColorScheme(
+    primary = p.accent,
+    onPrimary = p.accentFg,
+    primaryContainer = p.primaryContainer,
+    onPrimaryContainer = p.accentHover,
+    inversePrimary = p.brandDeep,
+    secondary = p.surface3,
+    onSecondary = p.fg,
+    secondaryContainer = p.surface3,
+    onSecondaryContainer = p.fg,
+    tertiary = p.brandLight,
+    onTertiary = p.accentFg,
+    tertiaryContainer = p.surface3,
+    onTertiaryContainer = p.brandLight,
+    background = p.bg,
+    onBackground = p.fg,
+    surface = p.bg,
+    onSurface = p.fg,
+    surfaceVariant = p.surface2,
+    onSurfaceVariant = p.muted,
     surfaceTint = Color.Transparent,
-    inverseSurface = PleyColors.Fg,
-    inverseOnSurface = PleyColors.Bg,
-    error = PleyColors.Danger,
-    onError = PleyColors.Bg,
-    errorContainer = PleyColors.Surface3,
-    onErrorContainer = PleyColors.DangerText,
-    border = PleyColors.AccentBright,
-    borderVariant = PleyColors.Control,
-    scrim = PleyColors.Bg,
+    inverseSurface = p.fg,
+    inverseOnSurface = p.bg,
+    error = p.danger,
+    onError = p.dangerFg,
+    errorContainer = p.surface3,
+    onErrorContainer = p.danger,
+    border = p.accentHover,
+    borderVariant = p.control,
+    scrim = p.shade,
 )
 
 /** tv-material's roles set to pley's TV type (design spec §1.2). */

@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -655,7 +657,9 @@ private val TitleBox = 88.dp
 
 /** The text column over backdrops: x 96 to 560. */
 private val TextColumn = 464.dp
-private val SummaryColor = PleyColors.Fg.copy(alpha = 0.85f)
+private val SummaryColor: Color
+    @Composable @ReadOnlyComposable
+    get() = PleyColors.Fg.copy(alpha = 0.85f)
 
 /** Tiles from a row's end at which its next page is asked for. */
 private const val NEAR_END = 6

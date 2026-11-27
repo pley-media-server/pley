@@ -111,6 +111,7 @@ data class SubtitleChoice(
  */
 @Composable
 internal fun BoxScope.PlayerSheet(state: PlayerScreenState, style: SubtitleChoice, onStyle: (SubtitleChoice) -> Unit) {
+    val palette = PleyColors.palette
     val page = state.sheet
     // Subtitle style stops applying while open (the next episode's subtitles are pictures): back to Settings.
     val styleGone = page == SheetPage.Style && !state.subtitleStyled
@@ -123,7 +124,7 @@ internal fun BoxScope.PlayerSheet(state: PlayerScreenState, style: SubtitleChoic
         Box(
             Modifier
                 .fillMaxSize()
-                .drawBehind { drawRect(PleyColors.Scrim.copy(alpha = PleyColors.Scrim.alpha * scrim)) }
+                .drawBehind { drawRect(palette.scrim.copy(alpha = palette.scrim.alpha * scrim)) }
                 .then(
                     if (page != null) {
                         Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = state::closeSheet)
@@ -151,7 +152,7 @@ internal fun BoxScope.PlayerSheet(state: PlayerScreenState, style: SubtitleChoic
                 .background(PleyColors.Surface2)
                 .drawBehind {
                     val hair = PleyElevation.Level2Hairline.toPx()
-                    drawLine(PleyColors.Surface4, Offset(PleyShape.SheetRadius.toPx(), hair / 2f), Offset(size.width - PleyShape.SheetRadius.toPx(), hair / 2f), hair)
+                    drawLine(palette.border, Offset(PleyShape.SheetRadius.toPx(), hair / 2f), Offset(size.width - PleyShape.SheetRadius.toPx(), hair / 2f), hair)
                 }
                 // Touches inside don't reach the scrim.
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {})

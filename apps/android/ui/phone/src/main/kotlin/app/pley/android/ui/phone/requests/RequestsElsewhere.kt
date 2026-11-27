@@ -88,7 +88,7 @@ internal fun RequestsTabIcon(entry: RequestsEntry, icon: @Composable () -> Unit)
             Badge(
                 modifier = Modifier.clearAndSetSemantics { contentDescription = description },
                 containerColor = if (entry.alarm) PleyColors.Danger else PleyColors.Accent,
-                contentColor = if (entry.alarm) PleyColors.Bg else PleyColors.OnAccent,
+                contentColor = if (entry.alarm) PleyColors.DangerFg else PleyColors.OnAccent,
             ) {
                 Text(if (entry.badge > MAX_TAB_COUNT) "$MAX_TAB_COUNT+" else entry.badge.toString(), style = MaterialTheme.typography.labelSmall)
             }

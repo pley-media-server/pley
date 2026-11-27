@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appearance_title">外观</string>
+    <string name="appearance_theme">主题</string>
+    <string name="appearance_theme_hint">你在此设备上看到的 Pley 外观。每个配置文件各自保存。</string>
+    <string name="appearance_theme_hint_tv">你在此电视上看到的 Pley 外观。每个配置文件各自保存。</string>
+    <string name="appearance_theme_midnight">午夜</string>
+    <string name="appearance_theme_midday">正午</string>
+    <string name="appearance_theme_twilight">暮光</string>
+    <string name="appearance_theme_starlight">星光</string>
+    <string name="appearance_theme_moonlight">月光</string>
+    <string name="appearance_theme_nightshade">夜影</string>
+    <string name="appearance_theme_greenlight">绿光</string>
+    <string name="appearance_theme_sunshine">阳光</string>
+    <string name="appearance_theme_blacklight">黑光</string>
+    <string name="appearance_about_midnight">关灯，爆米花就位</string>
+    <string name="appearance_about_midday">午夜，但在吃早午餐</string>
+    <string name="appearance_about_twilight">看日落，不晒伤</string>
+    <string name="appearance_about_starlight">香槟，不宿醉</string>
+    <string name="appearance_about_moonlight">燕尾服模式</string>
+    <string name="appearance_about_nightshade">潜伏在蕨丛里</string>
+    <string name="appearance_about_greenlight">足不出户，摸摸草</string>
+    <string name="appearance_about_sunshine">果汁盒认证</string>
+    <string name="appearance_about_blacklight">零色彩，零烦恼</string>
+    <string name="appearance_accent">强调色</string>
+    <string name="appearance_accent_hint">应用于按钮、链接和其他焦点元素。</string>
+    <string name="appearance_accent_own">默认</string>
+    <string name="appearance_accent_sky">天蓝</string>
+    <string name="appearance_accent_violet">紫罗兰</string>
+    <string name="appearance_accent_miami">迈阿密</string>
+    <string name="appearance_accent_gold">金色</string>
+    <string name="appearance_accent_mint">薄荷</string>
+    <string name="appearance_accent_amber">琥珀</string>
+</resources>

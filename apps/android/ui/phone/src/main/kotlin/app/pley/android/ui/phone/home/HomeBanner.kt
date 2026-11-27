@@ -174,6 +174,7 @@ private fun Slide(
     val backdrop = remember(info.item, origin, tier) { ArtworkCandidates.backdrop(info.item, origin, tier) }
     // Where the words start, from the banner's top: the scrim under them is dark enough by then, on a short screen too.
     var wordsTop by remember { mutableFloatStateOf(-1f) }
+    val bg = PleyColors.Bg
     Box(Modifier.fillMaxSize()) {
         Artwork(
             image = backdrop,
@@ -182,7 +183,7 @@ private fun Slide(
             modifier = Modifier.fillMaxSize().clearAndSetSemantics { }.drawWithCache {
                 // The top keeps the bar's icons readable; the bottom melts into the page under the words.
                 val top = Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent, endY = size.height * 0.22f)
-                val bottom = Brush.verticalGradient(*scrimStops(wordsTop / size.height), startY = 0f, endY = size.height)
+                val bottom = Brush.verticalGradient(*scrimStops(wordsTop / size.height, bg), startY = 0f, endY = size.height)
                 onDrawWithContent {
                     drawContent()
                     drawRect(Color.Black.copy(alpha = 0.18f))
@@ -264,17 +265,17 @@ private fun Slide(
 }
 
 /**
- * The bottom scrim's stops over the banner's height: clear from 30 %, 75 %
- * of the page's color by 61 %, the page's color at 90 %, as a phone's tall
+ * The bottom scrim's stops over the banner's height, in the page's color
+ * [bg]: clear from 30 %, 75 % of it by 61 %, the page's color at 90 %, as a phone's tall
  * banner has it; but 75 % by the words' top at the latest ([wordsTop], a
  * share of the height), where a short screen's words start higher up.
  */
-internal fun scrimStops(wordsTop: Float): Array<Pair<Float, Color>> {
+internal fun scrimStops(wordsTop: Float, bg: Color): Array<Pair<Float, Color>> {
     val start = 0.3f
     val dark = if (wordsTop > 0f) minOf(start + 0.45f * (1f - start), wordsTop) else start + 0.45f * (1f - start)
     val clear = minOf(start, dark - 0.15f).coerceAtLeast(0f)
     val full = maxOf(clear + 0.85f * (1f - clear), dark + 0.1f).coerceAtMost(1f)
-    return arrayOf(clear to Color.Transparent, dark to PleyColors.Bg.copy(alpha = 0.75f), full to PleyColors.Bg)
+    return arrayOf(clear to Color.Transparent, dark to bg.copy(alpha = 0.75f), full to bg)
 }
 
 /** My List: a ring with + to put the title on it, ✓ once it is. */

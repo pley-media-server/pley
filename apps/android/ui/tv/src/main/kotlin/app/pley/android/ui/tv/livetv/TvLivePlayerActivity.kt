@@ -20,6 +20,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import app.pley.android.common.AppLanguage
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.player.CastFrom
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerWindows
@@ -66,7 +67,7 @@ class TvLivePlayerActivity : ComponentActivity() {
         // Said once, as it opens: not again when the window is made anew.
         val cast = castFrom(intent).takeIf { savedInstanceState == null }?.notice(resources)
         setContent {
-            TvTheme(tier = graph.device.tier) {
+            TvTheme(tier = graph.device.tier, palette = Appearance.palette.dark) {
                 WindowRules {
                     TvLivePlayerScreen(vm = vm, onExit = ::finish)
                     TvCastNotice(cast)

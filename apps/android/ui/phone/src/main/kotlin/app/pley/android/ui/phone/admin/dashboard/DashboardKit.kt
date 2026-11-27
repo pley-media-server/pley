@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -146,12 +147,24 @@ internal fun InfoLine(
 }
 
 /** How a badge reads: the web's tones. */
-internal enum class Tone(val fg: Color) {
-    Success(PleyColors.Success),
-    Info(PleyColors.Info),
-    Accent(PleyColors.AccentBright),
-    Danger(PleyColors.DangerText),
-    Neutral(PleyColors.Muted),
+internal enum class Tone {
+    Success,
+    Info,
+    Accent,
+    Danger,
+    Neutral,
+    ;
+
+    /** Its words' color, in the theme shown. */
+    val fg: Color
+        @Composable @ReadOnlyComposable
+        get() = when (this) {
+            Success -> PleyColors.Success
+            Info -> PleyColors.Info
+            Accent -> PleyColors.AccentBright
+            Danger -> PleyColors.DangerText
+            Neutral -> PleyColors.Muted
+        }
 }
 
 /** A small label on a tinted pill (the web's Badge); [description] is what screen readers hear instead. */
@@ -198,13 +211,14 @@ internal fun Chips(items: List<String>, active: String? = null, empty: String? =
 /** A thin bar filled to [fraction], drawn in one pass. */
 @Composable
 internal fun Bar(fraction: Float, modifier: Modifier = Modifier, height: Dp = 4.dp, color: Color = PleyColors.Accent) {
+    val palette = PleyColors.palette
     Box(
         modifier
             .fillMaxWidth()
             .height(height)
             .drawBehind {
                 val r = CornerRadius(size.height / 2, size.height / 2)
-                drawRoundRect(PleyColors.Surface4, cornerRadius = r)
+                drawRoundRect(palette.border, cornerRadius = r)
                 val w = size.width * fraction.coerceIn(0f, 1f)
                 if (w > 0f) drawRoundRect(color, size = Size(w, size.height), cornerRadius = r)
             },

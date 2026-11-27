@@ -95,12 +95,13 @@ internal fun BoxScope.TvPlayerPanels(
     captionLook: CaptionLook = CaptionLook(),
     onSubtitleStyle: ((CaptionLook) -> Unit)? = null,
 ) {
+    val palette = PleyColors.palette
     val open = ui.panel != null
     val reduced = reducedMotion()
     val shown by animateFloatAsState(if (open) 1f else 0f, PleyMotion.overlay(reduced), label = "panel")
     val present by remember { derivedStateOf { open || shown > 0f } }
     if (!present) return
-    Box(Modifier.fillMaxSize().drawBehind { drawRect(PleyColors.Scrim.copy(alpha = PleyColors.Scrim.alpha * shown)) })
+    Box(Modifier.fillMaxSize().drawBehind { drawRect(palette.scrim.copy(alpha = palette.scrim.alpha * shown)) })
     val panel = ui.panel ?: ui.lastPanel ?: return
     Box(
         Modifier
@@ -110,8 +111,8 @@ internal fun BoxScope.TvPlayerPanels(
             .graphicsLayer { translationX = (1f - shown) * size.width }
             .clip(RoundedCornerShape(topStart = PleyShape.DialogRadius, bottomStart = PleyShape.DialogRadius))
             .drawBehind {
-                drawRect(PleyColors.Surface2)
-                drawRect(PleyColors.Surface4, size = androidx.compose.ui.geometry.Size(size.width, PleyElevation.Level2Hairline.toPx()))
+                drawRect(palette.surface2)
+                drawRect(palette.border, size = androidx.compose.ui.geometry.Size(size.width, PleyElevation.Level2Hairline.toPx()))
             }
             .testTag(TAG_PANEL)
             // Focus stays in the panel until it closes.

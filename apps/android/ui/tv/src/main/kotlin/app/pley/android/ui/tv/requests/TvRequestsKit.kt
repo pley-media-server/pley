@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -158,8 +159,10 @@ internal fun titleMeta(title: DiscoverTitle, texts: RequestTexts): List<MetaPart
 @Immutable
 internal class Tone(val content: Color, val container: Color)
 
+@Composable
+@ReadOnlyComposable
 internal fun toneOf(tone: PillTone): Tone = when (tone) {
-    PillTone.Amber -> Tone(PleyColors.Amber, PleyColors.Amber.copy(alpha = 0.2f))
+    PillTone.Amber -> Tone(PleyColors.Warning, PleyColors.Warning.copy(alpha = 0.2f))
     PillTone.Blue -> Tone(PleyColors.AccentBright, PleyColors.Info.copy(alpha = 0.2f))
     PillTone.Green -> Tone(PleyColors.Success, PleyColors.Success.copy(alpha = 0.2f))
     PillTone.Red -> Tone(PleyColors.DangerText, PleyColors.DangerText.copy(alpha = 0.2f))

@@ -210,13 +210,14 @@ private fun PadKey(key: String, label: String, enabled: Boolean, onClick: () -> 
 
 @Composable
 private fun Dot(filled: Boolean) {
+    val palette = PleyColors.palette
     Box(
         Modifier.size(14.dp).drawWithContent {
             if (filled) {
-                drawCircle(PleyColors.Fg)
+                drawCircle(palette.fg)
             } else {
                 val w = 2.dp.toPx()
-                drawCircle(PleyColors.Control, radius = size.minDimension / 2f - w / 2f, center = Offset(size.width / 2f, size.height / 2f), style = Stroke(w))
+                drawCircle(palette.control, radius = size.minDimension / 2f - w / 2f, center = Offset(size.width / 2f, size.height / 2f), style = Stroke(w))
             }
         },
     )
