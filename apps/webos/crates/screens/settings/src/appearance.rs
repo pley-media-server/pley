@@ -1,14 +1,17 @@
-//! Appearance (Settings → Appearance, docs/THEMES.md): this TV's theme and accent, as the web's
-//! Account → Appearance offers them. The nine themes come first, five to a line, each a small Pley
-//! in its colors with its name and caption; then the accents, Default (the theme's own) first,
-//! each a swatch of the color it gives the theme shown. The pick in force is checked. A pick shows
-//! at once, every color in the same frame, and is kept on the TV for the profile watching
+//! Appearance (Settings → Appearance, docs/THEMES.md): this TV's theme and accent, laid out as on
+//! every TV app. Under the title, "Theme" and its hint on one line, then the nine themes, five to a
+//! line, each a card with a small Pley in its colors, its name and caption; then "Accent" and its
+//! hint, and the accents, Default (the theme's own) first, each a swatch of the color it gives the
+//! theme shown. The theme in force has an accent edge and a check on its corner; the accent in
+//! force is filled with the accent, a check in place of its swatch. Focus starts on the pick in
+//! force, and Up and Down between the cards and the accents land on it. A pick shows at once,
+//! every color in the same frame, and is kept on the TV for the profile watching
 //! ([`pley_shell::AppState::pick_theme`]); nothing goes to the server.
 
 use pley_base::{Icon, Point, Rect, Size, TextOpts, TextStyle};
 use pley_core::store::ThemePick;
 use pley_i18n::t;
-use pley_kit::look::{focus_progress, mix, press_progress};
+use pley_kit::look::{focus_progress, press_progress};
 use pley_shell::{AppCx, Chrome, Screen};
 use pley_ui::theme::{self, Accent, Palette, Theme, focus, radius};
 use pley_ui::{Dir, Edge, Group, Id, Response, Ui};
@@ -19,18 +22,21 @@ const LEFT: f32 = theme::GUTTER;
 const WIDTH: f32 = theme::CANVAS_W - theme::SAFE_X - theme::GUTTER;
 const GAP: f32 = 16.0;
 const CARD_W: f32 = (WIDTH - GAP * (COLUMNS as f32 - 1.0)) / COLUMNS as f32;
+/// What a card holds sits this far in from its edge.
+const CARD_PAD: f32 = 6.0;
 /// A preview is the screen's shape.
-const PREVIEW_H: f32 = CARD_W * 9.0 / 16.0;
+const PREVIEW_W: f32 = CARD_W - 2.0 * CARD_PAD;
+const PREVIEW_H: f32 = PREVIEW_W * 9.0 / 16.0;
 /// The name 8 under the preview, then the caption on up to two lines.
 const NAME_GAP: f32 = 8.0;
-const CARD_H: f32 = PREVIEW_H + NAME_GAP + 18.0 + 2.0 + 2.0 * 17.0;
+const CARD_H: f32 = CARD_PAD + PREVIEW_H + NAME_GAP + 18.0 + 2.0 + 2.0 * 17.0 + CARD_PAD;
 const ROW_GAP: f32 = 14.0;
-/// The hint under the title, then the cards.
-const HINT_Y: f32 = theme::SAFE_Y + 40.0;
-const GRID_Y: f32 = HINT_Y + 34.0;
-/// The accents' heading and their row under the cards.
-const ACCENT_TITLE_Y: f32 = GRID_Y + 2.0 * CARD_H + ROW_GAP + 18.0;
-const ACCENTS_Y: f32 = ACCENT_TITLE_Y + 32.0;
+/// "Theme" and its hint under the title, then the cards.
+const THEME_TITLE_Y: f32 = theme::SAFE_Y + 40.0;
+const GRID_Y: f32 = THEME_TITLE_Y + 30.0;
+/// "Accent" and its hint under the cards, then the accents.
+const ACCENT_TITLE_Y: f32 = GRID_Y + 2.0 * CARD_H + ROW_GAP + 16.0;
+const ACCENTS_Y: f32 = ACCENT_TITLE_Y + 30.0;
 /// An accent's swatch, and the chip around it.
 const SWATCH: f32 = 20.0;
 const CHIP_PAD: f32 = 10.0;
@@ -135,10 +141,16 @@ impl Screen for AppearanceScreen {
             &width,
             theme::fg(),
         );
-        ui.text(Point::new(LEFT, HINT_Y), t!("settings.appearance.hint"), &theme::BODY, &width, theme::muted());
+        section_line(ui, THEME_TITLE_Y, t!("settings.appearance.theme"), t!("settings.appearance.hint"));
 
+        // Down from the cards and Up from the accents land on the pick in force.
+        let (theme_in_force, accent_in_force) =
+            (AppearanceScreen::theme_id(root, shown), AppearanceScreen::accent_id(root, accent));
         let mut pick = None;
-        let themes = Group::grid(COLUMNS as u16).edge(Dir::Up, Edge::Stop).edge(Dir::Right, Edge::Stop);
+        let themes = Group::grid(COLUMNS as u16)
+            .edge(Dir::Up, Edge::Stop)
+            .edge(Dir::Right, Edge::Stop)
+            .edge(Dir::Down, Edge::To(accent_in_force));
         ui.group(root.with("themes"), themes, |ui| {
             for (i, t) in Theme::ALL.into_iter().enumerate() {
                 let (col, row) = ((i % COLUMNS) as f32, (i / COLUMNS) as f32);
@@ -149,18 +161,11 @@ impl Screen for AppearanceScreen {
             }
         });
 
-        let title = ui.text(
-            Point::new(LEFT, ACCENT_TITLE_Y),
-            t!("settings.appearance.accent.title"),
-            &theme::TITLE,
-            &TextOpts::line(WIDTH),
-            theme::fg(),
-        );
-        let hint_x = LEFT + title.w + 12.0;
-        let hint_y = ACCENT_TITLE_Y + (theme::TITLE.line_height - theme::BODY.line_height) / 2.0;
-        let hint = t!("settings.appearance.accent.hint");
-        ui.text(Point::new(hint_x, hint_y), hint, &theme::BODY, &TextOpts::line(LEFT + WIDTH - hint_x), theme::muted());
-        let accents = Group::row().edge(Dir::Down, Edge::Stop).edge(Dir::Right, Edge::Stop);
+        section_line(ui, ACCENT_TITLE_Y, t!("settings.appearance.accent.title"), t!("settings.appearance.accent.hint"));
+        let accents = Group::row()
+            .edge(Dir::Down, Edge::Stop)
+            .edge(Dir::Right, Edge::Stop)
+            .edge(Dir::Up, Edge::To(theme_in_force));
         ui.group(root.with("accents"), accents, |ui| {
             let mut x = LEFT;
             for a in std::iter::once(None).chain(Accent::ALL.map(Some)) {
@@ -191,34 +196,54 @@ impl Screen for AppearanceScreen {
     }
 }
 
-/// A theme's card at `at`: its preview growing 1.08 with the ring as focus comes, its name and
-/// caption under it, and the check when it is the theme in force.
+/// A section's line: its label in `Tv.Title`, then its hint on the same line in Muted.
+fn section_line(ui: &mut Ui, y: f32, label: &str, hint: &str) {
+    let title = ui.text(Point::new(LEFT, y), label, &theme::TITLE, &TextOpts::line(WIDTH), theme::fg());
+    let hint_x = LEFT + title.w + 12.0;
+    let hint_y = y + (theme::TITLE.line_height - theme::BODY.line_height) / 2.0;
+    ui.text(Point::new(hint_x, hint_y), hint, &theme::BODY, &TextOpts::line(LEFT + WIDTH - hint_x), theme::muted());
+}
+
+/// A theme's card at `at`: its edge, the preview, its name and caption under it. The theme in
+/// force has an accent edge over a tint of the accent and the check on its preview's corner. The
+/// card grows as focus comes, with the ring around it, as a chip does.
 fn theme_card(ui: &mut Ui, id: Id, at: Point, t: Theme, accent: Option<Accent>, current: bool) -> Response {
-    let preview = Rect::new(at.x, at.y, CARD_W, PREVIEW_H);
-    let r = ui.focusable(id, Rect::new(at.x, at.y, CARD_W, CARD_H));
+    let card = Rect::new(at.x, at.y, CARD_W, CARD_H);
+    let r = ui.focusable(id, card);
     let (name, about) = (theme_name(t), theme_about(t));
     ui.name(id, || pley_kit::spoken(&[name, about]));
     let p = focus_progress(ui, id, r.focused);
     let q = press_progress(ui, id, r.pressed);
-    let scale = 1.0 + (focus::TILE_SCALE - 1.0) * p + (focus::TILE_PRESSED_SCALE - focus::TILE_SCALE) * q * p;
-    ui.transform(Point::ZERO, scale, preview.center(), |ui| {
+    let scale = 1.0 + (focus::chip().focus_scale - 1.0) * p * (1.0 - q);
+    ui.transform(Point::ZERO, scale, card.center(), |ui| {
+        if current {
+            ui.fill(card, theme::accent().alpha(0.06), radius::CARD);
+            ui.stroke(card.expand(-1.0), theme::accent(), radius::CARD - 1.0, 2.0);
+        } else {
+            ui.stroke(card.expand(-0.5), theme::surface4(), radius::CARD, 1.0);
+        }
+        let preview = Rect::new(card.x + CARD_PAD, card.y + CARD_PAD, PREVIEW_W, PREVIEW_H);
         draw_preview(ui, preview, Palette::of(t, accent));
+        if current {
+            check(ui, Point::new(preview.right() - CHECK / 2.0 - 4.0, preview.y + CHECK / 2.0 + 4.0));
+        }
+        let (x, y, w) = (preview.x, preview.bottom() + NAME_GAP, PREVIEW_W);
+        let style = if r.focused { theme::TITLE } else { theme::LABEL };
+        let named = TextStyle { size: theme::LABEL.size, line_height: 18.0, ..style };
+        ui.text(Point::new(x, y), name, &named, &TextOpts::line(w), theme::fg());
+        ui.text(Point::new(x, y + 20.0), about, &theme::CAPTION, &TextOpts::wrap(w, 2), theme::muted());
     });
-    let grown = preview.scale_about(preview.center(), scale);
-    if p > 0.0 {
-        let ring = grown.expand(focus::RING_OFFSET);
-        ui.stroke(ring, focus::ring_color().alpha(p), radius::CARD * scale + focus::RING_OFFSET, focus::RING_STROKE);
-    }
-    if current {
-        // On the preview's corner, over the ring, as the web's: clear of what the preview shows.
-        check(ui, Point::new(grown.right() - 2.0, grown.y + 2.0));
-    }
-    let y = preview.bottom() + NAME_GAP;
-    let style = if r.focused { theme::TITLE } else { theme::LABEL };
-    let named = TextStyle { size: theme::LABEL.size, line_height: 18.0, ..style };
-    ui.text(Point::new(at.x, y), name, &named, &TextOpts::line(CARD_W), theme::fg());
-    ui.text(Point::new(at.x, y + 20.0), about, &theme::CAPTION, &TextOpts::wrap(CARD_W, 2), theme::muted());
+    ring(ui, card, scale, radius::CARD, p);
     r
+}
+
+/// The focus ring around `rect` grown to `scale`, at `progress`.
+fn ring(ui: &mut Ui, rect: Rect, scale: f32, corner: f32, progress: f32) {
+    if progress > 0.0 {
+        let grown = rect.scale_about(rect.center(), scale).expand(focus::RING_OFFSET);
+        let color = focus::ring_color().alpha(progress);
+        ui.stroke(grown, color, corner * scale + focus::RING_OFFSET, focus::RING_STROKE);
+    }
 }
 
 /// A small Pley in `p`'s colors, as the web's preview draws it: the sidebar with the current
@@ -272,8 +297,9 @@ fn check(ui: &mut Ui, center: Point) {
     ui.icon(disk.place(Size::new(14.0, 14.0), 0.5, 0.5), Icon::Check, theme::on_accent());
 }
 
-/// An accent's chip at `at`: its swatch, the color it gives `shown`, checked when it is the accent
-/// in force, then its name; filled with the accent as focus comes, as a chip is. Its response and
+/// An accent's chip at `at`: its swatch, the color it gives `shown`, then its name, in a 1 dp
+/// edge. The accent in force is filled with the accent, its words in AccentFg and a check in
+/// place of its swatch. The chip grows as focus comes, with the ring around it. Its response and
 /// width.
 fn accent_chip(ui: &mut Ui, id: Id, at: Point, shown: Theme, accent: Option<Accent>, current: bool) -> (Response, f32) {
     let name = accent_name(accent);
@@ -282,23 +308,26 @@ fn accent_chip(ui: &mut Ui, id: Id, at: Point, shown: Theme, accent: Option<Acce
     let rect = Rect::new(at.x, at.y, w, theme::BUTTON_HEIGHT);
     let r = ui.focusable(id, rect);
     ui.name(id, || name.to_string());
-    let look = focus::chip();
     let p = focus_progress(ui, id, r.focused);
     let q = press_progress(ui, id, r.pressed);
-    let fill = mix(mix(look.fill, look.focus_fill, p), look.pressed_fill, q);
-    let content = mix(look.content, look.focus_content, p.max(q));
-    let scale = 1.0 + (look.focus_scale - 1.0) * p;
+    let scale = 1.0 + (focus::chip().focus_scale - 1.0) * p * (1.0 - q);
     ui.transform(Point::ZERO, scale, rect.center(), |ui| {
-        ui.fill(rect, fill, radius::CONTROL);
         let swatch = Rect::new(rect.x + CHIP_PAD, rect.y + (rect.h - SWATCH) / 2.0, SWATCH, SWATCH);
-        let color = Palette::of(shown, accent);
-        ui.fill(swatch.expand(1.0), content.alpha(0.25), SWATCH / 2.0 + 1.0);
-        ui.fill(swatch, color.accent, SWATCH / 2.0);
-        if current {
-            ui.icon(swatch.place(Size::new(12.0, 12.0), 0.5, 0.5), Icon::Check, color.accent_fg);
-        }
+        let content = if current {
+            ui.fill(rect, theme::accent(), radius::CONTROL);
+            let on = theme::on_accent();
+            ui.stroke(swatch.expand(-0.75), on.alpha(0.6), SWATCH / 2.0, 1.5);
+            ui.icon(swatch.place(Size::new(12.0, 12.0), 0.5, 0.5), Icon::Check, on);
+            on
+        } else {
+            ui.stroke(rect.expand(-0.5), theme::surface4(), radius::CONTROL, 1.0);
+            ui.fill(swatch.expand(1.0), theme::fg().alpha(0.2), SWATCH / 2.0 + 1.0);
+            ui.fill(swatch, Palette::of(shown, accent).accent, SWATCH / 2.0);
+            theme::fg()
+        };
         let text_at = Point::new(swatch.right() + 8.0, rect.y + (rect.h - layout.size.h) / 2.0);
         ui.draw_text(text_at, layout, content);
     });
+    ring(ui, rect, scale, radius::CONTROL, p);
     (r, w)
 }

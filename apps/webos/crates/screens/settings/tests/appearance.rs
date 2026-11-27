@@ -51,13 +51,9 @@ fn a_pick_shows_in_the_next_frame_and_stays_on_the_tv() {
     assert_eq!(theme::palette(), Palette::of(Theme::Midday, None));
     assert_eq!(app.list.clear, Palette::of(Theme::Midday, None).bg);
 
-    // Down twice reaches the accents, under the card; Gold is the fifth chip.
+    // Down twice reaches the accents, on the one in force; Gold is four along.
     app.press_n(Key::Down, 2);
-    let chips: Vec<_> = std::iter::once(None).chain(Accent::ALL.map(Some)).map(|a| accent_chip(&app, a)).collect();
-    assert!(app.focused().is_some_and(|f| chips.contains(&f)));
-    let at = chips.iter().position(|c| app.focused() == Some(*c)).unwrap();
-    app.press_n(Key::Left, at);
-    assert_eq!(app.focused(), Some(chips[0]));
+    assert_eq!(app.focused(), Some(accent_chip(&app, None)));
     app.press_n(Key::Right, 4);
     assert_eq!(app.focused(), Some(accent_chip(&app, Some(Accent::Gold))));
     app.press(Key::Ok);
@@ -68,6 +64,14 @@ fn a_pick_shows_in_the_next_frame_and_stays_on_the_tv() {
     assert_eq!((kept.theme.as_str(), kept.accent.as_deref()), ("midday", Some("gold")));
     let server = app.state.server().unwrap().to_string();
     assert_eq!(kept.theme_of(&server, ids::ALEX), pick("midday", Some("gold")));
+
+    // Up from any accent lands on the theme in force, Down from the cards on the accent in force.
+    app.press(Key::Right);
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(theme_card(&app, Theme::Midday)));
+    app.press(Key::Down);
+    app.press(Key::Down);
+    assert_eq!(app.focused(), Some(accent_chip(&app, Some(Accent::Gold))));
 
     // Default goes back to the theme's own.
     app.press_n(Key::Left, 4);
