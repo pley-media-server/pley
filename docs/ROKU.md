@@ -828,18 +828,23 @@ it are made again as they show again, as for a language
 opened from.
 
 - **Kept for each profile on this TV**, in the registry section
-  `appearance` by the server's address and the profile's id, and as the
-  pick shown last; nothing goes to the server. Once the profile signed in
-  is known, the Roku shows its pick (Midnight in its own accent for one
-  that picked none here), at once on a switch; before (a start, signing
-  in, choosing a server or a profile), the pick shown last, so nothing
-  flashes. Signing out keeps it.
+  `appearance` by the server's address and the profile's id; nothing goes
+  to the server. The pages inside a profile are in its pick (Midnight in
+  its own accent for one that picked none here), at once on a switch.
+  Outside a profile (choosing a server, signing in, "Who's watching?" and
+  its PIN, the server gone at a start) the screens are Midnight in its
+  own accent, and the profile's pick comes back as the app goes back
+  inside it (`themeFor` and `themeOutside` in `components/lib/Themes.brs`).
+  The registry also keeps the pick shown last, the profile's or Midnight,
+  so a start straight into a profile is in its pick before the server has
+  said who is signed in.
 - **The colors** are `packages/themes/themes.json`'s, in
   `components/lib/ThemeTable.brs`, which `bun run themes` writes from it;
   `tests/themes.test.brs` holds every theme under every accent, and the
   players', to the file. The players (the video player and Live TV's)
   stay dark: in a light theme they draw in its dark twin's colors.
-- **The logo** on the sign-in screens is drawn in the theme's colors, a
+- **The logo** on the sign-in screens and the server-gone page, the
+  Android TV app's mark and wordmark, is drawn in the theme's colors, a
   white picture per shape tinted (`components/shared/Logo`); the front
   poster's gradient is the front in `brand` under the front again in
   `brand-light`, fading out along the web's gradient.

@@ -15,7 +15,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
     <children>
-        <Label translation="[96, 72]" text="Pley" color="0x38BDF8FF" font="font:ExtraLargeBoldSystemFont" />
+        <Logo translation="[96, 60]" />
         <Label id="title" translation="[96, 300]" width="1728" wrap="true" maxLines="2" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="text" translation="[96, 400]" width="1400" wrap="true" maxLines="4" lineSpacing="6" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <PillButtons id="buttons" translation="[96, 620]" layoutDirection="horiz" minWidth="380" />

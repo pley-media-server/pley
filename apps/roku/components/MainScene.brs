@@ -1,14 +1,18 @@
 sub init()
     m.top.backgroundUri = ""
     ' The theme picked on this Roku (Appearance), before anything is drawn
-    ' in it: the one shown last until the profile is known, then the
-    ' profile's (onThemeProfile); Midnight in its own accent until one is.
+    ' in it: the one shown last (the profile signed in at the last start's,
+    ' or Midnight) until the first screen says whether it is inside a
+    ' profile (themeForRoute).
     m.appearance = CreateObject("roRegistrySection", "appearance")
     m.global.addFields({ theme: "", accent: "", colors: {}, playerColors: {}, sentinels: themeSentinels() })
     m.backdrop = m.top.findNode("backdrop")
     m.over = m.top.findNode("over")
-    pick = themePick(m.appearance, "", 0)
+    pick = themeFor(m.appearance, "", 0, false)
     showTheme(pick.theme, pick.accent)
+    ' The profile chosen in "Who's watching?", until the server says who
+    ' is signed in (onThemeProfile).
+    m.profileHint = 0
     m.top.observeField("themeChoice", "onThemeChoice")
     m.screens = m.top.findNode("screens")
     m.stack = []
@@ -1028,28 +1032,43 @@ end sub
 sub onThemeChoice()
     choice = m.top.themeChoice
     if choice = invalid then return
-    theme = themeShown(choice.theme)
-    accent = themeAccentShown(choice.accent)
     session = m.global.session
-    themeKeep(m.appearance, session.server, session.profileId, theme, accent)
-    changeTheme(theme, accent)
+    themeKeep(m.appearance, session.server, session.profileId, themeShown(choice.theme), themeAccentShown(choice.accent))
+    themeTop(true)
 end sub
 
-' Another profile, or server, signed in to: its own pick on this Roku, at
-' once. Signed out, the pick shown last stays.
+' Another profile, or server, signed in to (or the profile heard at a
+' start): its own pick, at once, on the pages inside it.
 sub onThemeProfile()
+    if m.global.session.profileId > 0 then m.profileHint = 0
+    themeTop(true)
+end sub
+
+' The theme for the screen on top, made again in it if it was made in
+' another (renewTop).
+sub themeTop(renewTop as boolean)
+    if m.stack.Count() = 0 then return
+    themeForRoute(m.stack.Peek().route, m.stack.Count() = 1, renewTop)
+end sub
+
+' The theme for a screen of route on top (alone: the only one), as
+' lib/Themes.brs's themeFor has it: Midnight outside a profile, the
+' profile's pick inside one (the one switched to, before the server says
+' who it is: profileHint), kept as the one shown last for the next start.
+sub themeForRoute(route as string, alone as boolean, renewTop as boolean)
     session = m.global.session
-    if session.profileId <= 0 then return
-    pick = themePick(m.appearance, session.server, session.profileId)
+    profileId = session.profileId
+    if profileId <= 0 then profileId = m.profileHint
+    pick = themeFor(m.appearance, session.server, profileId, themeOutside(route, alone))
     themeKeepShown(m.appearance, pick.theme, pick.accent)
-    changeTheme(pick.theme, pick.accent)
+    changeTheme(pick.theme, pick.accent, renewTop)
 end sub
 
 ' Shows another theme or accent: a screen that draws its colors again
-' itself does (its theme field); the one on top is made again in them,
-' and those under it as they show again, as for a language. The rail and
-' the notices' card are made again.
-sub changeTheme(theme as string, accent as string)
+' itself does (its theme field); the one on top is made again in them
+' with renewTop, and those under it as they show again, as for a
+' language. The rail and the notices' card are made again.
+sub changeTheme(theme as string, accent as string, renewTop as boolean)
     if theme + "/" + accent = m.themeKey then return
     showTheme(theme, accent)
     remakeRail()
@@ -1057,7 +1076,7 @@ sub changeTheme(theme as string, accent as string)
     for each screen in m.stack
         if screen.hasField("theme") then screen.theme = m.themeKey
     end for
-    if m.stack.Count() > 0 and stale(m.stack.Peek()) then renew(m.stack.Count() - 1)
+    if renewTop and m.stack.Count() > 0 and stale(m.stack.Peek()) then renew(m.stack.Count() - 1)
 end sub
 
 ' The rail, made in the theme's colors, under the notices' card.
@@ -1198,6 +1217,11 @@ sub show(nav as object)
     else if httpTrue(nav.replace) and m.stack.Count() > 0
         closeScreen(m.stack.Pop())
     end if
+    ' The new screen in its theme: Midnight outside a profile, the
+    ' profile's pick inside one (the one chosen, while the server hasn't
+    ' said yet).
+    if httpTrue(nav.reset) then m.profileHint = httpNumber(nav.profile, 0)
+    themeForRoute(route, m.stack.Count() = 0, false)
     if m.stack.Count() > 0
         covered = m.stack.Peek()
         covered.active = false
@@ -1241,7 +1265,8 @@ sub pop()
     m.pressAt.Mark()
     closeScreen(m.stack.Pop())
     top = m.stack.Peek()
-    ' Made in a language shown before: made again, asking anew.
+    themeForRoute(top.route, m.stack.Count() = 1, false)
+    ' Made in a language or theme shown before: made again, asking anew.
     if stale(top)
         renew(m.stack.Count() - 1)
         placeRail()
@@ -1388,6 +1413,7 @@ sub onRailChosen()
     m.railReturn = invalid
     if nav = invalid
         ' Made in a language or theme shown before: made again.
+        themeForRoute(home.route, true, false)
         if stale(home)
             home = renew(0)
         else

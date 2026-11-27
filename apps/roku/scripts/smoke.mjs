@@ -1323,6 +1323,8 @@ async function walk() {
   await press("left");
   await press("select"); // Gold
   await settle();
+  // The page draws itself again in Gold.
+  await sleep(800);
   shoot("appearance");
   await press("back");
   await settle();

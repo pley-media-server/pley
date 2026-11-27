@@ -262,3 +262,35 @@ sub test_themes_each_profile_keeps_its_pick()
     section.Write("accent", "teal")
     tkEqual(themePick(section, "", 0), { theme: "midnight", accent: "" }, "ids this app doesn't know")
 end sub
+
+' Outside a profile (choosing a server, signing in, "Who's watching?", the
+' server gone at a start) the screens are Midnight in its own accent, a
+' profile with another pick shown before or not; the profile's pick comes
+' back inside it; a start inside a profile not yet heard is in the pick
+' shown last, the profile's, and outside one in Midnight.
+sub test_themes_outside_a_profile_is_midnight()
+    section = tkRegistrySection()
+    nas = "http://nas:7539"
+    midnight = { theme: "midnight", accent: "" }
+    themeKeep(section, nas, 1, "twilight", "gold")
+    tkEqual(themeFor(section, nas, 1, false), { theme: "twilight", accent: "gold" }, "inside")
+    tkEqual(themeFor(section, nas, 1, true), midnight, "outside, after the profile's")
+    themeKeepShown(section, "midnight", "")
+    tkEqual(themeFor(section, nas, 1, false), { theme: "twilight", accent: "gold" }, "inside again")
+    ' A start straight into the profile, before it is heard: the pick shown
+    ' last, its own, as the scene keeps what it shows.
+    themeKeepShown(section, "twilight", "gold")
+    tkEqual(themeFor(section, "", 0, false), { theme: "twilight", accent: "gold" }, "a start inside")
+    tkEqual(themeFor(section, "", 0, true), midnight, "a start outside")
+    ' Left outside: the next start is in Midnight until the profile is heard.
+    themeKeepShown(section, "midnight", "")
+    tkEqual(themeFor(section, "", 0, false), midnight, "a start after leaving outside")
+    for each route in ["servers", "link", "profiles"]
+        tkTrue(themeOutside(route, false), route)
+    end for
+    tkTrue(themeOutside("unreachable", true), "the server gone at a start")
+    tkFalse(themeOutside("unreachable", false), "the server gone over pages")
+    for each route in ["home", "settings", "appearance", "player", "details"]
+        tkFalse(themeOutside(route, false), route)
+    end for
+end sub

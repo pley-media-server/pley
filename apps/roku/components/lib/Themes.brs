@@ -100,10 +100,20 @@ end function
 ' --- The picks kept on this Roku (registry section appearance) ---
 
 ' The theme and accent ({ theme, accent }, the accent "" for the theme's
-' own) a Roku shows: once a profile is known (its id on server), its own
-' pick on this Roku, Midnight in its own accent for one that picked none
-' here; before (a start, signing in, choosing a server or a profile), the
-' pick shown last, so nothing flashes.
+' own) the screens on top are drawn in. Outside a profile (choosing a
+' server, signing in, "Who's watching?", the server gone at a start):
+' Midnight in its own accent. Inside one: the profile's own pick on this
+' Roku (its id on server), Midnight for one that picked none here; while
+' the profile isn't known yet (a start, profileId 0), the pick shown last,
+' which is the profile signed in at the last start's, so its pages start
+' in it.
+function themeFor(section as object, server as string, profileId as integer, outside as boolean) as object
+    if outside then return { theme: "midnight", accent: "" }
+    return themePick(section, server, profileId)
+end function
+
+' A profile's pick on this Roku (profileId 0: the pick shown last), as
+' themeFor has it inside a profile.
 function themePick(section as object, server as string, profileId as integer) as object
     key = ""
     if profileId > 0 then key = themeProfileKey(server, profileId)
@@ -121,12 +131,23 @@ sub themeKeep(section as object, server as string, profileId as integer, theme a
     themeKeepShown(section, theme, accent)
 end sub
 
-' Keeps the pick shown last, for the next start.
+' Keeps the pick shown last, for the next start's first screens: the
+' profile's inside one, Midnight outside.
 sub themeKeepShown(section as object, theme as string, accent as string)
+    if section.Read("theme") = theme and section.Read("accent") = accent then return
     section.Write("theme", theme)
     section.Write("accent", accent)
     section.Flush()
 end sub
+
+' Whether a screen is outside a profile, drawn in Midnight: choosing a
+' server, signing in, "Who's watching?" (its PIN pad is Roku's own, over
+' it), and the server gone when nothing else was shown (alone: the only
+' screen), as at a start.
+function themeOutside(route as string, alone as boolean) as boolean
+    if route = "servers" or route = "link" or route = "profiles" then return true
+    return route = "unreachable" and alone
+end function
 
 ' A profile's keys after "theme" and "accent": its server and its id, a
 ' profile's id being its server's.
