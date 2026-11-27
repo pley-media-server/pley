@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{self, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 28;
+const DETECTION_REVISION: u32 = 29;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -271,6 +271,7 @@ fn encoder_candidates() -> Vec<(&'static str, VideoCodec, HwAccel)> {
         }
         if cfg!(target_os = "linux") {
             list.push((leak(format!("{prefix}_vaapi")), codec, HwAccel::Vaapi));
+            list.push((leak(format!("{prefix}_rkmpp")), codec, HwAccel::Rkmpp));
         }
         if cfg!(target_os = "macos") {
             list.push((leak(format!("{prefix}_videotoolbox")), codec, HwAccel::Videotoolbox));
@@ -301,6 +302,7 @@ async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool, l
     match (accel, main10) {
         (HwAccel::Vaapi, false) => args.extend(["-vf", "format=nv12,hwupload"]),
         (HwAccel::Vaapi, true) => args.extend(["-vf", "format=p010,hwupload"]),
+        (HwAccel::Rkmpp, _) => args.extend(["-pix_fmt", "nv12"]),
         (_, false) => args.extend(["-pix_fmt", "yuv420p"]),
         (_, true) => args.extend(["-pix_fmt", crate::plan::ten_bit_format(accel)]),
     }
@@ -312,6 +314,10 @@ async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool, l
     match accel {
         HwAccel::Qsv => args.extend(crate::plan::QSV_VBR.iter().chain(&["-b:v", "1000k", "-maxrate", "1000001"])),
         HwAccel::Vaapi => args.extend(crate::plan::VAAPI_VBR.iter().chain(&["-b:v", "1000k", "-maxrate", "1000k"])),
+        HwAccel::Rkmpp => {
+            args.extend(crate::plan::RKMPP_VBR.iter().chain(&["-b:v", "1000k", "-maxrate", "1000k"]));
+            args.extend(crate::plan::RKMPP_IN_ORDER);
+        }
         _ => {}
     }
     if main10 {
@@ -322,8 +328,38 @@ async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool, l
             args.extend(["-dolbyvision", "0"]);
         }
     }
+    if accel == HwAccel::Rkmpp {
+        // Into both of the jobs' segment formats, each process's keyframes
+        // forced: Rockchip's encoder writes its parameter sets with each
+        // keyframe for MPEG-TS, and once, as fMP4's init segment, for fMP4.
+        args.extend(["-force_key_frames", "expr:gte(t,n_forced*0.04)"]);
+        let fmp4 = [args.as_slice(), &["-f", "mp4", "-movflags", crate::plan::FMP4_MOVFLAGS, "-"]].concat();
+        args.extend(["-f", "mpegts", "-"]);
+        return passes(ffmpeg, &args).await && passes(ffmpeg, &fmp4).await;
+    }
     args.extend(["-f", "null", "-"]);
-    matches!(run(ffmpeg, &args, Duration::from_secs(30)).await, Some(Output { success: true, .. }))
+    passes(ffmpeg, &args).await
+}
+
+/// Whether `filter` (`h264_metadata`, `hevc_metadata`) writes a sample
+/// aspect ratio into the stream of Rockchip's encoder `name`, as jobs have
+/// it written ([`crate::plan::VideoOut::rkmpp_sample_aspect`]): in both
+/// segment formats, each frame a forced keyframe.
+async fn test_rkmpp_sample_aspect(ffmpeg: &Path, name: &str, filter: &str) -> bool {
+    let bsf = format!("{filter}=sample_aspect_ratio=64/45");
+    let mut args = vec!["-hide_banner", "-nostdin", "-loglevel", "error", "-f", "lavfi", "-i"];
+    args.extend(["color=black:s=320x240:r=25:d=0.2", "-frames:v", "3", "-pix_fmt", "nv12", "-c:v", name]);
+    args.extend(crate::plan::RKMPP_VBR);
+    args.extend(["-b:v", "1000k", "-maxrate", "1000k"]);
+    args.extend(crate::plan::RKMPP_IN_ORDER);
+    args.extend(["-force_key_frames", "expr:gte(t,n_forced*0.04)", "-bsf:v", &bsf]);
+    let fmp4 = [args.as_slice(), &["-f", "mp4", "-movflags", crate::plan::FMP4_MOVFLAGS, "-"]].concat();
+    args.extend(["-f", "mpegts", "-"]);
+    passes(ffmpeg, &args).await && passes(ffmpeg, &fmp4).await
+}
+
+async fn passes(ffmpeg: &Path, args: &[&str]) -> bool {
+    matches!(run(ffmpeg, args, Duration::from_secs(30)).await, Some(Output { success: true, .. }))
 }
 
 const HDR_TAGS: &str = "setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc";
@@ -659,7 +695,9 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     let filter_names = second_column(filters.map(|o| o.text).unwrap_or_default());
     caps.chromaprint = second_column(muxers.map(|o| o.text).unwrap_or_default()).contains("chromaprint");
     // `-bsfs` lists one name a line.
-    caps.h264_metadata = bsfs.is_some_and(|o| o.text.lines().any(|l| l.trim() == "h264_metadata"));
+    let has_bsf = |name: &str| bsfs.as_ref().is_some_and(|o| o.text.lines().any(|l| l.trim() == name));
+    caps.h264_metadata = has_bsf("h264_metadata");
+    caps.hevc_metadata = has_bsf("hevc_metadata");
     caps.hwaccels = hwaccels
         .map(|o| o.text)
         .unwrap_or_default()
@@ -680,7 +718,12 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         async move {
             let _permit = limiter.acquire().await.ok();
             let ok = test_encoder(ffmpeg, name, *accel, false, false).await;
-            let main10 = ok && *codec == VideoCodec::Hevc && test_encoder(ffmpeg, name, *accel, true, false).await;
+            // Rockchip's encoders take 8 bits only: FFmpeg would convert a
+            // test's 10-bit frames for them, and the test pass in 8 bits.
+            let main10 = ok
+                && *codec == VideoCodec::Hevc
+                && *accel != HwAccel::Rkmpp
+                && test_encoder(ffmpeg, name, *accel, true, false).await;
             // Low power where every mode jobs use passes in it, Main 10 included.
             let low_power = ok
                 && *accel == HwAccel::Qsv
@@ -769,6 +812,18 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     caps.encoders =
         working.iter().filter(|e| e.hardware).cloned().chain(working.iter().filter(|e| !e.hardware).cloned()).collect();
     caps.hdr_transcode = caps.encoders.iter().any(|e| e.main10);
+
+    // Rockchip's encoders write no sample aspect ratio: FFmpeg's metadata
+    // filters write it after them, where they rewrote their stream here.
+    // Other computers keep what FFmpeg lists.
+    let rkmpp = |name: &str| caps.encoders.iter().any(|e| e.name == name);
+    let (try_h264, try_hevc) = (caps.h264_metadata && rkmpp("h264_rkmpp"), caps.hevc_metadata && rkmpp("hevc_rkmpp"));
+    let (h264_writes, hevc_writes) = tokio::join!(
+        async { !try_h264 || test_rkmpp_sample_aspect(ffmpeg, "h264_rkmpp", "h264_metadata").await },
+        async { !try_hevc || test_rkmpp_sample_aspect(ffmpeg, "hevc_rkmpp", "hevc_metadata").await },
+    );
+    caps.h264_metadata &= h264_writes;
+    caps.hevc_metadata &= hevc_writes;
 
     // libplacebo on a CPU's Vulkan (Mesa's llvmpipe) tone maps several
     // times slower than zscale: it comes last then, for Dolby Vision
@@ -927,6 +982,18 @@ async fn detect_gpu_pipelines(
     }
     if working("h264_qsv") && hwaccel("qsv") && filters.contains("vpp_qsv") {
         candidates.push((HwAccel::Qsv, qsv_gpu.clone(), "vpp_qsv=w=160:h=120:format=nv12", vec!["-c:v", "h264_qsv"]));
+    }
+    // Rockchip: MPP's decoder into RGA's scaler into MPP's encoder.
+    let rkmpp_nv12 = crate::plan::rkmpp_scale(160, 120, "nv12");
+    let rkmpp =
+        cfg!(target_os = "linux") && working("h264_rkmpp") && hwaccel("rkmpp") && filters.contains("scale_rkrga");
+    if rkmpp {
+        candidates.push((
+            HwAccel::Rkmpp,
+            crate::plan::RKMPP_DECODE.to_vec(),
+            rkmpp_nv12.as_str(),
+            vec!["-c:v", "h264_rkmpp"],
+        ));
     }
     if cfg!(target_os = "macos")
         && working("h264_videotoolbox")
@@ -1130,6 +1197,23 @@ async fn detect_gpu_pipelines(
             async move { (key.to_string(), test.await) }
         }),
     );
+    // Rockchip's frames brought to memory by RGA, as jobs bring them for
+    // the CPU's filters and encoders: in 8 bits from every clip, and in 10
+    // bits (P010, RGA3's alone) from the 10-bit ones, for the tone mapper.
+    let rkmpp_memory_tests = futures::future::join_all(clips.iter().filter(|_| rkmpp).map(|(key, clip)| {
+        let download = |format: &str| {
+            let mut args = base("error", &crate::plan::RKMPP_DECODE, clip);
+            let vf = format!("{},hwdownload,format={format}", crate::plan::rkmpp_scale(160, 120, format));
+            args.extend(["-vf".to_string(), vf, "-f".into(), "null".into(), "-".into()]);
+            run_test(args)
+        };
+        let (nv12, p010) = (download("nv12"), download("p010le"));
+        let ten_bits = MAIN10_KEYS.contains(key);
+        async move {
+            let nv12 = nv12.await;
+            (key.to_string(), nv12, nv12 && ten_bits && p010.await)
+        }
+    }));
     // Quick Sync into its H.264 encoder: what the next three tests need.
     let qsv_h264 = candidates.iter().any(|(accel, ..)| *accel == HwAccel::Qsv) && working("h264_qsv");
     // HDR10 tone mapped by Quick Sync's scaler (VAAPI's on Linux), from its
@@ -1199,6 +1283,7 @@ async fn detect_gpu_pipelines(
         vulkan_encode,
         pipeline_results,
         main10_results,
+        rkmpp_memory_results,
         qsv_tonemap,
         qsv_overlay,
         qsv_opencl_dovi,
@@ -1208,6 +1293,7 @@ async fn detect_gpu_pipelines(
         vulkan_encode_test,
         pipeline_tests,
         main10_tests,
+        rkmpp_memory_tests,
         qsv_tonemap_test,
         qsv_overlay_test,
         qsv_opencl_dovi_test
@@ -1217,6 +1303,9 @@ async fn detect_gpu_pipelines(
     let ok_keys =
         |results: Vec<(String, bool)>| results.into_iter().filter(|(_, ok)| *ok).map(|(k, _)| k).collect::<Vec<_>>();
     let main10 = ok_keys(main10_results);
+    let rkmpp_nv12: Vec<String> =
+        rkmpp_memory_results.iter().filter(|(_, nv12, _)| *nv12).map(|r| r.0.clone()).collect();
+    let rkmpp_p010: Vec<String> = rkmpp_memory_results.iter().filter(|(.., p010)| *p010).map(|r| r.0.clone()).collect();
     GpuDetection {
         vulkan_decode: ok_keys(vulkan_results),
         vaapi_vulkan_decode: ok_keys(vaapi_vulkan_results),
@@ -1224,12 +1313,21 @@ async fn detect_gpu_pipelines(
         pipelines: pipeline_results
             .into_iter()
             .map(|(accel, results)| {
-                let codecs = ok_keys(results);
+                let mut codecs = ok_keys(results);
                 let main10 = match accel {
                     HwAccel::Qsv => main10.iter().filter(|k| codecs.contains(k)).cloned().collect(),
                     _ => Vec::new(),
                 };
-                GpuPipeline { accel, codecs, main10 }
+                // Rockchip's frames come to memory through RGA for every job
+                // that isn't zero-copy: a codec counts where they do too.
+                if accel == HwAccel::Rkmpp {
+                    codecs.retain(|k| rkmpp_nv12.contains(k));
+                }
+                let p010 = match accel {
+                    HwAccel::Rkmpp => rkmpp_p010.iter().filter(|k| codecs.contains(k)).cloned().collect(),
+                    _ => Vec::new(),
+                };
+                GpuPipeline { accel, codecs, main10, p010 }
             })
             .filter(|p| !p.codecs.is_empty())
             .collect(),

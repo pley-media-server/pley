@@ -55,6 +55,7 @@ All in `.env`; [.env.example](.env.example) explains each one.
 | `COMPOSE_FILE` | `compose.yaml` | The add-ons turned on (below) |
 | `PLEY_RENDER_GID` | | Intel / AMD: the GPU render node's group |
 | `PLEY_RENDER_DEVICE` | `/dev/dri/renderD128` | Intel / AMD: which GPU |
+| `PLEY_ROCKCHIP_GID` | | Rockchip: the group of MPP's and RGA's devices |
 | `PLEY_PROXY_NETWORK` | `proxy` | `compose.proxy.yaml`: the proxy's Docker network |
 | `PLEY_PLEX_LISTEN` | `127.0.0.1:32400` | `compose.plex.yaml`: where the Plex-compatible API is published |
 | `PLEY_JELLYFIN_LISTEN` | `127.0.0.1:8096` | `compose.jellyfin.yaml`: where the Jellyfin-compatible API is published |
@@ -71,6 +72,7 @@ All in `.env`; [.env.example](.env.example) explains each one.
 |---|---|
 | `compose.vaapi.yaml` | Intel or AMD hardware transcoding |
 | `compose.nvidia.yaml` | NVIDIA hardware transcoding |
+| `compose.rockchip.yaml` | Rockchip hardware transcoding (arm64) |
 | `compose.proxy.yaml` | A reverse proxy in Docker: no published port |
 | `compose.plex.yaml` | The [Plex-compatible API](../../docs/COMPATIBILITY.md) on port 32400 (without it, it answers on Pley's port) |
 | `compose.jellyfin.yaml` | The [Jellyfin-compatible API](../../docs/COMPATIBILITY.md) on port 8096 (without it, it answers on Pley's port) |
@@ -103,11 +105,14 @@ later runs points out one Pley doesn't use yet.
 |---|---|---|
 | Intel, AMD | VAAPI, Quick Sync (Intel 11th generation and newer), Vulkan tone mapping | Add `compose.vaapi.yaml`, and set `PLEY_RENDER_GID` to `stat -c %g /dev/dri/renderD128`. With several GPUs, `PLEY_RENDER_DEVICE` picks one (`ls -l /dev/dri/by-path` names them) |
 | NVIDIA | NVENC, NVDEC, CUDA scaling, Vulkan tone mapping | Install the driver and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), then add `compose.nvidia.yaml` |
+| Rockchip (RK3588, RK3568 and the like) | MPP decoding and encoding, RGA scaling | On Rockchip's kernel, add `compose.rockchip.yaml`, and set `PLEY_ROCKCHIP_GID` to `stat -c %g /dev/mpp_service` |
 
 - Intel's drivers are in the amd64 image only, and work from the 5th
   generation (Broadwell) on.
 - HDR is tone mapped on the GPU when it has Vulkan, else on the CPU.
-- arm64 boards such as the Raspberry Pi transcode on the CPU.
+- Other arm64 boards, and Rockchip without Rockchip's kernel, transcode on
+  the CPU. If `/dev/rga` or `/dev/dma_heap` has another group than
+  `/dev/mpp_service`, add it under `group_add` in `compose.override.yaml`.
 - **Docker Desktop on Windows** can't hand Pley the GPU in a way it can use
   for HDR: install [Pley for Windows](../windows/README.md) instead.
 
@@ -184,8 +189,9 @@ docker run -d --name pley -p 7539:7539 --shm-size 2g \
   ghcr.io/pley-media-server/pley:latest
 ```
 
-For NVIDIA, use `--gpus all` instead of `--device /dev/dri`. For the
-Plex-compatible API on Plex's port, add
+For NVIDIA, use `--gpus all` instead of `--device /dev/dri`; for Rockchip,
+add `--device` for `/dev/mpp_service`, `/dev/rga` and `/dev/dma_heap`. For
+the Plex-compatible API on Plex's port, add
 `-p 32400:32400 -e PLEY_PLEX_BIND=0.0.0.0:32400`; it answers on Pley's port
 without them.
 
@@ -209,7 +215,8 @@ work.
   one, is private (`chmod 700`): it holds the database and the key that
   encrypts two-step sign-in secrets.
 - **Only the GPU, not the machine.** The Intel/AMD add-on hands over one
-  render node; NVIDIA's goes through the toolkit.
+  render node; NVIDIA's goes through the toolkit; Rockchip's hands over
+  its video engines' devices and `/dev/dri`.
 - **Bounded.** Processes are capped and Docker's log is rotated. On a machine
   that does other work, also cap memory and CPU in `compose.override.yaml`
   (`mem_limit: 8g`, `cpus: 6`; each transcode takes about 1 GB).
@@ -229,5 +236,5 @@ Debian's security fixes).
 | A library stays empty, or "cannot open /media/…" | `PLEY_UID` can't read the media. If a group can (`ls -ln`), put its id in `PLEY_GID` |
 | `bind source path does not exist` | A folder in `.env` is missing. Create it: Compose doesn't, as it would belong to root |
 | `port is already allocated` | Something else uses 7539: change `PLEY_LISTEN` (`127.0.0.1:7600`) and your proxy |
-| Transcodes stay on the CPU | The log's `detected` line lists the encoders found. Intel/AMD: `docker compose exec pley ls -l /dev/dri` should list `renderD128`. NVIDIA: `docker compose exec pley nvidia-smi` should list the GPU |
+| Transcodes stay on the CPU | The log's `detected` line lists the encoders found. Intel/AMD: `docker compose exec pley ls -l /dev/dri` should list `renderD128`. NVIDIA: `docker compose exec pley nvidia-smi` should list the GPU. Rockchip: `docker compose exec pley ls -l /dev/mpp_service /dev/rga` should list both (missing on the host: not Rockchip's kernel) |
 | Rootless Docker | `PLEY_UID=0` and `PLEY_GID=0` (what `setup.sh` picks): root in the container is you. The host's render group doesn't carry over, so Intel and AMD transcoding stays off |

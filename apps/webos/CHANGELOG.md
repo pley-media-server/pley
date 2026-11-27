@@ -13,6 +13,11 @@ describes how they are made.
 - Live TV plays HEVC and 10-bit channels as sent where the TV decodes
   them, and shows how a channel plays as a video does.
 
+### Changed
+
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
+
 ## [0.1.15] - 2026-11-25
 
 ### Fixed

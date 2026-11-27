@@ -160,6 +160,33 @@ impl Prober {
         Ok(info)
     }
 
+    /// `media` (the server's) with its video's pixel shape where it says
+    /// none, as media info from before probes read it doesn't: from the
+    /// file's own probe, which the prober keeps (`urgent`: one a playback
+    /// waits for, [`Self::probe_now`]). Rockchip's
+    /// encoder needs it said (`plan::VideoOut::sample_aspect`). Anamorphic
+    /// video is narrower than 1080p's (DVDs, 1440×1080): wider video is
+    /// taken for square, unread.
+    pub async fn with_sample_aspect(&self, path: &Path, media: &MediaInfo, urgent: bool) -> MediaInfo {
+        let mut known = media.clone();
+        let unsaid = |s: &MediaStream| {
+            s.kind == StreamKind::Video && s.sample_aspect_ratio.is_none() && s.width.is_some_and(|w| w < 1920)
+        };
+        if !known.streams.iter().any(unsaid) {
+            return known;
+        }
+        let probed = if urgent { self.probe_now(path).await } else { self.probe(path).await };
+        let Ok(probed) = probed else { return known };
+        for stream in known.streams.iter_mut().filter(|s| unsaid(s)) {
+            stream.sample_aspect_ratio = probed
+                .streams
+                .iter()
+                .find(|p| p.index == stream.index && p.kind == StreamKind::Video)
+                .and_then(|p| p.sample_aspect_ratio.clone());
+        }
+        known
+    }
+
     /// What only a video's frames say, so the first few are decoded (a
     /// fraction of a second): whether the video carries closed captions
     /// (CEA-608/708) in its frames, whether 10-bit HEVC the container
@@ -498,6 +525,7 @@ struct RawStream {
     width: Option<i64>,
     height: Option<i64>,
     pix_fmt: Option<String>,
+    sample_aspect_ratio: Option<String>,
     level: Option<i64>,
     field_order: Option<String>,
     has_b_frames: Option<i64>,
@@ -519,6 +547,16 @@ struct RawStream {
     tags: HashMap<String, String>,
     #[serde(default)]
     side_data_list: Vec<serde_json::Value>,
+}
+
+/// ffprobe's sample aspect ratio as the probe keeps it: `1:1` for square
+/// pixels, which says it was read; none where it says none (`0:1`).
+fn pixel_shape(text: &str) -> Option<String> {
+    if let Some((num, den)) = pley_transcoder_api::sample_aspect(text) {
+        return Some(format!("{num}:{den}"));
+    }
+    let (num, den) = text.split_once(':')?;
+    (num.trim() == den.trim() && num.trim().parse::<i64>().is_ok_and(|n| n > 0)).then(|| "1:1".to_owned())
 }
 
 /// The rotation of a stream's display matrix, as ffprobe gives it, to the
@@ -588,6 +626,7 @@ pub fn parse_ffprobe_json(json: &[u8], path: &Path) -> anyhow::Result<MediaInfo>
                 stream.level = s.level.filter(|l| *l > 0);
                 stream.interlaced = s.field_order.as_deref().map(|f| !matches!(f, "progressive" | "unknown"));
                 stream.rotation = display_rotation(&s.side_data_list);
+                stream.sample_aspect_ratio = s.sample_aspect_ratio.as_deref().and_then(pixel_shape);
                 stream.has_b_frames = s.has_b_frames.map(|n| n > 0);
                 stream.closed_captions = s.closed_captions.map(|n| n > 0);
                 // Suspected only: the prober decodes a few frames to know.
@@ -851,6 +890,58 @@ mod tests {
         // Run at once (and fail: there's no ffprobe here).
         let urgent = tokio::time::timeout(waits, prober.probe_now(&movie)).await;
         assert!(urgent.is_ok_and(|r| r.is_err()), "not in line");
+    }
+
+    /// Media info from before probes read the pixels' shape (the server's)
+    /// gets an anamorphic DVD's from the file; wider video is left unread.
+    #[tokio::test]
+    async fn an_older_probe_gets_the_pixels_shape_from_the_file() {
+        if !crate::testing::has_encoder("mpeg2video") {
+            return;
+        }
+        let dir = crate::testing::tempdir();
+        let dvd = dir.path().join("dvd.mkv");
+        let made = std::process::Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=black:s=720x480:r=25:d=0.2"])
+            .args(["-vf", "setsar=32/27", "-c:v", "mpeg2video"])
+            .arg(&dvd)
+            .status()
+            .unwrap();
+        assert!(made.success());
+        let ff = Ffmpeg {
+            ffmpeg: "ffmpeg".into(),
+            ffprobe: "ffprobe".into(),
+            caps: pley_transcoder_api::Capabilities { ffprobe_available: true, ..Default::default() },
+            segment_times_relative: true,
+        };
+        let prober = Prober::new(Arc::new(ff), Arc::new(Metrics::default()), 1);
+        let video = MediaStream {
+            index: 0,
+            kind: StreamKind::Video,
+            codec: "mpeg2video".into(),
+            width: Some(720),
+            height: Some(480),
+            ..Default::default()
+        };
+        let older = MediaInfo { streams: vec![video.clone()], ..Default::default() };
+        let known = prober.with_sample_aspect(&dvd, &older, true).await;
+        assert_eq!(known.streams[0].sample_aspect_ratio.as_deref(), Some("32:27"));
+        // 1080p's width and wider: taken for square, unread.
+        let wide =
+            MediaInfo { streams: vec![MediaStream { width: Some(1920), ..video.clone() }], ..Default::default() };
+        assert_eq!(prober.with_sample_aspect(&dvd, &wide, false).await.streams[0].sample_aspect_ratio, None);
+        // Read before: square pixels say so, and aren't read again.
+        let square = MediaInfo {
+            streams: vec![MediaStream { sample_aspect_ratio: Some("1:1".into()), ..video }],
+            ..Default::default()
+        };
+        assert_eq!(
+            prober.with_sample_aspect(&dvd, &square, true).await.streams[0].sample_aspect_ratio.as_deref(),
+            Some("1:1")
+        );
+        assert_eq!(pixel_shape("1:1").as_deref(), Some("1:1"));
+        assert_eq!(pixel_shape("64:45").as_deref(), Some("64:45"));
+        assert_eq!((pixel_shape("0:1"), pixel_shape("N/A")), (None, None));
     }
 
     const SAMPLE: &str = r#"{

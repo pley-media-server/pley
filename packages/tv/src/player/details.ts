@@ -84,6 +84,7 @@ const ENCODERS: Record<string, string> = {
   libx264: "x264", libx265: "x265", h264_nvenc: "NVIDIA NVENC", hevc_nvenc: "NVIDIA NVENC", h264_qsv: "Intel Quick Sync",
   hevc_qsv: "Intel Quick Sync", h264_amf: "AMD AMF", hevc_amf: "AMD AMF", h264_vaapi: "VA-API", hevc_vaapi: "VA-API",
   h264_videotoolbox: "VideoToolbox", hevc_videotoolbox: "VideoToolbox", h264_vulkan: "Vulkan", hevc_vulkan: "Vulkan", h264_v4l2m2m: "V4L2",
+  h264_rkmpp: "Rockchip MPP", hevc_rkmpp: "Rockchip MPP",
 };
 /** Where the transcoder works: "GPU", "CPU", both, or "copy" (the video copied). */
 function pipelineLabel(pipeline: string): string {
