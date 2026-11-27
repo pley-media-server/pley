@@ -113,6 +113,11 @@ later runs points out one Pley doesn't use yet.
 - Rockchip's engines are in the arm64 image only. Mainline Linux kernels
   drive them through V4L2 instead, which Pley doesn't use: there, and on
   other arm64 boards such as the Raspberry Pi, Pley transcodes on the CPU.
+  On a Rockchip board HDR is tone mapped on the CPU (the image has no
+  driver for the Mali GPU on Rockchip's kernel): at the output's size on
+  the RK3588, whose RGA scales 10-bit frames, from frames the CPU decoded
+  on older chips. Their encoders make 1080p at most, so 4K kept at its
+  size is encoded on the CPU there.
   Rockchip's images put MPP's, RGA's and the DMA heaps' devices in one
   group (`video`); where one is in another, add it in
   `compose.override.yaml` under `group_add`.
@@ -240,5 +245,5 @@ Debian's security fixes).
 | A library stays empty, or "cannot open /media/…" | `PLEY_UID` can't read the media. If a group can (`ls -ln`), put its id in `PLEY_GID` |
 | `bind source path does not exist` | A folder in `.env` is missing. Create it: Compose doesn't, as it would belong to root |
 | `port is already allocated` | Something else uses 7539: change `PLEY_LISTEN` (`127.0.0.1:7600`) and your proxy |
-| Transcodes stay on the CPU | The log's `detected` line lists the encoders found. Intel/AMD: `docker compose exec pley ls -l /dev/dri` should list `renderD128`. NVIDIA: `docker compose exec pley nvidia-smi` should list the GPU |
+| Transcodes stay on the CPU | The log's `detected` line lists the encoders found. Intel/AMD: `docker compose exec pley ls -l /dev/dri` should list `renderD128`. NVIDIA: `docker compose exec pley nvidia-smi` should list the GPU. Rockchip: `ls -l /dev/mpp_service /dev/rga /dev/dma_heap` on the host should list them (else the kernel isn't Rockchip's), in the group `PLEY_ROCKCHIP_GID` names, and `docker compose exec pley ls /dev/mpp_service` should find it |
 | Rootless Docker | `PLEY_UID=0` and `PLEY_GID=0` (what `setup.sh` picks): root in the container is you. The host's render group doesn't carry over, so Intel and AMD transcoding stays off |

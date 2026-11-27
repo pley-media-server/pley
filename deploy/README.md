@@ -47,7 +47,8 @@ whose glibc is too old for the other one, such as DSM.
 
 The image is `ghcr.io/pley-media-server/pley` (amd64 and arm64; `:latest`, or a
 version such as `:0.0.1`). It holds Pley, its transcoder, FFmpeg 9 and the
-GPU drivers for Intel, AMD and NVIDIA.
+GPU drivers for Intel, AMD and NVIDIA, and on arm64 Rockchip's MPP and RGA
+libraries.
 [docker/README.md](docker/README.md) sets it up with Docker Compose, locked
 down, behind a reverse proxy. Without Compose:
 
@@ -60,12 +61,23 @@ docker logs pley    # the setup link
 ```
 
 - **Intel or AMD GPU:** add `--device /dev/dri`. **NVIDIA:** add
-  `--gpus all` (needs the NVIDIA Container Toolkit).
+  `--gpus all` (needs the NVIDIA Container Toolkit). **Rockchip:** add
+  `--device /dev/dri --device /dev/mpp_service --device /dev/rga
+  --device /dev/dma_heap`.
 - **Intel's Quick Sync** works in the image on 11th-generation Core
   (Tiger Lake) and later, Arc and the N100 family: Debian 13 has only
   Intel's current runtime (`libmfx-gen1.2`). Older Intel graphics transcode
   with VAAPI instead, the same video engine through another driver
   interface.
+- **Rockchip's** video engines (RK3588, RK3568 and the like) work on
+  Rockchip's own kernel, the one the board maker's images and Armbian's
+  "vendor" images run, which has `/dev/mpp_service`; mainline kernels drive
+  them otherwise, and Pley transcodes on the CPU there. Each board's
+  start-up tests decide what it does: on the RK3588 MPP decodes, RGA
+  scales and MPP encodes, HDR included, which is tone mapped on the CPU at
+  the output's size; older chips' RGA makes no 10-bit frames, so their HDR
+  is decoded on the CPU too, and their encoders make 1080p at most. Other
+  arm64 boards, such as the Raspberry Pi, transcode on the CPU.
 - Pley runs as user and group 1000 (`-e PUID=… -e PGID=…` change them) and
   gives that user the config folder on its first start. Libraries are
   folders under `/media`.
@@ -102,6 +114,14 @@ and `PLEY_FFPROBE=…` in the unit.
   Core and later, `libmfx1` (where the distribution still has it) for older.
 - **NVIDIA:** the proprietary driver is enough. If NVENC works by hand but
   not from the service, load `nvidia-uvm` at boot.
+- **Rockchip:** Rockchip's own kernel (`/dev/mpp_service` must exist), and
+  an FFmpeg with Rockchip's MPP and RGA in jellyfin-ffmpeg's way: the arm64
+  package from [repo.jellyfin.org](https://repo.jellyfin.org) has them, so
+  set `PLEY_FFMPEG` and `PLEY_FFPROBE` to it in the unit (FFmpeg's own
+  builds encode differently and fail Pley's test). Then uncomment
+  `SupplementaryGroups=render video`: Rockchip's images usually give
+  `/dev/mpp_service`, `/dev/rga` and `/dev/dma_heap` to `video`
+  (`ls -l` says; another group goes in the same line).
 
 ## macOS (launchd)
 
@@ -139,10 +159,10 @@ SynoCommunity's package and Quick Sync on models that have it:
 
 ## Checking hardware transcoding
 
-Pley logs the encoders it found when it starts (look for `detected`), and
-checks again when the GPUs change. **Settings → Transcoder** picks the
-encoder (Automatic takes the GPU's), and **Settings → Dashboard** shows each
-stream as GPU, hybrid or CPU.
+Pley logs the encoders it found when it starts (look for `detected`;
+`h264_rkmpp` on a Rockchip board), and checks again when the GPUs change.
+**Settings → Transcoder** picks the encoder (Automatic takes the GPU's),
+and **Settings → Dashboard** shows each stream as GPU, hybrid or CPU.
 
 ## The tray icon
 
