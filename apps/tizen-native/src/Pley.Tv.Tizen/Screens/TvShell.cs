@@ -130,7 +130,16 @@ sealed class TvShell : Sheet
 
         Back = OnBack;
         watches.Add(state.Libraries.Watch(_ => RailItems()));
-        watches.Add(state.Me.Watch(me => Rail.SetProfile(me == null ? null : new RailProfile(me.Name, AvatarView.Rgb(ProfileColors.Of(me.Name, me.AvatarColor))))));
+        watches.Add(state.Me.Watch(me =>
+        {
+            if (me == null)
+            {
+                Rail.SetProfile(null);
+                return;
+            }
+            var rgb = ProfileColors.Of(me.Name, me.AvatarColor);
+            Rail.SetProfile(new RailProfile(me.Name, AvatarView.Rgb(rgb), ProfileColors.DarkTextOn(rgb) ? PleyColors.DarkInk : Color.White));
+        }));
         Gone += () =>
         {
             foreach (var w in watches) w.Dispose();
