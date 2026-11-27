@@ -213,8 +213,8 @@ before using what it names:
 | `tonemap_speed?` | `{high, balanced, fast}`: frames a second libplacebo tone maps 4K to 4K at each quality ([libplacebo quality](#libplacebo-quality)) |
 | `placebo_software` | libplacebo runs on a CPU's Vulkan (Mesa's llvmpipe), where no GPU is: it tone maps at `fast` ([libplacebo quality](#libplacebo-quality)) |
 | `amf_upload` | FFmpeg uploads AMF's frames to the AMD GPU ([AMF on Windows](#amf-on-windows)) |
-| `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the color primaries `h264_amf` leaves out, and the sample aspect ratio `h264_rkmpp` does |
-| `hevc_metadata` | FFmpeg has the `hevc_metadata` bitstream filter, which writes the sample aspect ratio `hevc_rkmpp` leaves out |
+| `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the color primaries `h264_amf` leaves out, and the sample aspect ratio `h264_rkmpp` does (where that encoder works, once the filter rewrote its stream in a start-up test) |
+| `hevc_metadata` | FFmpeg has the `hevc_metadata` bitstream filter, which writes the sample aspect ratio `hevc_rkmpp` leaves out (as `h264_metadata`) |
 | `subtitle_burn_image`, `subtitle_burn_text` | picture and text subtitles can be burned in |
 | `qsv_overlay` | Quick Sync lays picture subtitles on frames it decoded ([Subtitle burn-in](#subtitle-burn-in)) |
 | `readrate`, `readrate_catchup` | `-readrate` and `-readrate_catchup` work ([Throttling](#throttling)) |
@@ -950,7 +950,10 @@ and fails the start-up test.
   video (DVDs, SD and 1440×1080 Live TV) would play squashed.
   `-bsf:v h264_metadata=sample_aspect_ratio=…` (`hevc_metadata` for HEVC)
   writes the source's at the output's size, where the probe found one
-  (`MediaStream.sample_aspect_ratio`).
+  (`MediaStream.sample_aspect_ratio`) and the filter rewrote that encoder's
+  stream in a start-up test. Media info from before probes read it says
+  none: video narrower than 1920 pixels, where anamorphic video is, is
+  probed again for it.
 - **A decoder that fails.** MPP's decoder failing before a process's first
   segment hands the video to the CPU for the job's later processes, as
   another GPU's decoder failing does (the warning `GPU decoding failed,

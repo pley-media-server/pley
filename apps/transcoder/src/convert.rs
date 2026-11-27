@@ -296,6 +296,11 @@ impl Conversions {
             Some(media) => Arc::new(media),
             None => self.prober.probe(&input).await.context("probe failed")?,
         };
+        // Media info from before probes read the pixels' shape, which
+        // Rockchip's encoder leaves out of its stream and Pley writes in.
+        let rockchip =
+            self.ff.caps.encoders.iter().any(|e| e.hardware && e.accel == pley_transcoder_api::HwAccel::Rkmpp);
+        let media = if rockchip { Arc::new(self.prober.with_sample_aspect(&input, &media).await) } else { media };
         // Made at full speed, from the start.
         req.options.throttle = false;
         req.start_ms = None;
@@ -384,7 +389,12 @@ impl Conversions {
             if plan.decodes_on_rkmpp() {
                 tracing::warn!(conversion = %id, "Rockchip's decoder failed: decoding on the CPU");
                 plan = plan.without_rkmpp_decoding();
-                conversion.update(|s| s.video = plan.video_plan(&media, None));
+                // Made again from the start: the first try's progress
+                // would pass for the second's.
+                conversion.update(|s| {
+                    s.video = plan.video_plan(&media, None);
+                    s.progress = 0.0;
+                });
                 continue;
             }
             let lines: Vec<String> = tail.lock().iter().cloned().collect();

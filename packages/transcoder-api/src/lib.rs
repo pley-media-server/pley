@@ -754,11 +754,13 @@ pub struct Capabilities {
     pub amf_upload: bool,
     /// FFmpeg has the `h264_metadata` bitstream filter, which writes the
     /// color primaries `h264_amf` leaves unsaid, and the sample aspect ratio
-    /// `h264_rkmpp` does.
+    /// `h264_rkmpp` does (where that encoder works, only if the filter
+    /// rewrote its stream in a start-up test).
     #[serde(default)]
     pub h264_metadata: bool,
     /// FFmpeg has the `hevc_metadata` bitstream filter, which writes the
-    /// sample aspect ratio `hevc_rkmpp` leaves unsaid.
+    /// sample aspect ratio `hevc_rkmpp` leaves unsaid (where that encoder
+    /// works, only if the filter rewrote its stream in a start-up test).
     #[serde(default)]
     pub hevc_metadata: bool,
     /// Live channels: an MPEG-TS stream sent in as it comes made into a

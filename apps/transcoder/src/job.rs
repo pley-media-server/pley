@@ -775,6 +775,15 @@ impl JobManager {
         } else {
             media
         };
+        // Media info from before probes read the pixels' shape, which
+        // Rockchip's encoder leaves out of its stream and Pley writes in.
+        let rockchip =
+            self.ff.caps.encoders.iter().any(|e| e.hardware && e.accel == pley_transcoder_api::HwAccel::Rkmpp);
+        let media = if rockchip && !wants_copy {
+            Arc::new(self.prober.with_sample_aspect(&input, &media).await)
+        } else {
+            media
+        };
         let probed = probing.elapsed();
         let indexing = Instant::now();
         let keyframes = if wants_copy {

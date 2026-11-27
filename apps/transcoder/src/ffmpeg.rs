@@ -341,6 +341,23 @@ async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool, l
     passes(ffmpeg, &args).await
 }
 
+/// Whether `filter` (`h264_metadata`, `hevc_metadata`) writes a sample
+/// aspect ratio into the stream of Rockchip's encoder `name`, as jobs have
+/// it written ([`crate::plan::VideoOut::rkmpp_sample_aspect`]): in both
+/// segment formats, each frame a forced keyframe.
+async fn test_rkmpp_sample_aspect(ffmpeg: &Path, name: &str, filter: &str) -> bool {
+    let bsf = format!("{filter}=sample_aspect_ratio=64/45");
+    let mut args = vec!["-hide_banner", "-nostdin", "-loglevel", "error", "-f", "lavfi", "-i"];
+    args.extend(["color=black:s=320x240:r=25:d=0.2", "-frames:v", "3", "-pix_fmt", "nv12", "-c:v", name]);
+    args.extend(crate::plan::RKMPP_VBR);
+    args.extend(["-b:v", "1000k", "-maxrate", "1000k"]);
+    args.extend(crate::plan::RKMPP_IN_ORDER);
+    args.extend(["-force_key_frames", "expr:gte(t,n_forced*0.04)", "-bsf:v", &bsf]);
+    let fmp4 = [args.as_slice(), &["-f", "mp4", "-movflags", crate::plan::FMP4_MOVFLAGS, "-"]].concat();
+    args.extend(["-f", "mpegts", "-"]);
+    passes(ffmpeg, &args).await && passes(ffmpeg, &fmp4).await
+}
+
 async fn passes(ffmpeg: &Path, args: &[&str]) -> bool {
     matches!(run(ffmpeg, args, Duration::from_secs(30)).await, Some(Output { success: true, .. }))
 }
@@ -795,6 +812,18 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     caps.encoders =
         working.iter().filter(|e| e.hardware).cloned().chain(working.iter().filter(|e| !e.hardware).cloned()).collect();
     caps.hdr_transcode = caps.encoders.iter().any(|e| e.main10);
+
+    // Rockchip's encoders write no sample aspect ratio: FFmpeg's metadata
+    // filters write it after them, where they rewrote their stream here.
+    // Other computers keep what FFmpeg lists.
+    let rkmpp = |name: &str| caps.encoders.iter().any(|e| e.name == name);
+    let (try_h264, try_hevc) = (caps.h264_metadata && rkmpp("h264_rkmpp"), caps.hevc_metadata && rkmpp("hevc_rkmpp"));
+    let (h264_writes, hevc_writes) = tokio::join!(
+        async { !try_h264 || test_rkmpp_sample_aspect(ffmpeg, "h264_rkmpp", "h264_metadata").await },
+        async { !try_hevc || test_rkmpp_sample_aspect(ffmpeg, "hevc_rkmpp", "hevc_metadata").await },
+    );
+    caps.h264_metadata &= h264_writes;
+    caps.hevc_metadata &= hevc_writes;
 
     // libplacebo on a CPU's Vulkan (Mesa's llvmpipe) tone maps several
     // times slower than zscale: it comes last then, for Dolby Vision
