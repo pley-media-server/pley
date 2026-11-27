@@ -105,16 +105,14 @@ later runs points out one Pley doesn't use yet.
 |---|---|---|
 | Intel, AMD | VAAPI, Quick Sync (Intel 11th generation and newer), Vulkan tone mapping | Add `compose.vaapi.yaml`, and set `PLEY_RENDER_GID` to `stat -c %g /dev/dri/renderD128`. With several GPUs, `PLEY_RENDER_DEVICE` picks one (`ls -l /dev/dri/by-path` names them) |
 | NVIDIA | NVENC, NVDEC, CUDA scaling, Vulkan tone mapping | Install the driver and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), then add `compose.nvidia.yaml` |
-| Rockchip (RK3588, RK3568 and the like) | MPP decoding and encoding, RGA scaling | On Rockchip's own kernel (it has `/dev/mpp_service`), add `compose.rockchip.yaml`, and set `PLEY_ROCKCHIP_GID` to `stat -c %g /dev/mpp_service` |
+| Rockchip (RK3588, RK3568 and the like) | MPP decoding and encoding, RGA scaling | On Rockchip's kernel, add `compose.rockchip.yaml`, and set `PLEY_ROCKCHIP_GID` to `stat -c %g /dev/mpp_service` |
 
 - Intel's drivers are in the amd64 image only, and work from the 5th
   generation (Broadwell) on.
 - HDR is tone mapped on the GPU when it has Vulkan, else on the CPU.
-- Rockchip: with a mainline kernel, and on other arm64 boards such as the
-  Raspberry Pi, Pley transcodes on the CPU. HDR is tone mapped on the CPU;
-  chips older than the RK3588 also decode it there, and encode 1080p at
-  most. If `/dev/rga` or `/dev/dma_heap` isn't in `/dev/mpp_service`'s
-  group, add its group under `group_add` in `compose.override.yaml`.
+- Other arm64 boards, and Rockchip without Rockchip's kernel, transcode on
+  the CPU. If `/dev/rga` or `/dev/dma_heap` has another group than
+  `/dev/mpp_service`, add it under `group_add` in `compose.override.yaml`.
 - **Docker Desktop on Windows** can't hand Pley the GPU in a way it can use
   for HDR: install [Pley for Windows](../windows/README.md) instead.
 
@@ -193,8 +191,7 @@ docker run -d --name pley -p 7539:7539 --shm-size 2g \
 
 For NVIDIA, use `--gpus all` instead of `--device /dev/dri`; for Rockchip,
 add `--device` for `/dev/mpp_service`, `/dev/rga` and `/dev/dma_heap`. For
-the
-Plex-compatible API on Plex's port, add
+the Plex-compatible API on Plex's port, add
 `-p 32400:32400 -e PLEY_PLEX_BIND=0.0.0.0:32400`; it answers on Pley's port
 without them.
 
@@ -239,5 +236,5 @@ Debian's security fixes).
 | A library stays empty, or "cannot open /media/…" | `PLEY_UID` can't read the media. If a group can (`ls -ln`), put its id in `PLEY_GID` |
 | `bind source path does not exist` | A folder in `.env` is missing. Create it: Compose doesn't, as it would belong to root |
 | `port is already allocated` | Something else uses 7539: change `PLEY_LISTEN` (`127.0.0.1:7600`) and your proxy |
-| Transcodes stay on the CPU | The log's `detected` line lists the encoders found. Intel/AMD: `docker compose exec pley ls -l /dev/dri` should list `renderD128`. NVIDIA: `docker compose exec pley nvidia-smi` should list the GPU. Rockchip: `docker compose exec pley ls -l /dev/mpp_service /dev/rga` should list both (no `/dev/mpp_service` on the host: its kernel isn't Rockchip's) |
+| Transcodes stay on the CPU | The log's `detected` line lists the encoders found. Intel/AMD: `docker compose exec pley ls -l /dev/dri` should list `renderD128`. NVIDIA: `docker compose exec pley nvidia-smi` should list the GPU. Rockchip: `docker compose exec pley ls -l /dev/mpp_service /dev/rga` should list both (missing on the host: not Rockchip's kernel) |
 | Rootless Docker | `PLEY_UID=0` and `PLEY_GID=0` (what `setup.sh` picks): root in the container is you. The host's render group doesn't carry over, so Intel and AMD transcoding stays off |

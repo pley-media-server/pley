@@ -41,8 +41,8 @@ describes how they are made.
 
 ### Changed
 
-- Playback details call a transcode made on a Rockchip server's video
-  engines Rockchip MPP.
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
 - Movies, shows and music without a picture show Pley's mark on their
   placeholder instead of their title, which the caption under it shows,
   with a clapperboard, a TV or notes in it for their kind of library.

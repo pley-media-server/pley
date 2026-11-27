@@ -203,7 +203,7 @@ before using what it names:
 | `dolby_vision` | Dolby Vision profile 5 renders with correct colors (needs libplacebo) |
 | `vulkan_decode` | codecs the GPU decodes straight into Vulkan memory, for libplacebo |
 | `vulkan_encode` | `h264_vulkan` encodes libplacebo's output on the GPU |
-| `gpu_pipelines` | GPU-only decode → scale → encode pipelines, with the codecs each passed for, and `main10`: those Quick Sync's keeps in 10 bits into its HEVC Main 10 encoder (HDR kept); `p010`: those Rockchip's scaler brings to memory in 10 bits ([Rockchip](#rockchip)) |
+| `gpu_pipelines` | GPU-only decode → scale → encode pipelines, with the codecs each passed for, and `main10`: those Quick Sync's keeps in 10 bits into its HEVC Main 10 encoder (HDR kept); `p010`: those Rockchip's scaler downloads in 10 bits ([Rockchip](#rockchip)) |
 | `qsv_tonemap` | Quick Sync's scaler (VAAPI's `tonemap_vaapi` on Linux) tone maps HDR10 its decoder decoded into `h264_qsv` ([Sharing the GPU](#sharing-the-gpu)) |
 | `qsv_opencl_dovi` | OpenCL tone maps Dolby Vision by its metadata between FFmpeg's decoder on Direct3D 11 and `h264_qsv`, the frames mapped rather than copied (Windows, pley-ffmpeg and jellyfin-ffmpeg; [Sharing the GPU](#sharing-the-gpu)) |
 | `vaapi_tonemappers` | tone mappers whose frames reach a VAAPI encoder ([VAAPI encoders](#vaapi-encoders)) |
@@ -213,8 +213,8 @@ before using what it names:
 | `tonemap_speed?` | `{high, balanced, fast}`: frames a second libplacebo tone maps 4K to 4K at each quality ([libplacebo quality](#libplacebo-quality)) |
 | `placebo_software` | libplacebo runs on a CPU's Vulkan (Mesa's llvmpipe), where no GPU is: it tone maps at `fast` ([libplacebo quality](#libplacebo-quality)) |
 | `amf_upload` | FFmpeg uploads AMF's frames to the AMD GPU ([AMF on Windows](#amf-on-windows)) |
-| `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the color primaries `h264_amf` leaves out, and the sample aspect ratio `h264_rkmpp` does (where that encoder works, once the filter rewrote its stream in a start-up test) |
-| `hevc_metadata` | FFmpeg has the `hevc_metadata` bitstream filter, which writes the sample aspect ratio `hevc_rkmpp` leaves out (as `h264_metadata`) |
+| `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the color primaries `h264_amf` and the sample aspect ratio `h264_rkmpp` leave out |
+| `hevc_metadata` | FFmpeg has the `hevc_metadata` bitstream filter, which writes the sample aspect ratio `hevc_rkmpp` leaves out |
 | `subtitle_burn_image`, `subtitle_burn_text` | picture and text subtitles can be burned in |
 | `qsv_overlay` | Quick Sync lays picture subtitles on frames it decoded ([Subtitle burn-in](#subtitle-burn-in)) |
 | `readrate`, `readrate_catchup` | `-readrate` and `-readrate_catchup` work ([Throttling](#throttling)) |
@@ -585,8 +585,8 @@ One input at a time; a second is `400`.
   for all of them: H.264 and AAC. The video is copied when it is 8-bit H.264
   already, no taller than `max_height` and (with `deinterlace`) progressive.
   Otherwise it is transcoded with the best H.264 encoder that takes frames
-  from system memory (NVENC, Quick Sync, AMF, VideoToolbox, Rockchip's), else x264. The
-  audio is copied when it is AAC, else made AAC stereo.
+  from system memory (NVENC, Quick Sync, AMF, VideoToolbox, Rockchip MPP),
+  else x264. The audio is copied when it is AAC, else made AAC stereo.
 - **Interlaced** video is deinterlaced with `yadif`: each field a frame (50 or
   60 a second) on a hardware encoder, one frame of the two on x264.
 - **Segments.** A live playlist of short segments, `s{n}.ts`, each starting
@@ -909,44 +909,35 @@ the VPS, SPS and PPS with every forced keyframe.
 #### Rockchip
 
 Rockchip chips (RK3588, RK3568 and the like) decode and encode with MPP
-and scale with RGA. They need Rockchip's own kernel (`/dev/mpp_service`)
-and an FFmpeg with jellyfin-ffmpeg's Rockchip patch: Pley's on arm64
-([deploy/ffmpeg](../deploy/ffmpeg/README.md#rockchip)) or
-jellyfin-ffmpeg's. FFmpeg's own `h264_rkmpp` takes other options and fails
+and scale with RGA. They need Rockchip's kernel (`/dev/mpp_service`) and
+pley-ffmpeg on arm64 ([deploy/ffmpeg](../deploy/ffmpeg/README.md#rockchip))
+or another FFmpeg with its Rockchip patch; FFmpeg's own `h264_rkmpp` fails
 the start-up test.
 
-- **Encoding.** `h264_rkmpp` and `hevc_rkmpp`, 8-bit only (HDR kept goes
-  to x265), with `-flags:v +low_delay`: otherwise MPP queues up to four
-  frames, and a forced keyframe can land before its segment's boundary.
-  The start-up test encodes MPEG-TS and fMP4 with forced keyframes, as jobs
-  do.
+- **Encoding.** `h264_rkmpp` and `hevc_rkmpp`, 8-bit only (kept HDR goes to
+  x265), with `-flags:v +low_delay` so forced keyframes land on segment
+  boundaries. Tested at start-up into MPEG-TS and fMP4.
 - **Zero-copy.** SDR without burned-in subtitles stays on the chip:
   `-init_hw_device rkmpp=rk -hwaccel rkmpp -hwaccel_device rk
   -hwaccel_output_format drm_prime`, then
   `scale_rkrga=…:format=nv12:force_original_aspect_ratio=disable` into the
   encoder. MPP's decoders have no software fallback, so they decode only
-  the codecs that passed (`gpu_pipelines`).
-- **Into memory.** Frames for the CPU's filters or x264 come through RGA
-  (`scale_rkrga=…,hwdownload`): NV12, or P010 for the tone mapper where
-  RGA makes it (RGA3, the RK3588's; `gpu_pipelines[].p010`). Elsewhere
-  10-bit video is decoded on the CPU: MPP's own 10-bit frames are packed
-  NV15. The tone mapper is zimg, or OpenCL or libplacebo where the board
-  passes their tests.
-- **The CPU instead.** Video past RGA's limits (8× either way, sources
-  under 68 pixels wide), interlaced video, and Dolby Vision or HDR10+ that
-  libplacebo or OpenCL reads are decoded on the CPU and encoded by MPP.
-- **Pixel shape.** MPP writes no sample aspect ratio: `h264_metadata` or
-  `hevc_metadata` writes the source's (`MediaStream.sample_aspect_ratio`)
-  where the filter passed a start-up test. Older media info has none
-  (probes now say `1:1` for square): video narrower than 1920 pixels is
-  probed again.
-- **Failures.** MPP's decoder failing before a process's first segment
-  hands decoding to the CPU (`GPU decoding failed, using the CPU`), not
-  counted against the segment; a second failure is the encoder's. A
-  conversion that failed before its first frame tries once more on the
-  CPU.
-- A server from before Rockchip MPP can't read a transcoder that has it:
-  update the server first.
+  codecs that passed (`gpu_pipelines`).
+- **Into memory.** Frames for CPU filters or x264 go through
+  `scale_rkrga=…,hwdownload`: NV12, or P010 for the tone mapper where RGA3
+  (RK3588) makes it (`gpu_pipelines[].p010`). Otherwise 10-bit video is
+  decoded on the CPU (MPP's 10-bit frames are packed NV15).
+- **CPU decoding** for video past RGA's limits (8× scaling, under 68
+  pixels wide), interlaced video, and Dolby Vision or HDR10+ that
+  libplacebo or OpenCL reads. MPP still encodes.
+- **Pixel shape.** MPP writes no sample aspect ratio, so `h264_metadata` or
+  `hevc_metadata` writes the source's (`MediaStream.sample_aspect_ratio`).
+  Video under 1920 pixels wide probed before this is probed again.
+- **Failures.** An MPP decoder failing before the first segment hands
+  decoding to the CPU, not counted against the segment. A conversion
+  failing before its first frame retries once on the CPU.
+- A transcoder with Rockchip MPP needs a server that knows it: update the
+  server first.
 
 #### AMF on Windows
 

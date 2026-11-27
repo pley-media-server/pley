@@ -68,12 +68,9 @@ docker logs pley    # the setup link
   Intel's current runtime (`libmfx-gen1.2`). Older Intel graphics transcode
   with VAAPI instead, the same video engine through another driver
   interface.
-- **Rockchip** (RK3588, RK3568 and the like) needs Rockchip's own kernel,
-  which has `/dev/mpp_service` (board makers' images, Armbian's vendor
-  ones); with a mainline kernel, and on other arm64 boards such as the
-  Raspberry Pi, Pley transcodes on the CPU. HDR is tone mapped on the CPU;
-  chips older than the RK3588 also decode it there, and encode 1080p at
-  most.
+- **Rockchip** (RK3588, RK3568 and the like) needs Rockchip's kernel, which
+  has `/dev/mpp_service` (board makers' images, Armbian's vendor ones).
+  Without it, as on a Raspberry Pi, Pley transcodes on the CPU.
 - Pley runs as user and group 1000 (`-e PUID=… -e PGID=…` change them) and
   gives that user the config folder on its first start. Libraries are
   folders under `/media`.
@@ -110,11 +107,10 @@ and `PLEY_FFPROBE=…` in the unit.
   Core and later, `libmfx1` (where the distribution still has it) for older.
 - **NVIDIA:** the proprietary driver is enough. If NVENC works by hand but
   not from the service, load `nvidia-uvm` at boot.
-- **Rockchip:** Rockchip's own kernel, and jellyfin-ffmpeg's arm64 package
-  ([repo.jellyfin.org](https://repo.jellyfin.org)) set as `PLEY_FFMPEG`
-  and `PLEY_FFPROBE` (FFmpeg's own Rockchip encoder doesn't work with
-  Pley). Uncomment `SupplementaryGroups=render video`, adding the group of
-  `/dev/mpp_service` (`ls -l`) if it isn't `video`.
+- **Rockchip:** Rockchip's kernel, and jellyfin-ffmpeg's arm64 package
+  (above) as `PLEY_FFMPEG` and `PLEY_FFPROBE`. Uncomment
+  `SupplementaryGroups=render video`, plus `/dev/mpp_service`'s group if it
+  isn't `video`.
 
 ## macOS (launchd)
 

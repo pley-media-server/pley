@@ -15,8 +15,8 @@ describes how they are made.
 
 ### Changed
 
-- Playback details call a transcode made on a Rockchip server's video
-  engines Rockchip MPP.
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
 
 ## [0.1.14] - 2026-11-24
 

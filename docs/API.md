@@ -4979,8 +4979,9 @@ on another administrator's account, but for the `GET`s
   subtitles whose media file is gone.
 - **`PUT /api/settings`** answers `400` for a `hwaccel` or `tonemapping`
   that can't work here, when changed from what is saved:
-  - VAAPI or Rockchip MPP off Linux, VideoToolbox off macOS, NVENC, Quick Sync or AMF on
-    macOS (for a managed transcoder, which runs on Pley's system);
+  - VAAPI or Rockchip MPP off Linux, VideoToolbox off macOS, NVENC, Quick
+    Sync or AMF on macOS (for a managed transcoder, which runs on Pley's
+    system);
   - one the transcoder found no working encoder or tone mapper for
     (`transcoder.accels`, `transcoder.tonemapping`; not checked while it
     isn't running);

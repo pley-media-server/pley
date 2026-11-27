@@ -76,31 +76,26 @@ synthetic streams; it hasn't been compared with a Dolby decoder on a real
 disc, which is why the transcoder uses it only when asked
 ([TRANSCODER.md](../../docs/TRANSCODER.md#profile-7s-full-enhancement-layer)).
 
-The rest of jellyfin-ffmpeg's series is left out, but for Rockchip's
-([below](#rockchip)): what is for other GPUs (NVIDIA's CUDA filters, AMD's
-AMF, Apple's VideoToolbox), filters, decoders and options Pley doesn't use,
-what FFmpeg 9.0.2 already has, and the patches that only change a default
-(the Quick Sync encoders' B-frames, VAAPI's scaler and its encoders'
-depth): what Pley wants there, its transcoder asks for.
+The rest of jellyfin-ffmpeg's series is left out: what is for other GPUs
+(NVIDIA's CUDA filters, AMD's AMF, Apple's VideoToolbox),
+filters, decoders and options Pley doesn't use, what FFmpeg 9.0.2 already
+has, and the patches that only change a default (the Quick Sync encoders'
+B-frames, VAAPI's scaler and its encoders' depth): what Pley wants there,
+its transcoder asks for.
 
 ## Rockchip
 
-On arm64 the image also has Rockchip's video engines, as jellyfin-ffmpeg's
-arm64 builds do:
+The arm64 image only:
 
 - [rockchip/series](rockchip/series): jellyfin-ffmpeg's patch 0042 (MPP's
-  decoders and encoders, an `rkmpp` device, RGA's `scale_rkrga`), applied
-  after Pley's series, on arm64 only. Its header says what changed for
-  FFmpeg 9.0.2.
-- MPP and RGA from jellyfin-ffmpeg's mirror
-  ([nyanmisaka/rk-mirrors](https://github.com/nyanmisaka/rk-mirrors)) at
-  its 8.1.3-2 commits: Rockchip publishes no releases. They are Apache-2.0
-  (parts of MPP MIT), so this FFmpeg is GPLv3 (`--enable-version3`), as
-  the Windows build is. Their licenses and sources are in
-  `/usr/share/doc/rockchip-mpp` and `/usr/share/doc/librga`.
-
-The amd64 image and the Windows build are unchanged: the Windows build's
-tag doesn't hash `rockchip/`.
+  decoders and encoders, RGA's `scale_rkrga`), applied after Pley's series;
+  its header says what changed for FFmpeg 9.0.2.
+- MPP and RGA from
+  [nyanmisaka/rk-mirrors](https://github.com/nyanmisaka/rk-mirrors) at the
+  commits jellyfin-ffmpeg 8.1.3-2 builds (Rockchip publishes no releases).
+  They are Apache-2.0 (parts of MPP MIT), so this FFmpeg is GPLv3
+  (`--enable-version3`), like the Windows build; their licenses and sources
+  are in `/usr/share/doc/rockchip-mpp` and `/usr/share/doc/librga`.
 
 ## Building
 
@@ -111,9 +106,9 @@ docker build -f deploy/ffmpeg/Dockerfile.windows --output dist/pley-ffmpeg-windo
 
 Both download FFmpeg's release source, check it against the hash in the
 Dockerfile, and stop at a patch that doesn't apply exactly. The Docker
-image is made for amd64 and arm64, with BuildKit (Docker's builder since
-version 23), which names the platform its license label goes by. `--build-arg
-JOBS=8` limits the compilers run at once.
+image is made for amd64 and arm64 with BuildKit (Docker 23 and later),
+which gives each platform its license label. `--build-arg JOBS=8` limits
+the compilers run at once.
 
 The Windows build is cross-compiled with mingw-w64 in
 [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds)' image, pinned
