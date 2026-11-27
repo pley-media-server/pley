@@ -500,7 +500,7 @@ export function SettingsScreen(p: { entry: Entry }) {
         <SettingRow
           key="accent"
           fid="row-accent"
-          icon="palette"
+          icon="droplet"
           label={t("settings.theme.accent.title")}
           value={accent ? t(`settings.theme.accent.names.${accent}`) : t("settings.theme.accent.own")}
           chevron
