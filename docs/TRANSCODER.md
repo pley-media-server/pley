@@ -908,61 +908,45 @@ the VPS, SPS and PPS with every forced keyframe.
 
 #### Rockchip
 
-Rockchip's video engines (RK3588, RK3568 and the like) decode and encode
-with MPP, Rockchip's Media Process Platform, and scale with RGA, its 2D
-engine. They need Rockchip's own kernel, which has `/dev/mpp_service`, and
-an FFmpeg with jellyfin-ffmpeg's Rockchip patch: Pley's on arm64
-([deploy/ffmpeg](../deploy/ffmpeg/README.md#rockchip)), jellyfin-ffmpeg's or
-nyanmisaka's ffmpeg-rockchip. FFmpeg's own `h264_rkmpp` takes other options
-and fails the start-up test.
+Rockchip chips (RK3588, RK3568 and the like) decode and encode with MPP
+and scale with RGA. They need Rockchip's own kernel (`/dev/mpp_service`)
+and an FFmpeg with jellyfin-ffmpeg's Rockchip patch: Pley's on arm64
+([deploy/ffmpeg](../deploy/ffmpeg/README.md#rockchip)) or
+jellyfin-ffmpeg's. FFmpeg's own `h264_rkmpp` takes other options and fails
+the start-up test.
 
-- **Encoding.** `h264_rkmpp` and `hevc_rkmpp`, in 8 bits only: HDR kept in
-  HEVC Main 10 is encoded with x265. They take NV12 from memory or from
-  RGA. With `-flags:v +low_delay` each frame is encoded before the next is
-  taken: otherwise MPP keeps up to four frames queued, and a keyframe
-  forced on a frame, asked for as the frame is queued, could start before
-  it, off its segment's boundary. The start-up test encodes into MPEG-TS
-  and fMP4, every frame a forced keyframe, as jobs do.
-- **Zero-copy.** SDR without burned-in subtitles stays on the engines:
-
-  ```
-  -init_hw_device rkmpp=rk -hwaccel rkmpp -hwaccel_device rk -hwaccel_output_format drm_prime
-  ... scale_rkrga=w=1920:h=1080:format=nv12:force_original_aspect_ratio=disable ... -c:v h264_rkmpp
-  ```
-
-  `-hwaccel rkmpp` picks MPP's decoder for the codec. It has no software
-  fallback, so it decodes only the codecs its start-up test passed
-  (`gpu_pipelines`, on the same clips as the other GPUs').
-- **Into memory.** Frames for the CPU's filters (subtitles burned in, tone
-  mapping) or for x264 standing in come through RGA, whatever their size:
-  `scale_rkrga=…:format=nv12,hwdownload,format=nv12`. 10-bit video goes
-  there in 10 bits (`p010le`) for the tone mapper where RGA makes P010,
-  RGA3's alone (the RK3588's; `gpu_pipelines[].p010`), and is decoded by the
-  CPU elsewhere: the decoder's own 10-bit frames are in Rockchip's packed
-  NV15, which only a conversion on the CPU turns into P010. Tone mapping is
-  zimg's on the CPU, or OpenCL's or libplacebo's where the board's GPU
+- **Encoding.** `h264_rkmpp` and `hevc_rkmpp`, 8-bit only (HDR kept goes
+  to x265), with `-flags:v +low_delay`: otherwise MPP queues up to four
+  frames, and a forced keyframe can land before its segment's boundary.
+  The start-up test encodes MPEG-TS and fMP4 with forced keyframes, as jobs
+  do.
+- **Zero-copy.** SDR without burned-in subtitles stays on the chip:
+  `-init_hw_device rkmpp=rk -hwaccel rkmpp -hwaccel_device rk
+  -hwaccel_output_format drm_prime`, then
+  `scale_rkrga=…:format=nv12:force_original_aspect_ratio=disable` into the
+  encoder. MPP's decoders have no software fallback, so they decode only
+  the codecs that passed (`gpu_pipelines`).
+- **Into memory.** Frames for the CPU's filters or x264 come through RGA
+  (`scale_rkrga=…,hwdownload`): NV12, or P010 for the tone mapper where
+  RGA makes it (RGA3, the RK3588's; `gpu_pipelines[].p010`). Elsewhere
+  10-bit video is decoded on the CPU: MPP's own 10-bit frames are packed
+  NV15. The tone mapper is zimg, or OpenCL or libplacebo where the board
   passes their tests.
-- **RGA's limits.** RGA scales within 8 times either way, from sources 68
-  pixels wide or more (RGA3's limits; RGA2's are wider). Video that needs
-  more (4K made 240 lines) is decoded and scaled by the CPU, and encoded by
-  MPP. So is interlaced video, which `yadif` deinterlaces.
-- **Pixel shape.** MPP's encoders write no sample aspect ratio: anamorphic
-  video (DVDs, SD and 1440×1080 Live TV) would play squashed.
-  `-bsf:v h264_metadata=sample_aspect_ratio=…` (`hevc_metadata` for HEVC)
-  writes the source's at the output's size, where the probe found one
-  (`MediaStream.sample_aspect_ratio`) and the filter rewrote that encoder's
-  stream in a start-up test. Media info from before probes read it says
-  none (probes say `1:1` for square pixels): video narrower than 1920
-  pixels, where anamorphic video is, is probed again for it.
-- **A decoder that fails.** MPP's decoder failing before a process's first
-  segment hands the video to the CPU for the job's later processes, as
-  another GPU's decoder failing does (the warning `GPU decoding failed,
-  using the CPU`); the failure doesn't count against the segment, and a
-  second one is the encoder's. A conversion that failed before its first
-  frame tries once more with the CPU decoding.
-- **A transcoder of its own.** A server from before Rockchip MPP can't
-  read the capabilities of a transcoder that has it: update the server
-  first, as with any external transcoder.
+- **The CPU instead.** Video past RGA's limits (8× either way, sources
+  under 68 pixels wide), interlaced video, and Dolby Vision or HDR10+ that
+  libplacebo or OpenCL reads are decoded on the CPU and encoded by MPP.
+- **Pixel shape.** MPP writes no sample aspect ratio: `h264_metadata` or
+  `hevc_metadata` writes the source's (`MediaStream.sample_aspect_ratio`)
+  where the filter passed a start-up test. Older media info has none
+  (probes now say `1:1` for square): video narrower than 1920 pixels is
+  probed again.
+- **Failures.** MPP's decoder failing before a process's first segment
+  hands decoding to the CPU (`GPU decoding failed, using the CPU`), not
+  counted against the segment; a second failure is the encoder's. A
+  conversion that failed before its first frame tries once more on the
+  CPU.
+- A server from before Rockchip MPP can't read a transcoder that has it:
+  update the server first.
 
 #### AMF on Windows
 

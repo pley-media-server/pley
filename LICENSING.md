@@ -101,10 +101,9 @@ ships FFmpeg beside it, FFmpeg keeps its own license:
   (`intel-media-va-driver-non-free`, redistributable, with GPU shaders that
   come without source), its license in
   `/usr/share/doc/intel-media-va-driver-non-free/copyright`. On arm64 it
-  has Rockchip's MPP (Apache-2.0 and MIT) and RGA (Apache-2.0) libraries,
-  and jellyfin-ffmpeg's patch for them, which make that FFmpeg
-  `--enable-version3`, so GPLv3; their licenses and sources are in
-  `/usr/share/doc/rockchip-mpp` and `/usr/share/doc/librga`.
+  also has Rockchip's MPP (Apache-2.0 and MIT) and RGA (Apache-2.0), so
+  that FFmpeg is GPLv3 (`--enable-version3`); their licenses and sources
+  are in `/usr/share/doc/rockchip-mpp` and `/usr/share/doc/librga`.
 - **The Windows installer** carries pley-ffmpeg's Windows build
   ([deploy/ffmpeg](deploy/ffmpeg/README.md)): the same FFmpeg and patches as
   the Docker image's, with its libraries built in (`--enable-gpl

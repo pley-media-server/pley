@@ -1,8 +1,7 @@
 # Add-on: Rockchip hardware transcoding (RK3588, RK3568 and the like, on
-# Rockchip's own kernel: MPP decodes and encodes, RGA scales). Pley gets
-# MPP's and RGA's devices, the DMA heaps their buffers come from, and the
-# GPU's nodes. setup.sh turns it on when it finds /dev/mpp_service; by hand,
-# add this file to COMPOSE_FILE in .env and set PLEY_ROCKCHIP_GID.
+# Rockchip's own kernel). setup.sh turns it on when it finds
+# /dev/mpp_service; by hand, add this file to COMPOSE_FILE in .env and set
+# PLEY_ROCKCHIP_GID.
 services:
   pley:
     devices:

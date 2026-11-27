@@ -11,9 +11,9 @@ Wants=network-online.target
 Type=simple
 User=pley
 Group=pley
-# Intel and AMD hardware transcoding opens /dev/dri, which the render (and
-# on some distributions video) group may use; Rockchip's also opens
-# /dev/mpp_service, /dev/rga and /dev/dma_heap, which video may use:
+# Intel's and AMD's hardware transcoding opens /dev/dri, Rockchip's also
+# /dev/mpp_service, /dev/rga and /dev/dma_heap: the render and video groups
+# may use them.
 # SupplementaryGroups=render video
 Environment=PLEY_DATA_DIR=/var/lib/pley
 # An FFmpeg that isn't on PATH, such as jellyfin-ffmpeg:

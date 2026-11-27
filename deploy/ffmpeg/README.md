@@ -85,26 +85,22 @@ depth): what Pley wants there, its transcoder asks for.
 
 ## Rockchip
 
-On arm64 the Docker image has Rockchip's video engines (RK3588, RK3568 and
-the like, on Rockchip's own kernel), as jellyfin-ffmpeg's arm64 builds do:
+On arm64 the image also has Rockchip's video engines, as jellyfin-ffmpeg's
+arm64 builds do:
 
-- [rockchip/series](rockchip/series): jellyfin-ffmpeg's patch 0042,
-  applied after Pley's series and on arm64 only. It brings MPP's decoders
-  (`h264_rkmpp`, `hevc_rkmpp`, `vp9_rkmpp`, `av1_rkmpp` and the older
-  codecs), which `-hwaccel rkmpp` picks, and its encoders in place of
-  FFmpeg's own, an `rkmpp` device, and RGA's scaler, `scale_rkrga`. Its
-  header says what changed when it was moved to FFmpeg 9.0.2.
-- MPP and RGA, Rockchip's libraries, from jellyfin-ffmpeg's mirror of them
+- [rockchip/series](rockchip/series): jellyfin-ffmpeg's patch 0042 (MPP's
+  decoders and encoders, an `rkmpp` device, RGA's `scale_rkrga`), applied
+  after Pley's series, on arm64 only. Its header says what changed for
+  FFmpeg 9.0.2.
+- MPP and RGA from jellyfin-ffmpeg's mirror
   ([nyanmisaka/rk-mirrors](https://github.com/nyanmisaka/rk-mirrors)) at
-  the commits its 8.1.3-2 release builds: Rockchip publishes no release
-  sources. They are under Apache-2.0 (and MIT, for parts of MPP), which
-  FFmpeg takes with `--enable-version3`: FFmpeg is GPLv3 there, as the
-  Windows build is. The image carries them in `/usr/local/lib`, their
-  licenses and sources in `/usr/share/doc/rockchip-mpp` and
-  `/usr/share/doc/librga`.
+  its 8.1.3-2 commits: Rockchip publishes no releases. They are Apache-2.0
+  (parts of MPP MIT), so this FFmpeg is GPLv3 (`--enable-version3`), as
+  the Windows build is. Their licenses and sources are in
+  `/usr/share/doc/rockchip-mpp` and `/usr/share/doc/librga`.
 
-Being on arm64 alone, they leave the amd64 image and the Windows build as
-they were: the Windows build's tag doesn't hash `rockchip/`.
+The amd64 image and the Windows build are unchanged: the Windows build's
+tag doesn't hash `rockchip/`.
 
 ## Building
 
