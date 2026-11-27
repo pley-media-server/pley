@@ -156,9 +156,12 @@ Up Next (the next episode, or the next title of a playlist or collection)
 comes as credits that run to the end of the file begin: credits ending
 within 15 s of the end, where only a studio's logo or black follows.
 Seeking back into them doesn't bring it again. Its card, the next title's
-name without a picture, counts down 10 s with a ring that fills smoothly
-inside Play now ("Next in 7" with Reduce motion), then plays the next title; with Settings' Play the next episode by itself
-off, it waits. Credits that something follows (an after-credits scene, the last minutes
+name without a picture, counts down 10 s in Play now, as on Android TV:
+"Play now (7)", with a sweep that fills the button smoothly from its left
+edge ("Next in 7" and a step each second with Reduce motion). The button
+keeps its width as the count shortens, so Cancel beside it stays where it
+is. Then the next title plays; with Settings' Play the next episode by itself
+off, it waits, and the button says "Play now" alone. Credits that something follows (an after-credits scene, the last minutes
 of a show after music every episode shares) bring Skip Credits alone, and
 Up Next comes at the end of the file, as it does for a file without
 credits. `packages/tv/test/fixtures/markers.json` pins which credits bring
@@ -1017,8 +1020,9 @@ forms and the same values, French and Spanish to their punctuation.
   one the app doesn't have, keeps an account's; `markers.json` pins which
   credits bring Up Next; `skip-shown.json` pins when Skip shows (8 s on
   its own from entering a segment or from Up Next's card going, then only
-  with the controls); `countdown-fill.json` pins how full Up Next's ring is
-  between the countdown's seconds. Where the Android app is stricter (a
+  with the controls); `countdown-fill.json` pins how far the sweep across
+  Up Next's Play now reaches between the countdown's seconds, and its
+  steps with Reduce motion. Where the Android app is stricter (a
   token answer without `token_type`, a device code without `expires_in`),
   the native app follows it, and its test says which fixture case it
   answers differently.

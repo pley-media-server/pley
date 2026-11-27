@@ -791,25 +791,21 @@ function ChapterImage(p: { path: string }) {
   return src ? <img src={src} alt="" style="width:100%;height:100%;object-fit:cover" /> : null;
 }
 
-/** Up Next (TvUpNextCard): the next one's title, Play now with its countdown ring, Cancel. No still: the card stays small over the credits. */
+/**
+ * Up Next (TvUpNextCard): the next one's title, Play now with the countdown
+ * in it, Cancel. No still: the card stays small over the credits.
+ */
 function UpNextCard(p: { card: NonNullable<ReturnType<PlaybackController["state"]["peek"]>["upNext"]>; reduced: boolean; onPlay: () => void; onCancel: () => void }) {
-  const left = p.card.secondsLeft;
   return (
     <div class="upnext-card">
       <div style="padding:16px">
-        <div class="t-caption c-muted one-line">{p.card.heading}</div>
-        <div class="t-title c-fg lines-2">{p.card.title}</div>
+        {/* Announced once, as the card shows: not Play now's seconds, every one of them. */}
+        <div role="status" aria-live="polite">
+          <div class="t-caption c-muted one-line">{p.card.heading}</div>
+          <div class="t-title c-fg lines-2">{p.card.title}</div>
+        </div>
         <G kind="row" class="upnext-buttons">
-          <F class="playnow t-label" fid="playnow" label={t("player.upNext.playNow")} onSelect={p.onPlay}>
-            <Icon name="play" size={22} />
-            <span style="margin-left:10px">{t("player.upNext.playNow")}</span>
-            {left !== null &&
-              (p.reduced ? (
-                <span class="t-caption" style="margin-left:12px">{t("player.upNext.nextIn", { seconds: left })}</span>
-              ) : (
-                <CountdownRing left={left} />
-              ))}
-          </F>
+          <PlayNowButton left={p.card.secondsLeft} reduced={p.reduced} onPlay={p.onPlay} />
           <TextButton label={t("common.actions.cancel")} variant="tall" onSelect={p.onCancel} />
         </G>
       </div>
@@ -818,37 +814,46 @@ function UpNextCard(p: { card: NonNullable<ReturnType<PlaybackController["state"
 }
 
 /**
- * The countdown's ring, filling smoothly: drawn again each frame while it
- * moves, straight into its path, so nothing renders again ([CountdownFill]).
+ * "Play now", with the countdown in it (the Android app's PlayNowButton):
+ * "Play now (7)" and a sweep across the button, moving smoothly ("Next in 7"
+ * and a step each second with reduced motion). The sweep is drawn again each
+ * frame while it moves, straight into its style, so nothing renders again
+ * ([CountdownFill]). The button keeps the width of the countdown's first
+ * second as the count shortens: those words, unseen, hold the label's room.
  */
-function CountdownRing(p: { left: number }) {
-  const path = useRef<SVGPathElement>(null);
+function PlayNowButton(p: { left: number | null; reduced: boolean; onPlay: () => void }) {
+  const sweep = useRef<HTMLDivElement>(null);
   const fill = useMemo(() => new CountdownFill(COUNTDOWN_SECONDS), []);
   useEffect(() => {
-    fill.set(p.left, performance.now());
+    const el = sweep.current;
+    if (!el) return;
+    if (p.left === null) fill.reset();
+    else fill.set(p.left, performance.now(), !p.reduced);
     let frame = 0;
     const draw = () => {
       const now = performance.now();
-      path.current?.setAttribute("d", arc(11, 11, 9.5, 360 * fill.at(now)));
+      el.style.transform = `scaleX(${fill.at(now).toFixed(4)})`;
       if (fill.moving(now)) frame = requestAnimationFrame(draw);
     };
     draw();
     return () => cancelAnimationFrame(frame);
-  }, [p.left]);
+  }, [p.left, p.reduced]);
   return (
-    <svg width="22" height="22" viewBox="0 0 22 22" style="margin-left:12px" aria-hidden="true">
-      <circle cx="11" cy="11" r="9.5" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
-      <path ref={path} fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
-    </svg>
+    <F class="playnow t-label" fid="playnow" label={t("player.upNext.playNow")} onSelect={p.onPlay}>
+      <div ref={sweep} class="playnow-sweep" aria-hidden="true" />
+      <Icon name="play" size={22} />
+      <span class="playnow-label">
+        <span class="playnow-widest" aria-hidden="true">
+          {playNowLabel(p.left === null ? null : COUNTDOWN_SECONDS, p.reduced)}
+        </span>
+        <span class="playnow-words">{playNowLabel(p.left, p.reduced)}</span>
+      </span>
+    </F>
   );
 }
 
-/** An SVG arc from 12 o'clock, clockwise, `deg` degrees. */
-function arc(cx: number, cy: number, r: number, deg: number): string {
-  if (deg <= 0) return "";
-  const d = Math.min(359.99, deg);
-  const rad = ((d - 90) * Math.PI) / 180;
-  const x = cx + r * Math.cos(rad);
-  const y = cy + r * Math.sin(rad);
-  return `M ${cx} ${cy - r} A ${r} ${r} 0 ${d > 180 ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)}`;
+/** Play now's words: with the seconds left while a countdown runs. */
+function playNowLabel(left: number | null, reduced: boolean): string {
+  if (left === null) return t("player.upNext.playNow");
+  return t(reduced ? "player.upNext.nextIn" : "player.upNext.playNowIn", { seconds: left });
 }

@@ -27,6 +27,7 @@
     "title": "À suivre",
     "episode": "À suivre · {{episode}}",
     "playNow": "Lire maintenant",
+    "playNowIn": "Lire maintenant ({{seconds}})",
     "cancel": "Annuler",
     "nextIn": "Suivant dans {{seconds}}",
     "lastEpisode": "C’est le dernier épisode",

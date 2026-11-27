@@ -30,13 +30,13 @@ describe("what plays next through a merged collection", () => {
   });
 });
 
-describe("Up Next's ring between the countdown's whole seconds, as the shared fixture has it", () => {
-  for (const c of countdown.cases) {
+describe("how full Up Next's countdown is between its whole seconds, as the shared fixture has it", () => {
+  for (const c of countdown.cases as { name: string; smooth?: boolean; steps: CountdownStep[] }[]) {
     it(c.name, () => {
       const fill = new CountdownFill(countdown.total);
-      for (const step of c.steps as CountdownStep[]) {
+      for (const step of c.steps) {
         if (step.set !== undefined) {
-          fill.set(step.set, step.ms);
+          fill.set(step.set, step.ms, c.smooth ?? true);
           continue;
         }
         expect([step.ms, Number(fill.at(step.ms).toFixed(3))]).toEqual([step.ms, step.fill]);
@@ -44,4 +44,11 @@ describe("Up Next's ring between the countdown's whole seconds, as the shared fi
       }
     });
   }
+
+  it("is empty again once the countdown stops", () => {
+    const fill = new CountdownFill(countdown.total);
+    fill.set(4, 0);
+    fill.reset();
+    expect([fill.at(100), fill.moving(100)]).toEqual([0, false]);
+  });
 });

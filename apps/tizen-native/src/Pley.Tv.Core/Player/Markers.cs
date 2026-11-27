@@ -152,10 +152,11 @@ public static class NextUp
 }
 
 /// <summary>
-/// How much of Up Next's countdown has gone, from 0 to 1, for its ring (the Android app's
-/// countdownFill). The model counts whole seconds; through each one the fill glides, linearly, to
-/// where it stands at that second's end, so the ring moves without steps and is full as the
-/// countdown reaches 0. A countdown that starts again jumps back at once rather than sliding back.
+/// How much of Up Next's countdown has gone, from 0 to 1, for the sweep across Play now (the
+/// Android app's countdownFill). The model counts whole seconds; through each one the fill glides,
+/// linearly, to where it stands at that second's end, so the sweep moves without steps and is full
+/// as the countdown reaches 0. A countdown that starts again jumps back at once rather than sliding
+/// back. Without smooth (reduced motion) it steps once a second, to where that second starts.
 /// </summary>
 public sealed class CountdownFill
 {
@@ -166,16 +167,16 @@ public sealed class CountdownFill
     long startedMs;
 
     /// <summary>The countdown shows <paramref name="secondsLeft"/> at <paramref name="nowMs"/>.</summary>
-    public void Set(int secondsLeft, long nowMs)
+    public void Set(int secondsLeft, long nowMs, bool smooth = true)
     {
         const int total = NextUp.CountdownSeconds;
         var start = Unit((total - secondsLeft) / (float)total);
         var end = Unit((total - secondsLeft + 1) / (float)total);
         var current = At(nowMs);
         // Ahead of this second (a countdown started again) or far behind it: from its place.
-        if (current > end || current < start - 0.5f / total) current = start;
+        if (!smooth || current > end || current < start - 0.5f / total) current = start;
         from = current;
-        to = end;
+        to = smooth ? end : start;
         startedMs = nowMs;
     }
 
@@ -189,6 +190,50 @@ public sealed class CountdownFill
     public bool Moving(long nowMs) => from != to && nowMs - startedMs < SecondMs;
 
     static float Unit(float value) => Math.Max(0f, Math.Min(1f, value));
+}
+
+/// <summary>
+/// Play now through Up Next's countdown (the Android app's PlayNowButton): "Play now (7)" and a
+/// sweep across the button, moving smoothly; "Next in 7" and a step each second with reduced
+/// motion; "Play now" alone without a countdown. The view draws what this says.
+/// </summary>
+public sealed class PlayNowCountdown
+{
+    /// <summary>The sweep's opacity: black over a focused button's accent, Fg over the faint fill it has at rest.</summary>
+    public const float SweepFocused = 0.18f, SweepAtRest = 0.14f;
+
+    readonly CountdownFill fill = new CountdownFill();
+    int? left;
+    bool reduced;
+
+    /// <summary>The button's words.</summary>
+    public string Label => PlayerText.PlayNowLabel(left, reduced);
+
+    /// <summary>The countdown's first second, in words: the button keeps their width as the count shortens.</summary>
+    public string Widest => PlayerText.PlayNowLabel(left == null ? null : NextUp.CountdownSeconds, reduced);
+
+    /// <summary>
+    /// The card says <paramref name="secondsLeft"/> at <paramref name="nowMs"/> (null: no countdown).
+    /// Said again for the same second, as the card is for anything else that changes, the sweep
+    /// carries on as it was.
+    /// </summary>
+    public void Set(int? secondsLeft, bool reducedMotion, long nowMs)
+    {
+        if (secondsLeft == left && reducedMotion == reduced) return;
+        left = secondsLeft;
+        reduced = reducedMotion;
+        if (secondsLeft is int seconds) fill.Set(seconds, nowMs, smooth: !reducedMotion);
+        else fill.Reset();
+    }
+
+    /// <summary>The label's width: its words', and never less than its widest words'.</summary>
+    public static float LabelWidth(float words, float widest) => Math.Max(words, widest);
+
+    /// <summary>How far the sweep reaches from the left edge of a button <paramref name="width"/> wide, at <paramref name="nowMs"/>.</summary>
+    public float SweepWidth(float width, long nowMs) => width * fill.At(nowMs);
+
+    /// <summary>Whether the sweep still moves at <paramref name="nowMs"/>; once it rests, nothing needs drawing again.</summary>
+    public bool Moving(long nowMs) => fill.Moving(nowMs);
 }
 
 /// <summary>What plays next, during its card (the Android app's UpNextUi).</summary>

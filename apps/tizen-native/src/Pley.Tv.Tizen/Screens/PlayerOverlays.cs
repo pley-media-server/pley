@@ -157,8 +157,8 @@ sealed class SkipButton : View
 
 /// <summary>
 /// Up Next (design spec §2.7): a 300 dp card on Surface2 at 96 %: "Up next · S2 · E6" and the next
-/// one's title, then Play now, with a ring filling smoothly over the countdown ("Next in 7" when
-/// motion is reduced), and Cancel. No still: the card stays small over the credits.
+/// one's title, then "Play now (7)" with a sweep filling it smoothly over the countdown ("Next in
+/// 7", stepped, when motion is reduced), and Cancel. No still: the card stays small over the credits.
 /// </summary>
 sealed class UpNextView : View
 {
@@ -225,9 +225,9 @@ sealed class UpNextView : View
     float rowTop;
 
     /// <summary>
-    /// Cancel after Play now, placed again each time Play now's width changes (its countdown's ring
-    /// or words come and go), with room for both to grow as focus scales them: placed once, Play
-    /// now grew into it.
+    /// Cancel after Play now, placed again each time Play now's width changes (a countdown starts
+    /// or stops; through one it keeps its width), with room for both to grow as focus scales them:
+    /// placed once, Play now grew into it.
     /// </summary>
     void PlaceCancel()
     {
@@ -235,26 +235,36 @@ sealed class UpNextView : View
         cancel.Position = new Position(Ui.Dp(Pad) + play.SizeWidth + Ui.Dp(12) + growth, Ui.Dp(rowTop + (PlayNowButton.Height - PleyTv.ButtonHeight) / 2));
     }
 
-    /// <summary>"Play now", focused when the card shows, with the countdown's ring (or words) inside it.</summary>
+    /// <summary>
+    /// "Play now", focused when the card shows, with the countdown in it (the Android app's
+    /// PlayNowButton): "Play now (7)" and a sweep across the button, as <see cref="PlayNowCountdown"/>
+    /// says. The button keeps the width of the countdown's first second as the count shortens.
+    /// </summary>
     sealed class PlayNowButton : View
     {
         public const float Height = 48;
-        const float Icon = 22, Ring = 22, Stroke = 3;
+        const float Icon = 22, LabelStart = 20 + Icon + 10, End = 16;
 
-        /// <summary>How often the ring is drawn again while it moves: smooth on a 22 dp ring, at half a 60 Hz frame rate's work.</summary>
+        /// <summary>How often the sweep is drawn again while it moves: about a pixel a frame across the button, at half a 60 Hz frame rate's work.</summary>
         const uint FrameMs = 33;
 
         static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
 
+        /// <summary>
+        /// The sweep, under the icon and the words: a fill of the button's own shape, seen through a
+        /// window that widens from the left edge, so it stays inside the button's corners at both
+        /// ends and grows with the button. The button couldn't cut a plain bar to its shape: the TV
+        /// clips children to a rectangle, whatever their parent's corners.
+        /// </summary>
+        readonly View window;
+        readonly View sweep;
         readonly ImageView icon;
         readonly TextLabel label;
-        readonly TextLabel words;
-        readonly View ringTrack;
-        readonly View ringDone;
-        readonly CountdownFill fill = new CountdownFill();
+        readonly PlayNowCountdown countdown = new PlayNowCountdown();
         readonly Timer frames = new Timer(FrameMs);
-        int? left;
-        bool wordsOnly;
+        string? words, widest;
+        float widestWidth, width;
+        bool swept;
 
         public PlayNowButton(Action onPlay)
         {
@@ -263,66 +273,57 @@ sealed class UpNextView : View
             BorderlineOffset = -1;
             PivotPoint = global::Tizen.NUI.PivotPoint.Center;
             PositionUsesPivotPoint = false;
+            window = new View { ClippingMode = ClippingModeType.ClipToBoundingBox };
+            window.Hide();
+            sweep = new View { CornerRadius = Ui.Dp(PleyShape.ControlRadius) };
+            window.Add(sweep);
+            Add(window);
             icon = Icons.Icon("play", Icon, PleyColors.Fg);
             icon.Position = new Position(Ui.Dp(20), Ui.Dp((Height - Icon) / 2));
             Add(icon);
-            label = Text.Label(PlayerText.PlayNow, PleyType.Label, PleyColors.Fg);
-            var labelWidth = Text.Width(label);
-            label.Size = new Size(Ui.Dp(labelWidth), Ui.Dp(Height));
-            label.Position = new Position(Ui.Dp(20 + Icon + 10), 0);
+            label = Text.Label("", PleyType.Label, PleyColors.Fg);
+            label.Position = new Position(Ui.Dp(LabelStart), 0);
             Add(label);
-            LabelEnd = 20 + Icon + 10 + labelWidth;
-            words = Text.Label("", PleyType.Caption, PleyColors.Fg);
-            words.Position = new Position(Ui.Dp(LabelEnd + 12), 0);
-            Add(words);
-            ringTrack = new View { Size = new Size(Ui.Dp(Ring), Ui.Dp(Ring)), Position = new Position(Ui.Dp(LabelEnd + 12), Ui.Dp((Height - Ring) / 2)) };
-            Add(ringTrack);
-            ringDone = new View { Size = ringTrack.Size, Position = ringTrack.Position };
-            Add(ringDone);
             Item.FocusChanged += _ => Look();
             frames.Tick += (s, e) =>
             {
                 if (Disposed) return false;
                 var now = Clock.ElapsedMilliseconds;
-                DrawRing(now);
-                return fill.Moving(now);
+                DrawSweep(now);
+                return countdown.Moving(now);
             };
             Countdown(null, false);
         }
 
         public FocusItem Item { get; }
 
-        float LabelEnd { get; }
-
         public void Countdown(int? secondsLeft, bool reduced)
         {
             if (Disposed) return;
-            if (secondsLeft != left)
+            var now = Clock.ElapsedMilliseconds;
+            countdown.Set(secondsLeft, reduced, now);
+            if (words != countdown.Label)
             {
-                if (secondsLeft is int s && !reduced) fill.Set(s, Clock.ElapsedMilliseconds);
-                else fill.Reset();
-            }
-            left = secondsLeft;
-            wordsOnly = reduced;
-            var extra = 0f;
-            if (secondsLeft is int n)
-            {
-                if (reduced)
+                // As wide as its widest words, so it doesn't narrow as the seconds go, and Cancel stays where it is.
+                if (widest != countdown.Widest)
                 {
-                    words.Text = PlayerText.NextIn(n);
-                    var w = Text.Width(words);
-                    words.Size = new Size(Ui.Dp(w), Ui.Dp(Height));
-                    extra = 12 + w;
+                    widest = countdown.Widest;
+                    label.Text = widest;
+                    widestWidth = Text.Width(label);
                 }
-                else extra = 12 + Ring;
+                words = countdown.Label;
+                label.Text = words;
+                var labelWidth = PlayNowCountdown.LabelWidth(Text.Width(label), widestWidth);
+                width = Ui.Dp(LabelStart + labelWidth + End);
+                label.Size = new Size(Ui.Dp(labelWidth), Ui.Dp(Height));
+                Size = new Size(width, Ui.Dp(Height));
+                sweep.Size = new Size(width, Ui.Dp(Height));
+                window.SizeHeight = Ui.Dp(Height);
             }
-            words.SetVisible(secondsLeft != null && reduced);
-            ringTrack.SetVisible(secondsLeft != null && !reduced);
-            ringDone.SetVisible(secondsLeft != null && !reduced);
-            Size = new Size(Ui.Dp(LabelEnd + extra + 16), Ui.Dp(Height));
             Look();
             frames.Stop();
-            if (fill.Moving(Clock.ElapsedMilliseconds)) frames.Start();
+            DrawSweep(now);
+            if (countdown.Moving(now)) frames.Start();
         }
 
         void Look()
@@ -333,23 +334,25 @@ sealed class UpNextView : View
             BackgroundColor = focused ? PleyColors.Accent : new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.12f);
             BorderlineWidth = focused ? 0 : Ui.Dp(1);
             BorderlineColor = PleyColors.Control;
+            // Darker over the accent of a focused button; lighter over the faint fill it has at rest.
+            sweep.BackgroundColor = focused
+                ? new Color(0, 0, 0, PlayNowCountdown.SweepFocused)
+                : new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, PlayNowCountdown.SweepAtRest);
             icon.Color = ink;
             label.TextColor = ink;
-            words.TextColor = ink;
             var scale = focused ? PleyShape.PillScale : 1f;
             Scale = new Vector3(scale, scale, 1);
-            if (left != null && !wordsOnly)
-            {
-                ringTrack.Background = Arc(new Color(ink.R, ink.G, ink.B, 0.25f), 360, false);
-                DrawRing(Clock.ElapsedMilliseconds);
-            }
         }
 
-        /// <summary>The ring's filled arc as it stands at <paramref name="nowMs"/>.</summary>
-        void DrawRing(long nowMs)
+        /// <summary>The sweep as far as it reaches at <paramref name="nowMs"/>: only the window's width follows the countdown.</summary>
+        void DrawSweep(long nowMs)
         {
-            if (left == null || wordsOnly) return;
-            ringDone.Background = Arc(Item.Focused ? PleyColors.OnAccent : PleyColors.Fg, 360 * fill.At(nowMs), true);
+            var reach = countdown.SweepWidth(width, nowMs);
+            if (reach > 0) window.SizeWidth = reach;
+            var shows = reach > 0;
+            if (shows == swept) return;
+            swept = shows;
+            window.SetVisible(shows);
         }
 
         protected override void Dispose(DisposeTypes type)
@@ -363,10 +366,6 @@ sealed class UpNextView : View
             }
             base.Dispose(type);
         }
-
-        /// <summary>An arc from the top, clockwise, <paramref name="sweep"/> degrees long.</summary>
-        static PropertyMap Arc(Color color, float sweep, bool round) =>
-            new ArcVisual { Thickness = Ui.Dp(Stroke), StartAngle = -90, SweepAngle = sweep, Cap = round ? ArcVisual.CapType.Round : ArcVisual.CapType.Butt, MixColor = color }.OutputVisualMap;
     }
 }
 
