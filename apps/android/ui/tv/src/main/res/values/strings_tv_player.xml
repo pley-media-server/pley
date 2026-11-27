@@ -11,7 +11,7 @@
     <string name="tv_player_chapters">Chapters</string>
     <string name="tv_player_info">Info</string>
 
-    <!-- The scrubber, the clock and the seek badge. -->
+    <!-- The scrubber and the seek badge. -->
     <string name="tv_player_intro">Intro</string>
     <string name="tv_player_credits">Credits</string>
     <string name="tv_player_seek_back">−%1$d s</string>

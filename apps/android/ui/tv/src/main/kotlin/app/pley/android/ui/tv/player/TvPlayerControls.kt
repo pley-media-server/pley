@@ -116,21 +116,19 @@ internal fun BoxScope.TvPlayerTopBar(state: State<PlayerUiState>, alpha: State<F
             BasicText(line!!, style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
-    Column(
+    Row(
         Modifier
             .align(Alignment.TopEnd)
             .padding(end = TvSafeArea.Horizontal, top = TvSafeArea.Vertical)
             .graphicsLayer { this.alpha = alpha.value },
-        horizontalAlignment = Alignment.End,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         val clock = rememberClock(now)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            method?.let {
-                MethodBadge(it, way)
-                Spacer(Modifier.width(12.dp))
-            }
-            BasicText(clock, style = PleyType.Tv.Label.copy(color = PleyColors.Muted))
+        method?.let {
+            MethodBadge(it, way)
+            Spacer(Modifier.width(12.dp))
         }
+        BasicText(clock, style = PleyType.Tv.Label.copy(color = PleyColors.Muted))
     }
 }
 

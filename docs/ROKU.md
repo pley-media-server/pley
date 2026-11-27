@@ -363,8 +363,8 @@ The controls are Pley's own, as the Android TV player's
 (`components/shared/PlayerControls`); the Video node's are off
 (`enableUI`). They draw in the Video node, as Roku's own do. At the top,
 the title (a show's name over "S1 E2 · Pilot"), how it plays ("Direct
-play", "Direct stream", "Transcoding"), the clock and, while paused, when
-it ends; at the bottom the scrubber, the time played and the time left,
+play", "Direct stream", "Transcoding") and the clock; at the bottom the
+scrubber, the time played and the time left,
 the chapters as gaps in it and "Intro" or "Credits" under the marker
 playing, then a row of buttons: Chapters (for a file with two or more) and
 Sleep timer at the left, Previous, Play/Pause and Next in the middle

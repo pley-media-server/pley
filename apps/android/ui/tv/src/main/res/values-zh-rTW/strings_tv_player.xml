@@ -11,7 +11,7 @@
     <string name="tv_player_chapters">章節</string>
     <string name="tv_player_info">資訊</string>
 
-    <!-- The scrubber, the clock and the seek badge. -->
+    <!-- The scrubber and the seek badge. -->
     <string name="tv_player_intro">片頭</string>
     <string name="tv_player_credits">片尾</string>
     <string name="tv_player_seek_back">−%1$d 秒</string>
