@@ -684,64 +684,6 @@
         }
       }
     },
-    "End of this episode" : {
-      "comment" : "The sleep timer: pause at the end of this episode.",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Final de este episodio"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fin de cet épisode"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本集结束"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本集結束"
-          }
-        }
-      }
-    },
-    "End of this movie" : {
-      "comment" : "The sleep timer: pause at the end of this movie.",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Final de esta película"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fin de ce film"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本片结束"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本片結束"
-          }
-        }
-      }
-    },
     "End of this track" : {
       "comment" : "The sleep timer: pause at the end of this track.",
       "localizations" : {

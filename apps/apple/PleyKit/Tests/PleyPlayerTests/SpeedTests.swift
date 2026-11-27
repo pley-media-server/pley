@@ -37,9 +37,9 @@ private func at(_ rig: Rig, _ positionMs: Int, after ms: Int64 = 500) {
     rig.controller.tick()
 }
 
-@Suite("Speed and the sleep timer in the controller")
+@Suite("Speed in the controller")
 @MainActor
-struct SpeedAndSleepTests {
+struct SpeedTests {
     @Test func theSpeedsAreAndroidsAndTheMenuMarksTheOnePlaying() {
         #expect(PlaybackSpeeds.all == [0.5, 0.75, 1, 1.25, 1.5, 2])
         #expect(PlaybackSpeeds.all.map(PlaybackSpeeds.label) == ["0.5×", "0.75×", "1×", "1.25×", "1.5×", "2×"])
@@ -73,78 +73,6 @@ struct SpeedAndSleepTests {
         rig.controller.playNext()
         #expect(rig.engine.rates == [1.5, 1])
         #expect(rig.controller.state.speed == 1)
-        await rig.controller.close()
-    }
-
-    @Test func afterSomeMinutesItPausesWithANoticeAndKeepWatchingAddsTheTimeAgain() async throws {
-        let rig = try await showRig()
-        defer { rig.cleanUp() }
-        try await started(rig)
-        rig.controller.setSleep(.minutes(15))
-        #expect(rig.controller.state.sleep.choice == .minutes(15))
-        #expect(rig.controller.state.sleepSummary == "15 min left")
-        #expect(rig.controller.state.sleepChoices.filter(\.selected).map(\.label) == ["15 minutes"])
-        rig.clock.advance(ms: 14 * 60_000 + 35_000)
-        rig.controller.tickSleepTimer()
-        #expect(rig.controller.state.sleep.secondsLeft == 25)
-        #expect(rig.controller.state.sleepSummary == "Pausing in 25 s")
-        rig.controller.keepWatching()
-        #expect(rig.controller.state.sleep.secondsLeft == nil)
-        #expect(rig.controller.state.sleep.minutesLeft == 16)
-        #expect(!rig.engine.calls.contains("pause"))
-        rig.clock.advance(ms: 15 * 60_000 + 25_000)
-        rig.controller.tickSleepTimer()
-        #expect(rig.engine.calls.last == "pause")
-        #expect(rig.controller.state.phase == .paused)
-        #expect(rig.controller.state.sleep.fired && rig.controller.state.sleep.choice == .off)
-        rig.controller.play()
-        #expect(!rig.controller.state.sleep.fired)
-        await rig.controller.close()
-    }
-
-    @Test func theEndOfThisEpisodeCountsInTimeWatchedAndUpNextWaits() async throws {
-        let rig = try await showRig(start: 15_000)
-        defer { rig.cleanUp() }
-        try await started(rig)
-        #expect(rig.controller.state.sleepItem == "episode")
-        rig.controller.setSleep(.endOfItem)
-        #expect(rig.controller.state.sleepSummary == "End of this episode")
-        // At 2×, the minute left of the episode is 30 s watched.
-        rig.controller.setSpeed(2)
-        at(rig, 15_000)
-        rig.controller.tickSleepTimer()
-        #expect(rig.controller.state.sleep.secondsLeft == 30)
-        // Its credits bring up the next one, with no countdown.
-        at(rig, 56_000)
-        try await until("the card") { rig.controller.state.upNext != nil }
-        #expect(rig.controller.state.upNext?.secondsLeft == nil)
-        rig.engine.emit(.ended)
-        try await until("the end") { rig.controller.state.phase == .ended }
-        #expect(rig.controller.state.sleep.fired)
-        #expect(rig.controller.state.upNext?.itemId == 32 && rig.controller.state.upNext?.secondsLeft == nil)
-        // Nothing plays by itself.
-        rig.clock.advance(ms: 15_000)
-        rig.controller.tick()
-        #expect(rig.engine.loads.count == 1)
-        await rig.controller.close()
-    }
-
-    @Test func keepWatchingAtTheEndOfAnEpisodeWaitsForTheNextOnesEnd() async throws {
-        let rig = try await showRig(start: 50_000)
-        defer { rig.cleanUp() }
-        try await started(rig)
-        rig.controller.setSleep(.endOfItem)
-        at(rig, 50_000)
-        rig.controller.tickSleepTimer()
-        #expect(rig.controller.state.sleep.secondsLeft == 25)
-        rig.controller.keepWatching()
-        at(rig, 56_000)
-        try await until("the card") { rig.controller.state.upNext != nil }
-        // Spared: this one's Up Next counts down as usual.
-        #expect(rig.controller.state.upNext?.secondsLeft == 10)
-        rig.engine.emit(.ended)
-        try await until("the end") { rig.controller.state.phase == .ended }
-        #expect(!rig.controller.state.sleep.fired && rig.controller.state.sleep.choice == .endOfItem)
         await rig.controller.close()
     }
 }

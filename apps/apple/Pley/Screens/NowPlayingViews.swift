@@ -409,7 +409,7 @@ struct SleepMenu: View {
         Menu {
             Picker("Sleep Timer", selection: Binding(get: { page.sleep }, set: { music.setSleep($0) })) {
                 ForEach(SleepChoice.all) { choice in
-                    Text(choice.label(item: "track")).tag(choice)
+                    Text(choice.label).tag(choice)
                 }
             }
         } label: {

@@ -114,7 +114,7 @@ Return opens the one with the focus and ⌘↩ plays it.
 | View | Show or Hide Sidebar, and the toolbar's own | ⌃⌘S |
 | Playback | Play "Title": the tile with the focus, or the title page showing, in a player window | ⌘↩ |
 | Playback | Channel Up, Channel Down (the Live TV window that is key) | ⌘↑, ⌘↓ |
-| Playback | Play or Pause, Back and Forward 10 Seconds, Skip Intro, Play Next, Quality, Audio, Subtitles, Find Subtitles…, Subtitle Sync, Subtitle Style, Speed, Sleep Timer, Chapters (the player window that is key) | |
+| Playback | Play or Pause, Back and Forward 10 Seconds, Skip Intro, Play Next, Quality, Audio, Subtitles, Find Subtitles…, Subtitle Sync, Subtitle Style, Speed, Chapters (the player window that is key) | |
 | Playback | Play Music or Pause Music, Next Track, Previous Track (while music has a queue and no player window is key) | ⌘→, ⌘← |
 | Playback | Now Playing (music's window) | |
 | Window | Now Playing | ⌥⌘P |
@@ -1042,7 +1042,7 @@ playing marked, and jump there. On Apple TV they are the player's chapter
 markers, each with its picture (`/api/files/{id}/chapters/{n}.jpg`, JPEG,
 read with the token; a chapter without one is shown without).
 
-### Speed, sleep timer and Picture in Picture
+### Speed and Picture in Picture
 
 **Speed** plays at 0.5×, 0.75×, 1×, 1.25×, 1.5× or 2×, the voices' pitch
 kept (`AVAudioTimePitchAlgorithm.spectral`). It holds for the title
@@ -1050,15 +1050,6 @@ playing, also when its session starts again, and the next title starts
 at 1×. The system player's own speed control is hidden, so there is one.
 Each device reports its position as it is; the server sees the rate in
 the playback's state.
-
-**The sleep timer** is music's ([Music](#music)): Off, 15, 30, 45, 60 or
-90 minutes, or the end of this episode or movie. It counts while it
-plays, the minutes going by at the speed playing. In its last 30 seconds
-"Pausing in 30 s" shows with Keep watching, which adds the same time
-again (or waits for the next episode's end); on Apple TV, Keep Watching
-is the player's first contextual action and the seconds show at the top.
-Then it pauses. Ending with the episode, Up Next's card shows without its
-countdown, and nothing plays by itself.
 
 **Picture in Picture** plays the video in a small window over other apps
 (iPhone, iPad) or over Pley (Apple TV):
@@ -1336,22 +1327,20 @@ are drawn by the app in the player's content overlay, under the controls
   and while paused) has Quality, Audio (when there are several tracks),
   Subtitles and Subtitle sync (Earlier, Later and Reset, the menu staying
   open while it moves on iOS 16.4 and later), Subtitle style, Find
-  Subtitles…, Speed,
-  Sleep Timer, Chapters and Details: how
+  Subtitles…, Speed, Chapters and Details: how
   the file plays (Direct play, Direct stream or Transcoding, and whether
   the audio is converted), why, the video, and the subtitles shown.
-  Skip Intro, Skip Credits and the Up Next card show at the bottom right,
-  and the sleep timer's last seconds at the top, with Keep watching. After
-  its 8 seconds, Skip shows with Options: for 3 seconds after a tap on the
-  video, and while paused.
+  Skip Intro, Skip Credits and the Up Next card show at the bottom right.
+  After its 8 seconds, Skip shows with Options: for 3 seconds after a tap
+  on the video, and while paused.
   Picture in Picture is the system's button.
-- **Apple TV**: full screen, with Quality, Subtitles, Speed, Sleep Timer
+- **Apple TV**: full screen, with Quality, Subtitles, Speed
   and Audio in the transport bar (Subtitles holding Subtitle sync, which
   stays open while it moves, Subtitle style and Find Subtitles…) and a Details tab in the info panel (swipe down). Apple TV's
   player doesn't say where the video shows: the subtitles go on the
   picture's size fitted to the screen. Skip Intro, Skip
-  Credits, Up Next ("Play Next (8)", Cancel) and the sleep timer's Keep
-  Watching are the player's own contextual buttons, and the chapters its chapter markers, with their
+  Credits and Up Next ("Play Next (8)", Cancel) are the player's own
+  contextual buttons, and the chapters its chapter markers, with their
   pictures. In its 8 seconds Skip is the one contextual button, with the
   focus, so Select skips; then it goes, and the focus goes back to the
   video, so Select, the arrows and the rest act as they do with nothing on
@@ -1367,14 +1356,14 @@ are drawn by the app in the player's content overlay, under the controls
   closing the window ends the session, and starting another playback
   closes it. The controls float over the picture, with Quality, Audio,
   Subtitles (Find Subtitles… last), Subtitle Sync, Subtitle Style, Speed,
-  Sleep Timer, Chapters and Details in their menu, and Picture in Picture; Skip
+  Chapters and Details in their menu, and Picture in Picture; Skip
   Intro, Skip Credits and the Up Next card at the bottom right (after its
   8 seconds, Skip shows with the floating controls: while the pointer is
   over the picture, for 3 seconds after it last moved, or as long as it
   stays there while paused), and a
   Playback menu in the menu bar (Play or Pause, Back and Forward 10
   Seconds, Skip, Play Next, Quality, Audio, Subtitles, Find Subtitles…,
-  Subtitle Sync, Subtitle Style, Speed, Sleep Timer, Chapters) acts on the window in
+  Subtitle Sync, Subtitle Style, Speed, Chapters) acts on the window in
   front. The keys are the web player's:
   Space or K plays and pauses, ← or J and → or L go back and forward 10
   seconds, ↑ and ↓ change the volume, M mutes, F goes full screen and Esc
@@ -2370,9 +2359,9 @@ PleyKit's modules, each depending only on those before it:
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, Live TV's lists, guide and favorites (`LiveTvRepository`), requests' summary, its polling and the news told once (`RequestsRepository`), the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data, the language picked on the device and the one shown last), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
-| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, Live TV (`LivePlayback`, with the `AVLiveEngine` behind a protocol), music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
+| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, Live TV (`LivePlayback`, with the `AVLiveEngine` behind a protocol), music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol) and its sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
 | `PleyDownloads` | Downloads (iPhone, iPad and Mac): `Downloads` (the screens' `DownloadsService` and the player's `LocalMedia`), `DownloadStore` (the folders and `index.json`), `DownloadPlanner` (the rules), `DownloadRunner` (one download at a time, conversions, pieces), `PieceTransfer` (the background `URLSession`) and `NetworkGate` (Wi-Fi or mobile data, from `NWPathMonitor`) |
-| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Find Subtitles…, Speed, Sleep Timer, Chapters, Details), Picture in Picture's keeper (`PictureInPictureKeeper`), Live TV's video (`LiveVideoSurface`, an `AVPlayerLayer`) and its Details (`LiveDetails`), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
+| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Find Subtitles…, Speed, Chapters, Details), Picture in Picture's keeper (`PictureInPictureKeeper`), Live TV's video (`LiveVideoSurface`, an `AVPlayerLayer`) and its Details (`LiveDetails`), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
 | `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), Live TV (`LiveTvModel`, `LivePlayerModel`, `ChannelPaging`, and `LiveTvRules` and `GuideLayout`, the Android app's rules), Find Subtitles… (`SubtitleSearchModel`), requests (`DiscoverModel`, `DiscoverResultsModel`, `DiscoverTitleModel`, `RequestsListModel`, the cards' words in `RequestCards`, the actions and Approve… in `RequestActions`, and `RequestRules`, the Android app's), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`), smart filters in words (`SmartFilter`, the Android app's), the remote (`RemoteModel`), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`), Apple TV's start (`StartGate`) and its Top Shelf row (`TopShelfWriter`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens and the server's proofs, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, Live TV's lineup and guide, music to play, downloads and conversions, subtitle search, requests and Discover from the Android app's fixtures (`FixtureServer+Requests`), an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |

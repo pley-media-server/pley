@@ -8,7 +8,7 @@ import SwiftUI
 /// The player on iPhone and iPad, full screen over the app: the system's
 /// player (its own Close ends the playback) with Pley's Options button
 /// (Quality, each with its second line, Audio, Subtitles with Find
-/// Subtitles…, Subtitle sync, Speed, Sleep Timer, Chapters and Details)
+/// Subtitles…, Subtitle sync, Speed, Chapters and Details)
 /// under its top row. Options shows with the system's controls (a tap shows it
 /// for 3 seconds) and stays while paused; an open menu stays open when
 /// the button hides. Skip Intro, Skip Credits and the
@@ -392,18 +392,6 @@ struct PlaybackCommands: Commands {
                     Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
                         if let speed = PlaybackSpeeds.speed(id: choice.id) { player?.setSpeed(speed) }
                     }))
-                }
-            }
-            .disabled(player == nil)
-            Menu(player?.state.sleepSummary.map { localized("Sleep Timer (\($0))") } ?? localized("Sleep Timer")) {
-                ForEach(player?.state.sleepChoices ?? []) { choice in
-                    Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
-                        if let sleep = SleepChoice(id: choice.id) { player?.setSleep(sleep) }
-                    }))
-                }
-                if player?.state.sleep.secondsLeft != nil {
-                    Divider()
-                    Button(localized("Keep Watching")) { player?.keepWatching() }
                 }
             }
             .disabled(player == nil)

@@ -155,6 +155,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The video player no longer has a sleep timer. Music keeps its own.
 - Skip Intro and Skip Credits show by themselves for 8 seconds as an intro
   or the credits begin, then only with the player's controls, so they no
   longer sit over the picture, or hold Apple TV's focus, for the whole

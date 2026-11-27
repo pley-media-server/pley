@@ -21,7 +21,6 @@ public enum PlayerMenus {
         public var resetSubtitleSync: @MainActor () -> Void = {}
         public var chapter: @MainActor (Int) -> Void = { _ in }
         public var speed: @MainActor (Double) -> Void = { _ in }
-        public var sleep: @MainActor (SleepChoice) -> Void = { _ in }
         /// A Subtitle style menu's choice: Size, Background, Font or Position.
         public var subtitleStyle: @MainActor (SubtitleStyleMenu.Kind, String) -> Void = { _, _ in }
         /// Find Subtitles…: the screen opens the search; `nil` leaves it out.
@@ -39,7 +38,6 @@ public enum PlayerMenus {
             resetSubtitleSync = { [weak controller] in controller?.setSubtitleOffset(0) }
             chapter = { [weak controller] in controller?.jumpToChapter($0) }
             speed = { [weak controller] in controller?.setSpeed($0) }
-            sleep = { [weak controller] in controller?.setSleep($0) }
             subtitleStyle = { [weak controller] in controller?.setSubtitleStyle($0, $1) }
         }
     }
@@ -102,15 +100,6 @@ public enum PlayerMenus {
                })
     }
 
-    /// Sleep Timer: Off, the minutes and the end of this episode, the one
-    /// running checked, with what is left as the menu's second line.
-    public static func sleepTimer(_ state: PlayerState, _ actions: Actions) -> UIMenu {
-        UIMenu(title: localized("Sleep Timer"), subtitle: state.sleepSummary, image: UIImage(systemName: "moon.zzz"),
-               children: state.sleepChoices.map { choice in
-                   row(choice) { if let sleep = SleepChoice(id: choice.id) { actions.sleep(sleep) } }
-               })
-    }
-
     /// The subtitle sync, with the offset as its second line.
     public static func subtitleSync(_ state: PlayerState, _ actions: Actions) -> UIMenu {
         UIMenu(title: localized("Subtitle sync"), subtitle: state.subtitleOffsetLabel, image: UIImage(systemName: "timer"),
@@ -153,7 +142,7 @@ public enum PlayerMenus {
     #if os(iOS)
     /// The iPhone's and iPad's Options menu: Quality, Audio and Subtitles
     /// (Find Subtitles… last) as sections, then the subtitle sync and
-    /// style, Speed, Sleep Timer, the chapters and the details.
+    /// style, Speed, the chapters and the details.
     public static func options(_ state: PlayerState, _ actions: Actions) -> UIMenu {
         var children: [UIMenuElement] = [section(quality(state.qualities, actions))]
         if state.audio.count > 1 { children.append(section(audio(state.audio, actions))) }
@@ -167,7 +156,6 @@ public enum PlayerMenus {
             if let style = subtitleStyle(state, actions) { children.append(style) }
         }
         children.append(speed(state, actions))
-        children.append(sleepTimer(state, actions))
         if !state.chapters.isEmpty { children.append(chapters(state.chapters, actions)) }
         let details = PlayerDetails.lines(state).map { line in
             UIAction(title: line.title, subtitle: line.text, attributes: .disabled) { _ in }
@@ -246,8 +234,6 @@ public struct PlayerOptionsButton: UIViewRepresentable {
         var chapters: [ChapterChoice]
         var details: [PlayerDetails.Line]
         var speed: Double
-        var sleep: [MenuChoice]
-        var sleepSummary: String?
         var canFind: Bool
         var style: [SubtitleStyleMenu]
 
@@ -260,8 +246,6 @@ public struct PlayerOptionsButton: UIViewRepresentable {
             chapters = state.chapters
             details = PlayerDetails.lines(state)
             speed = state.speed
-            sleep = state.sleepChoices
-            sleepSummary = state.sleepSummary
             canFind = state.canFindSubtitles
             style = state.subtitleStyleMenus
         }

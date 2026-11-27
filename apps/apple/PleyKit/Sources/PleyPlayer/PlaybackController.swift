@@ -143,9 +143,7 @@ public struct PlaybackEnvironment {
 ///   after more than 60 s, the session is checked and started again,
 ///   paused, if the server forgot it.
 /// - **Speed** (0.5× to 2×, the pitch kept) holds for this title, its new
-///   sessions included; the next one plays at 1×. **The sleep timer**
-///   pauses after the minutes chosen or at the end of this episode, whose
-///   Up Next then waits, with Keep watching in its last 30 s.
+///   sessions included; the next one plays at 1×.
 /// - **Subtitles found online** (Find Subtitles…, `addedSubtitle`) join
 ///   the file's tracks and show as one picked.
 /// - **Downloads.** A title downloaded plays from this device (`local`),
@@ -271,8 +269,6 @@ public final class PlaybackController: ObservableObject {
     var reconnectPending: Bool { reconnectAt != nil }
     /// The speed, 1 normal, for this title.
     private var speed: Double = 1
-    /// The sleep timer, made with the controller (it calls back into it).
-    private lazy var sleep: SleepTimer = makeSleepTimer()
     /// Follows what the device plays, for a screen that changes (`followsScreen`).
     private var capsWatch: AnyCancellable?
 
@@ -357,7 +353,6 @@ public final class PlaybackController: ObservableObject {
     public func play() {
         guard !closed, !stopped else { return }
         wantPlay = true
-        sleep.resumed()
         if let due = schedule.wantsToPlay(true, at: env.clock.now()) { report(due) }
         if ended || expired || session == nil && item != nil && sessionTask == nil {
             restart(at: ended ? 0 : lastPositionMs)
@@ -678,18 +673,6 @@ public final class PlaybackController: ObservableObject {
         state.subtitleStyle = next
     }
 
-    /// The sleep timer: off, after some minutes, or at the end of this
-    /// episode (or movie), whose Up Next then waits.
-    public func setSleep(_ choice: SleepChoice) {
-        guard !closed, !stopped else { return }
-        sleep.set(choice)
-    }
-
-    /// Keep watching, in the sleep timer's last 30 s: the same time again.
-    public func keepWatching() {
-        sleep.extend()
-    }
-
     /// A subtitle track added on the server for the file playing (Find
     /// Subtitles…): it joins the Subtitles menu and shows, as one picked
     /// there (saved for the movie or show).
@@ -710,11 +693,6 @@ public final class PlaybackController: ObservableObject {
         publishSubtitles()
         selectSubtitle(track.index)
         state.notice = PlayerTexts.subtitleAdded
-    }
-
-    /// Looks at the sleep timer now, as its own clock would (for the tests).
-    func tickSleepTimer() {
-        sleep.tick()
     }
 
     /// The notice was shown: it goes.
@@ -773,7 +751,6 @@ public final class PlaybackController: ObservableObject {
         guard !closed else { return }
         let position = livePosition()
         closed = true
-        sleep.cancel()
         capsWatch = nil
         startTask?.cancel()
         sessionTask?.cancel()
@@ -876,7 +853,6 @@ public final class PlaybackController: ObservableObject {
             state.subtitle = nil
         }
         state.itemId = item.id
-        state.sleepItem = item.kind == .episode ? "episode" : "movie"
         state.canFindSubtitles = true
         state.durationMs = file.durationMs ?? item.durationMs ?? 0
         lastPositionMs = PlaybackPlan.startMs(item, request)
@@ -1281,9 +1257,6 @@ public final class PlaybackController: ObservableObject {
     private func onEnded() {
         guard !ended else { return }
         ended = true
-        // The sleep timer ends with this one: what comes next waits for Play Next.
-        let sleeping = sleep.itemEnded(item.map { AnyHashable($0.id) })
-        if sleeping { stopCountdown() }
         let duration = session.map { $0.info.durationMs > 0 ? $0.info.durationMs : 0 } ?? 0
         let end = duration > 0 ? duration : max(engine?.sample().durationMs ?? 0, lastPositionMs)
         lastPositionMs = end
@@ -1296,7 +1269,7 @@ public final class PlaybackController: ObservableObject {
         guard let item, NextUp.hasNext(item.kind, queue: request.queue), !closed, !stopped else { return }
         lookUpNext { [weak self] found in
             guard let self, let found, self.ended else { return }
-            self.showUpNext(found, countdown: !sleeping && self.countdownLeftMs == nil)
+            self.showUpNext(found, countdown: self.countdownLeftMs == nil)
         }
     }
 
@@ -1424,8 +1397,7 @@ public final class PlaybackController: ObservableObject {
         guard let item, NextUp.hasNext(item.kind, queue: request.queue), state.upNext == nil else { return }
         lookUpNext { [weak self] found in
             guard let self, let found, !self.closed, !self.stopped else { return }
-            // The sleep timer ends with this one: no countdown.
-            self.showUpNext(found, countdown: !self.sleep.endsWith(AnyHashable(item.id)))
+            self.showUpNext(found, countdown: true)
         }
     }
 
@@ -1470,12 +1442,6 @@ public final class PlaybackController: ObservableObject {
     private func hideUpNext() {
         countdownLeftMs = nil
         state.upNext = nil
-    }
-
-    /// The card stays, waiting for Play Next.
-    private func stopCountdown() {
-        countdownLeftMs = nil
-        if state.upNext?.secondsLeft != nil { state.upNext?.secondsLeft = nil }
     }
 
     /// The countdown, counted while it is meant to play (or after the end),
@@ -1997,27 +1963,7 @@ public final class PlaybackController: ObservableObject {
         session?.progress(positionMs: livePosition(), state: state)
     }
 
-    // MARK: Sleep timer and the screen
-
-    private func makeSleepTimer() -> SleepTimer {
-        let timer = SleepTimer(
-            clock: env.clock,
-            // In time watched: at 2×, a minute of the episode is half a minute.
-            itemLeftMs: { [weak self] in
-                guard let self, self.mediaShown, !self.ended, self.state.durationMs > 0 else { return nil }
-                return Int(Double(max(self.state.durationMs - self.livePosition(), 0)) / self.speed)
-            },
-            itemKey: { [weak self] in self?.state.itemId.map(AnyHashable.init) },
-            onFire: { [weak self] in
-                guard let self else { return }
-                self.stopCountdown()
-                self.pause()
-            })
-        timer.onChange = { [weak self] sleep in
-            if self?.state.sleep != sleep { self?.state.sleep = sleep }
-        }
-        return timer
-    }
+    // MARK: The screen
 
     /// What the device plays changed (the Mac's window moved to another
     /// screen): the next sessions ask with it, and an HDR video whose

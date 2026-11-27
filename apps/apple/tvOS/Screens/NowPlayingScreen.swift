@@ -105,7 +105,7 @@ struct NowPlayingScreen: View {
                 ChoiceButton(title: localized("Sleep Timer"), value: page.sleepSummary ?? localized("Off"),
                              symbol: page.sleep == .off ? "moon" : "moon.fill",
                              text: page.sleepSummary ?? localized("Sleep Timer"),
-                             choices: choices.indices.map { Choice(label: choices[$0].label(item: "track"), tag: $0) },
+                             choices: choices.indices.map { Choice(label: choices[$0].label, tag: $0) },
                              selected: choices.firstIndex(of: page.sleep)) { picked in
                     music.setSleep(picked.map { choices[$0] } ?? .off)
                 }

@@ -407,35 +407,6 @@
         }
       }
     },
-    "Keep Watching" : {
-      "comment" : "The sleep timer's last 30 seconds: play on.",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seguir viendo"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continuer à regarder"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "继续观看"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "繼續觀看"
-          }
-        }
-      }
-    },
     "Later" : {
       "comment" : "The subtitle sync: show the subtitles 0.1 s later.",
       "localizations" : {
@@ -693,35 +664,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重設"
-          }
-        }
-      }
-    },
-    "Sleep Timer" : {
-      "comment" : "The player's Sleep Timer menu.",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temporizador de suspensión"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Minuteur de veille"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "睡眠定时"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "睡眠定時"
           }
         }
       }

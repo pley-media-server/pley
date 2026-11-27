@@ -4,7 +4,7 @@ import Foundation
 public enum SleepChoice: Hashable, Sendable, Identifiable {
     case off
     case minutes(Int)
-    /// The end of the track, episode or film playing.
+    /// The end of the track playing.
     case endOfItem
 
     /// The menu's choices, in order.
@@ -19,23 +19,12 @@ public enum SleepChoice: Hashable, Sendable, Identifiable {
         }
     }
 
-    /// The choice of a menu's id (`id`); `nil` for none offered.
-    public init?(id: String) {
-        guard let choice = Self.all.first(where: { $0.id == id }) else { return nil }
-        self = choice
-    }
-
-    /// The menu's words: "Off", "15 minutes", "End of this track" (`item`: "track", "episode", "movie").
-    public func label(item: String) -> String {
+    /// The menu's words: "Off", "15 minutes", "End of this track".
+    public var label: String {
         switch self {
         case .off: localized("Off")
         case .minutes(let n): localized("\(n) minutes")
-        case .endOfItem:
-            switch item {
-            case "track": localized("End of this track")
-            case "episode": localized("End of this episode")
-            default: localized("End of this movie")
-            }
+        case .endOfItem: localized("End of this track")
         }
     }
 }
@@ -62,22 +51,21 @@ public struct SleepState: Equatable, Sendable {
 
     /// What the menu says beside "Sleep Timer": "15 min left", "End of this
     /// track", "Pausing in 12 s"; `nil` when off.
-    public func summary(item: String) -> String? {
+    public var summary: String? {
         if let notice { return notice }
         switch choice {
         case .off: return nil
-        case .endOfItem: return choice.label(item: item)
+        case .endOfItem: return choice.label
         case .minutes: return minutesLeft.map { localized("\($0) min left") }
         }
     }
 }
 
-/// The sleep timer of music or a video, a port of the Android app's
-/// `SleepTimer`: after the minutes chosen, or at the end of what plays, it
-/// pauses (`onFire`). In its last 30 s, `state` counts down once a second
-/// for a notice; `extend` (Keep listening, Keep watching) adds the same
-/// time again. Its time is the player's clock, so tests move it by hand
-/// and call `tick()`.
+/// Music's sleep timer, a port of the Android app's `SleepTimer`: after
+/// the minutes chosen, or at the end of the track playing, it pauses
+/// (`onFire`). In its last 30 s, `state` counts down once a second for a
+/// notice; `extend` (Keep listening) adds the same time again. Its time is
+/// the player's clock, so tests move it by hand and call `tick()`.
 @MainActor
 public final class SleepTimer {
     /// The notice shows this long before the timer pauses.

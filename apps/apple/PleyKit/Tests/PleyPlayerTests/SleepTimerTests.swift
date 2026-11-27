@@ -19,7 +19,7 @@ struct SleepTimerTests {
         let rig = Sleeper()
         rig.timer.set(.minutes(15))
         #expect(rig.timer.state.minutesLeft == 15)
-        #expect(rig.timer.state.summary(item: "track") == "15 min left")
+        #expect(rig.timer.state.summary == "15 min left")
         rig.clock.advance(ms: 60_000 * 14 + 1_000)
         rig.timer.tick()
         #expect(rig.timer.state.minutesLeft == 1)
@@ -52,7 +52,7 @@ struct SleepTimerTests {
         let rig = Sleeper()
         rig.left = 100_000
         rig.timer.set(.endOfItem)
-        #expect(rig.timer.state.summary(item: "track") == "End of this track")
+        #expect(rig.timer.state.summary == "End of this track")
         #expect(rig.timer.endsWith("a"))
         rig.left = 20_000
         rig.timer.tick()
@@ -90,9 +90,9 @@ struct SleepTimerTests {
     }
 
     @Test func theMenuSaysEachChoice() {
-        #expect(SleepChoice.all.map { $0.label(item: "track") } == [
+        #expect(SleepChoice.all.map(\.label) == [
             "Off", "15 minutes", "30 minutes", "45 minutes", "60 minutes", "90 minutes", "End of this track",
         ])
-        #expect(SleepState().summary(item: "track") == nil)
+        #expect(SleepState().summary == nil)
     }
 }

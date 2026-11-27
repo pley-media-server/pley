@@ -62,7 +62,7 @@ public struct NowPlayingModel: Equatable, Sendable {
         shuffle = state.shuffle
         hasNext = state.hasNext
         sleep = state.sleep.choice
-        sleepSummary = state.sleep.summary(item: "track")
+        sleepSummary = state.sleep.summary
         sleepNotice = state.sleep.notice
         upNext = state.upNext.map { position, item in
             let byline = [item.grandparentTitle, item.parentTitle].compactMap { $0 }.filter { !$0.isEmpty }
