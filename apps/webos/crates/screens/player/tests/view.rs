@@ -875,6 +875,30 @@ fn up_next_s_ring_glides_through_each_second_then_rests() {
 }
 
 #[test]
+fn up_next_s_ring_glides_on_while_a_direction_key_is_held() {
+    let ring = |pl: &mut Player| {
+        let f = pl.idle();
+        f.list.cmds.iter().find_map(|c| match c {
+            Cmd::Raw { rect, key, .. } if rect.w == 22.0 => Some(*key),
+            _ => None,
+        })
+    };
+    let mut pl = Player::new(Fake::episode());
+    pl.p.state.up_next = Some(Fake::card(7));
+    pl.run(&[Step::Down(Key::Left), Step::Wait(0.1)]);
+    for _ in 0..3 {
+        pl.run(&[Step::Repeat(Key::Left), Step::Wait(0.1)]);
+    }
+    let early = ring(&mut pl).expect("the ring shows");
+    for _ in 0..3 {
+        pl.run(&[Step::Repeat(Key::Left), Step::Wait(0.1)]);
+    }
+    let later = ring(&mut pl).expect("the ring shows");
+    pl.run(&[Step::Up(Key::Left)]);
+    assert_ne!(early, later, "held, it still moves within the second rather than jumping to its end");
+}
+
+#[test]
 fn reconnecting_shows_under_the_ring_only() {
     let mut pl = Player::new(Fake::movie());
     pl.p.state.reconnecting = true;

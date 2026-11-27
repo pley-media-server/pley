@@ -120,8 +120,9 @@ pub const CARD_W: f32 = 300.0;
 const COUNTDOWN: f32 = 10.0;
 /// Through each second of the countdown the ring glides, evenly, to where it stands at the
 /// second's end (`countdownFill`): it moves without steps and is full as the countdown reaches 0.
-/// It runs on every tier, as on Android.
-const RING_GLIDE: Motion = Motion::new(1.0, Easing::LINEAR);
+/// It runs on every tier, as on Android, and while a direction key is held: the ring follows the
+/// countdown, not the focus.
+const RING_GLIDE: Motion = Motion { held: true, ..Motion::new(1.0, Easing::LINEAR) };
 
 /// The Up Next card (`TvPlayerOverlays.kt`): 300 wide, right edge 912, bottom 489, Surface2 at
 /// 96 % with 8 dp corners; "Up next · S2 · E6", the title, and Play now (with its countdown ring)
@@ -208,7 +209,7 @@ fn play_now(ui: &mut Ui, id: Id, at: Point, left: Option<i64>, reduced: bool, an
 
 /// The countdown ring: a 3 dp stroke, its track at 25 % and the arc from the top, clockwise, as
 /// far as `done`; a picture made at the screen's pixels (the display list has no arcs), one for
-/// each hundredth of the turn, so a glide makes a hundred small ones at most.
+/// each hundredth of the turn, so the whole countdown makes a hundred small ones at most.
 fn countdown(ui: &mut Ui, rect: Rect, done: f32, color: Color) {
     let px = ui.image_px(rect.w);
     let stroke = 3.0 * ui.scale();
