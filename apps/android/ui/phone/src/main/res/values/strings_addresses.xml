@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Me's row: where the server's requests go now (docs/ANDROID.md, "Home and away"). -->
+    <string name="account_addresses">Addresses</string>
+    <string name="account_addresses_home">At home · %1$s</string>
+    <string name="account_addresses_away">Away · %1$s</string>
+
+    <!-- Addresses: the server's addresses, at home and away. -->
+    <string name="addresses_hint">Pley picks the best one by itself.</string>
+    <string name="addresses_too_old">Update Pley on your server to use more than one address.</string>
+    <string name="addresses_group_home">At home</string>
+    <string name="addresses_group_away">Away</string>
+    <string name="addresses_in_use">In use</string>
+    <string name="addresses_ready">Ready</string>
+    <string name="addresses_other_device">Another device answers</string>
+    <string name="addresses_needs_wifi">Needs Wi-Fi</string>
+    <string name="addresses_one">Add another to play at home and away.</string>
+    <string name="addresses_add">Add an address</string>
+    <string name="addresses_add_confirm">Add</string>
+    <string name="addresses_remove">Remove</string>
+    <string name="addresses_remove_title">Remove %1$s?</string>
+    <string name="addresses_problem_internet">Internet addresses are added on the server.</string>
+    <string name="addresses_problem_known">Already in the list.</string>
+</resources>

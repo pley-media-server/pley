@@ -1,10 +1,11 @@
 //! Settings → Network (src/network.rs): where pley listens, which an
-//! administrator changes and pley saves in its config file. Listening anew
-//! while pley runs is in lifecycle.rs.
+//! administrator changes and pley saves in its config file, and the
+//! addresses apps reach it at (src/addresses.rs). Listening anew while pley
+//! runs is in lifecycle.rs.
 
 mod common;
 
-use axum::http::StatusCode;
+use axum::http::{Method, StatusCode, header};
 use serde_json::{Value, json};
 
 use common::TestApp;
@@ -152,6 +153,58 @@ async fn bonjour_is_announced_from_the_adapters_chosen() {
     let spaced = json!({"web": ["0.0.0.0:7539"], "jellyfin": [], "discovery": true, "bonjour_host_name": "my media"});
     let reply = app.put("/api/network", &admin, spaced).await;
     assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{:?}", reply.body);
+}
+
+#[tokio::test]
+async fn anyone_signed_in_reads_the_addresses_apps_switch_between() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let listed = json!({"addresses": ["https://Pley.Example.com/", "http://192.168.1.20:7539"]});
+    let saved = app.put("/api/settings", &admin, listed).await;
+    assert_eq!(saved.status, StatusCode::OK, "{:?}", saved.body);
+    assert_eq!(saved.body["addresses"], json!(["https://pley.example.com", "http://192.168.1.20:7539"]));
+
+    // The administrator's, in their order; then those found at home, none
+    // here: this app listens nowhere.
+    let id = app.call(Method::GET, "/api/server", None, None, &[]).await.body["id"].clone();
+    let expected = json!({
+        "id": id,
+        "addresses": [
+            {"url": "https://pley.example.com", "source": "set"},
+            {"url": "http://192.168.1.20:7539", "source": "set"},
+        ],
+    });
+    let (viewer, _) = app.user(&admin, "viewer", json!({})).await;
+    let (library_app, _) = app.app_token(1, "library").await;
+    for token in [&admin, &viewer, &library_app] {
+        let reply = app.get("/api/server/addresses", token).await;
+        assert_eq!((reply.status, &reply.body), (StatusCode::OK, &expected));
+    }
+    // Nobody else, and the public answer never pairs them.
+    let anyone = app.call(Method::GET, "/api/server/addresses", None, None, &[]).await;
+    assert_eq!(anyone.status, StatusCode::UNAUTHORIZED);
+    let public = app.call(Method::GET, "/api/server", None, None, &[]).await;
+    assert!(!public.mentions("pley.example.com") && !public.mentions("192.168.1.20"), "{}", public.text());
+
+    // Asked again with its tag while nothing changed: 304.
+    let first = app.get("/api/server/addresses", &viewer).await;
+    let etag = first.headers[header::ETAG].to_str().unwrap().to_owned();
+    assert_eq!(first.headers[header::CACHE_CONTROL], "private, no-cache", "kept, and asked about again");
+    let asked = |tag: String| {
+        let (app, viewer) = (&app, &viewer);
+        async move { app.call(Method::GET, "/api/server/addresses", Some(viewer), None, &[("if-none-match", &tag)]).await }
+    };
+    let same = asked(etag.clone()).await;
+    assert_eq!(same.status, StatusCode::NOT_MODIFIED);
+    assert!(same.bytes.is_empty());
+    assert_eq!(same.headers[header::ETAG], etag.as_str());
+    assert_eq!(asked(format!("\"other\", {}", etag.trim_start_matches("W/"))).await.status, StatusCode::NOT_MODIFIED);
+    // Another list, another tag.
+    app.put("/api/settings", &admin, json!({"addresses": ["https://pley.example.com"]})).await;
+    let changed = asked(etag.clone()).await;
+    assert_eq!(changed.status, StatusCode::OK);
+    assert_ne!(changed.headers[header::ETAG], etag.as_str());
+    assert_eq!(changed.body["addresses"], json!([{"url": "https://pley.example.com", "source": "set"}]));
 }
 
 #[tokio::test]

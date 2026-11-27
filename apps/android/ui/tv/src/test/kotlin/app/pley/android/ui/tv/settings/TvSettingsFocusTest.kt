@@ -53,7 +53,8 @@ import org.robolectric.annotation.Config
  * first category and the rows follow it; a held Down stops on the last
  * category; Right goes into the rows; a choice opens a side panel on the
  * current value and gives focus back to its row; switches toggle on
- * Select; Sign out asks first, with focus on Cancel.
+ * Select; Addresses says the address in use and opens its page; Sign out
+ * asks first, with focus on Cancel.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi", application = TvAccountTestApplication::class)
@@ -197,6 +198,20 @@ class TvSettingsFocusTest {
         compose.press(Key.DirectionCenter)
         compose.onNodeWithTag(TV_WEB_DIALOG).assertExists()
         compose.onNodeWithText("192.168.1.20:7539/account").assertExists()
+    }
+
+    @Test
+    fun addressesSaysTheAddressInUseAndOpensItsPage() {
+        show()
+        compose.press(Key.DirectionDown, times = 4)
+        category(Category.Server).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionDown)
+        // The sign-in address alone: where it is, without At home or Away.
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("192.168.1.20").fetchSemanticsNodes().isNotEmpty() }
+        compose.focused().assert(hasText("Addresses")).assert(hasText("192.168.1.20"))
+        compose.press(Key.DirectionCenter)
+        assertEquals(PleyKey.Addresses, stack.last())
     }
 
     @Test

@@ -260,6 +260,11 @@ another port (`https://media.example.com:9999`), add the address in
 **Settings → Network → Reached through a reverse proxy**, and Pley puts the
 port back.
 
+Add the public address in **Settings → Network → Addresses** too (open
+Pley there and click **Add the address you're using**): Pley for Android,
+signed in at home, then switches to it when it leaves, and back, without
+signing in again. Pley adds its home addresses there by itself.
+
 Pley's own apps can always sign in. Apps by other publishers are off until an
 administrator turns them on in **Settings → Server → Apps**.
 

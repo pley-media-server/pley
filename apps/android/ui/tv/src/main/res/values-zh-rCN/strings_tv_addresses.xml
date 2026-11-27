@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings → Server: where the server's requests go now (docs/ANDROID.md, "Home and away"). -->
+    <string name="tv_settings_addresses">地址</string>
+    <string name="tv_settings_addresses_home">在家 · %1$s</string>
+    <string name="tv_settings_addresses_away">在外 · %1$s</string>
+
+    <!-- Addresses: the server's addresses, at home and away. -->
+    <string name="tv_addresses_hint">Pley 会自动选择最佳地址。</string>
+    <string name="tv_addresses_too_old">请在服务器上更新 Pley，才能使用多个地址。</string>
+    <string name="tv_addresses_group_home">在家</string>
+    <string name="tv_addresses_group_away">在外</string>
+    <string name="tv_addresses_in_use">使用中</string>
+    <string name="tv_addresses_ready">可用</string>
+    <string name="tv_addresses_other_device">其他设备在响应</string>
+    <!-- A home address while the TV is on neither Wi-Fi nor Ethernet. -->
+    <string name="tv_addresses_needs_network">需要 Wi-Fi 或以太网</string>
+    <string name="tv_addresses_one">再添加一个，在家在外都能播放。</string>
+    <string name="tv_addresses_add">添加地址</string>
+    <string name="tv_addresses_add_confirm">添加</string>
+    <string name="tv_addresses_remove">移除</string>
+    <string name="tv_addresses_remove_title">移除 %1$s？</string>
+    <string name="tv_addresses_problem_internet">互联网地址需在服务器上添加。</string>
+    <string name="tv_addresses_problem_known">已在列表中。</string>
+</resources>

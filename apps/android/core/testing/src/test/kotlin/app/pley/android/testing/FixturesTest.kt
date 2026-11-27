@@ -19,6 +19,7 @@ import app.pley.android.model.RequestStage
 import app.pley.android.model.RequestStatus
 import app.pley.android.model.RequestSummary
 import app.pley.android.model.SeasonState
+import app.pley.android.model.ServerAddressList
 import app.pley.android.model.TitleKind
 import app.pley.android.model.TitleStatus
 import app.pley.android.model.CollectionDetail
@@ -100,6 +101,7 @@ class FixturesTest {
     private val table: Map<String, DeserializationStrategy<*>> = mapOf(
         "server/info.json" to ServerInfo.serializer(),
         "server/health.json" to Health.serializer(),
+        "server/addresses.json" to ServerAddressList.serializer(),
         "errors/not_found.json" to ApiErrorBody.serializer(),
         "errors/insufficient_scope.json" to ApiErrorBody.serializer(),
         "me/app_token.json" to Me.serializer(),

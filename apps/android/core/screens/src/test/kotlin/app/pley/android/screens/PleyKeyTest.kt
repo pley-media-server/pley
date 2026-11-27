@@ -42,6 +42,7 @@ class PleyKeyTest {
         PleyKey.Downloads,
         PleyKey.Settings,
         PleyKey.Diagnostics,
+        PleyKey.Addresses,
         PleyKey.ManageServer,
         PleyKey.Manage(AdminSection.Dashboard),
         PleyKey.Manage(AdminSection.Users, "7"),

@@ -47,6 +47,7 @@ import app.pley.android.model.SubtitleMode
 import app.pley.android.model.format.formatBytes
 import app.pley.android.screens.PleyKey
 import app.pley.android.data.AdminAccess
+import app.pley.android.screens.account.AddressesViewModel
 import app.pley.android.screens.account.MeEvent
 import app.pley.android.screens.admin.ManageServerViewModel
 import app.pley.android.screens.account.MeProfile
@@ -88,6 +89,8 @@ internal fun MeScreen() {
     val requests by entry.entry.collectAsStateWithLifecycle()
     val manage: ManageServerViewModel = viewModel(factory = ManageServerViewModel.factory)
     val adminAccess by manage.access.collectAsStateWithLifecycle()
+    val addresses: AddressesViewModel = viewModel(factory = AddressesViewModel.factory)
+    val where by addresses.state.collectAsStateWithLifecycle()
     val navigator = LocalPhoneNavigator.current
     val shell = LocalPhoneShell.current
     val context = LocalContext.current
@@ -107,7 +110,8 @@ internal fun MeScreen() {
     }
 
     val openWeb: (String) -> Unit = { path ->
-        val server = state.profile?.server ?: shell.server
+        // The address in use: away from home, the browser can't reach a home address signed in at.
+        val server = where.inUseUrl ?: state.profile?.server ?: shell.server
         if (server != null) {
             try {
                 SignIn.open(context, server.trimEnd('/') + path, state.privateTab)
@@ -210,6 +214,20 @@ internal fun MeScreen() {
                         value = stringResource(R.string.account_link_tv_value),
                         icon = PleyIcons.Tv,
                         onClick = { openWeb("/link") },
+                    )
+                    RowDivider()
+                    SettingsRow(
+                        stringResource(R.string.account_addresses),
+                        value = where.inUse?.let { inUse ->
+                            when {
+                                !where.several -> inUse
+                                where.atHome -> stringResource(R.string.account_addresses_home, inUse)
+                                else -> stringResource(R.string.account_addresses_away, inUse)
+                            }
+                        },
+                        icon = if (where.atHome) PleyIcons.House else PleyIcons.Globe,
+                        onClick = { navigator.open(PleyKey.Addresses) },
+                        modifier = Modifier.testTag(ME_ADDRESSES),
                     )
                     RowDivider()
                     SettingsRow(
@@ -407,3 +425,4 @@ private val MAX_WIDTH = 640.dp
 
 internal const val ME_PAGE = "pley.me.page"
 internal const val ME_MANAGE_SERVER = "pley.me.manage-server"
+internal const val ME_ADDRESSES = "pley.me.addresses"

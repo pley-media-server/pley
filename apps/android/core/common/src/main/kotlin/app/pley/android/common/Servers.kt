@@ -9,6 +9,12 @@ const val DEFAULT_PORT = 7539
 /** A server opened before. */
 data class SavedServer(val url: String, val name: String, val id: String?, val lastUsed: Long)
 
+/**
+ * Where an address leads, which orders a server's addresses: a home
+ * network's first, then a VPN's (Tailscale), then the internet's.
+ */
+enum class AddressKind { HOME, VPN, INTERNET }
+
 /** A server that answered on the local network. */
 data class FoundServer(val url: String, val name: String, val id: String?, val version: String)
 
@@ -49,6 +55,8 @@ object Servers {
             !hasScheme -> DEFAULT_PORT
             else -> -1
         }
+        // A port nothing listens on (0, or past 65535): a typo.
+        if (port != -1 && port !in 1..65535) return null
         val defaultPort = (scheme == "http" && port == 80) || (scheme == "https" && port == 443)
         return if (port == -1 || defaultPort) "$scheme://$host" else "$scheme://$host:$port"
     }
@@ -70,6 +78,21 @@ object Servers {
                 (a == 169 && b == 254) || (a == 100 && b in 64..127)
         }
         return h == "::1" || Regex("^f[cd][0-9a-f]{0,2}:").containsMatchIn(h) || Regex("^fe[89ab][0-9a-f]?:").containsMatchIn(h)
+    }
+
+    /**
+     * Where [url] leads: Tailscale's addresses and names are a VPN's, the
+     * rest of [isLocalHost] a home network's, anything else the internet's.
+     */
+    fun kindOf(url: String): AddressKind {
+        val host = try {
+            URI(url).host
+        } catch (_: URISyntaxException) {
+            null
+        }?.lowercase()?.removePrefix("[")?.removeSuffix("]") ?: return AddressKind.INTERNET
+        val v4 = Regex("""^100\.(\d+)\.\d+\.\d+$""").find(host)
+        if (host.endsWith(".ts.net") || (v4 != null && v4.groupValues[1].toInt() in 64..127)) return AddressKind.VPN
+        return if (isLocalHost(host)) AddressKind.HOME else AddressKind.INTERNET
     }
 
     /** Whether a connection to [url] travels unencrypted beyond the local network: passwords and all. */

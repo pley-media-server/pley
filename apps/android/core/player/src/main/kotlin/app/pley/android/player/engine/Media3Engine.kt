@@ -74,6 +74,8 @@ class Media3EngineFactory(
     private val capabilities: DeviceCapabilities,
     private val mediaClient: (origin: String) -> OkHttpClient,
     private val settings: () -> EngineSettings = { EngineSettings() },
+    /** Whether a stream's server is on the home network, by the address its requests go to. */
+    private val isHome: (url: String) -> Boolean = BufferPlan::isHome,
 ) : PlayerEngine.Factory {
     override fun create(context: Context, profile: DeviceProfile, music: Boolean): PlayerEngine = Media3Engine(
         context = context,
@@ -84,11 +86,12 @@ class Media3EngineFactory(
         settings = settings,
         frameRateMemory = PreferencesFrameRateMemory(context),
         focusPort = if (music) null else AndroidFocusPort(context),
+        isHome = isHome,
     )
 
     companion object {
         fun of(caps: CapsGraph, network: NetworkGraph, settings: () -> EngineSettings = { EngineSettings() }): Media3EngineFactory =
-            Media3EngineFactory(caps.capabilities, network::media, settings)
+            Media3EngineFactory(caps.capabilities, network::media, settings) { url -> BufferPlan.isHome(network.addressInUse(url)) }
     }
 }
 
@@ -127,6 +130,8 @@ class Media3Engine(
     private val sdk: Int = Build.VERSION.SDK_INT,
     private val now: () -> Long = SystemClock::elapsedRealtime,
     private val hostFor: (Window) -> DisplayModeHost = ::WindowModeHost,
+    /** Whether a stream's server is on the home network ([BufferPlan.isHome] of the address in use). */
+    private val isHome: (url: String) -> Boolean = BufferPlan::isHome,
     /** Media3's clock; tests pass one that moves on its own. */
     playerClock: Clock = Clock.DEFAULT,
 ) : PlayerEngine {
@@ -294,7 +299,7 @@ class Media3Engine(
         check(!released) { "The engine was released" }
         matchJob?.cancel()
         wantPlay = playWhenReady
-        loadControl.home = BufferPlan.isHome(source.url)
+        loadControl.home = isHome(source.url)
         loadControl.live = source.live
         applyTrackParameters()
         player.setVideoChangeFrameRateStrategy(frameRateStrategy())

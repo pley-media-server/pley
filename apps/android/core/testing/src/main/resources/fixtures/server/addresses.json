@@ -1,0 +1,7 @@
+{
+  "id": "0123456789abcdef0123456789abcdef01234567",
+  "addresses": [
+    { "url": "https://pley.example.com", "source": "set" },
+    { "url": "http://192.168.1.20:7539", "source": "found" }
+  ]
+}

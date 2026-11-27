@@ -1,8 +1,12 @@
 package app.pley.android.auth
 
+import app.pley.android.common.Addresses
 import app.pley.android.common.UiText
 import java.io.IOException
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,6 +14,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONException
@@ -140,15 +146,31 @@ class Tokens(
 ) {
     private val mutex = Mutex()
 
-    /** One proof at a time; when the server last proved it is the one signed in to. */
-    private val proofMutex = Mutex()
-
-    /** When, and on which network ([ServerProofs.network]), the server last proved itself. */
-    @Volatile
-    private var provedAt: Pair<Long, Int>? = null
-
     /** The access token the last refresh or profile switch gave, and when (guarded by [mutex]). */
     private var lastIssued: Pair<String, Long>? = null
+
+    /**
+     * Where proofs that outlive the request that started them run. Their
+     * failures are the addresses' (ServerAddresses), never the app's.
+     */
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, _ -> })
+
+    /**
+     * The server's addresses, and the one its requests go to (docs/ANDROID.md,
+     * "Home and away"): each proves itself with this sign-in's key.
+     */
+    private val book: ServerAddresses by lazy {
+        ServerAddresses(
+            issuer,
+            prove = { address, timeoutMs ->
+                val proof = load()?.proof ?: throw SignedOutException()
+                ServerProofs.prove(http, address, proof, random, timeoutMs)
+            },
+            keep = { store.saveAddresses(issuer, it) },
+            scope = background,
+            clock = clock,
+        ).also { it.restore(store.addresses(issuer)) }
+    }
 
     // Without the Keystore, so the tokens can be made on any thread: the
     // first request opens them.
@@ -160,13 +182,71 @@ class Tokens(
     /** What the server allowed, or nothing when signed out. */
     fun scopes(): Set<String> = load()?.scopes().orEmpty()
 
-    /** The access token to send, refreshed when it ends within a minute; `null` when signed out. */
-    suspend fun accessToken(): String? {
+    /** The server's addresses and what the app knows of each, for the screens. */
+    val addresses: StateFlow<AddressesState> get() = book.state
+
+    /**
+     * Where the server's requests go now: an address that proved itself on
+     * these networks, chosen among the server's when the one in use hasn't
+     * (docs/ANDROID.md, "Home and away"). The sign-in address while signed
+     * out, or signed in to a server without proofs: nothing could tell its
+     * other addresses from another device's.
+     */
+    suspend fun route(): String {
+        val tokens = load() ?: return issuer
+        if (tokens.proof == null) return issuer
+        return book.proved()
+    }
+
+    /** The address of this server that [url] is on; `null` when it is on none. */
+    fun addressOf(url: HttpUrl): String? = book.addressOf(url)
+
+    /**
+     * The address in use, proved or not: where a read goes when no address
+     * proves itself, for what the HTTP cache keeps (a car's covers). No
+     * token goes there before it proves itself.
+     */
+    val addressInUse: String get() = book.inUse
+
+    /**
+     * A request to [address] got no answer: it proves itself again before
+     * its next token. Unreached ([sent] false): it waits before it is tried
+     * again, and the next requests may go elsewhere.
+     */
+    fun unanswered(address: String, sent: Boolean = false) = if (sent) book.doubt(address) else book.unanswered(address)
+
+    /** Keeps the server's own list of its addresses (GET /api/server/addresses). */
+    suspend fun serverAddresses(urls: List<String>) = withContext(Dispatchers.IO) { book.fromServer(urls) }
+
+    /** Adds [url], typed on this device: `false` when it isn't an address, or is the server's already. */
+    suspend fun addAddress(url: String): Boolean = withContext(Dispatchers.IO) { book.add(url) }
+
+    /** Removes [url], when it was added on this device. */
+    suspend fun removeAddress(url: String): Boolean = withContext(Dispatchers.IO) { book.remove(url) }
+
+    /** Every address proves itself again, now, and the best that does is used. */
+    suspend fun checkAddresses() {
+        if (movesBetweenAddresses()) book.checkAgain()
+    }
+
+    /**
+     * Whether the server's other addresses are used: a sign-in with a proof
+     * key, which tells them from another device's. A Pley from before
+     * proofs keeps to the sign-in address.
+     */
+    suspend fun movesBetweenAddresses(): Boolean = withContext(Dispatchers.IO) { load()?.proof != null }
+
+    /**
+     * The access token to send to [address] (one of the server's),
+     * refreshed when it ends within a minute; `null` when signed out. The
+     * server at [address] has proved itself when it returns.
+     */
+    suspend fun accessToken(address: String = issuer): String? {
         val tokens = load() ?: return null
         // A refresh waits for a proof of its own: one before it would be wasted.
-        if (!tokens.accessUsable(clock())) return refresh(tokens.accessToken)
-        proved(tokens)
-        return tokens.accessToken
+        val token = if (tokens.accessUsable(clock())) tokens.accessToken else refresh(tokens.accessToken)
+        proved(tokens, address)
+        return token
     }
 
     /**
@@ -183,11 +263,11 @@ class Tokens(
         }
         val refresh = tokens.refreshToken ?: run { signedOut() }
         // The refresh token goes only to a server that proves itself now.
-        proved(tokens, now = true)
+        val address = proved(tokens, fresh = true)
         val answer = try {
             TokenEndpoint.post(
                 http,
-                tokens.tokenEndpoint,
+                at(tokens.tokenEndpoint, address),
                 listOf("grant_type" to "refresh_token", "refresh_token" to refresh, "client_id" to CLIENT_ID),
             )
         } catch (e: TokenException) {
@@ -196,7 +276,7 @@ class Tokens(
         }
         val parsed = TokenResponse.parse(answer, tokens.scope)
         val fresh = parsed.stored(issuer, tokens.tokenEndpoint, tokens.revocationEndpoint, clock(), tokens)
-        if (ScopeGuard.extra(parsed, tokens.scope).isNotEmpty()) widened(fresh)
+        if (ScopeGuard.extra(parsed, tokens.scope).isNotEmpty()) widened(fresh, address)
         // A refresh token is good once: the new one is kept before anything else.
         store.save(fresh)
         lastIssued = fresh.accessToken to clock()
@@ -237,9 +317,9 @@ class Tokens(
         )
         if (pin != null) form += "pin" to pin
         if (ticket != null) form += "ticket" to ticket
-        proved(tokens, now = true)
+        val address = proved(tokens, fresh = true)
         val answer = try {
-            TokenEndpoint.post(http, tokens.tokenEndpoint, form)
+            TokenEndpoint.post(http, at(tokens.tokenEndpoint, address), form)
         } catch (e: TokenException) {
             // Without a reason the refresh token itself is spent or unknown.
             if (e.oauth?.error == "invalid_grant" && e.oauth.reason == null) signedOut()
@@ -247,7 +327,7 @@ class Tokens(
         }
         val parsed = TokenResponse.parse(answer, tokens.scope)
         val fresh = parsed.stored(issuer, tokens.tokenEndpoint, tokens.revocationEndpoint, clock(), tokens)
-        if (ScopeGuard.extra(parsed, tokens.scope).isNotEmpty()) widened(fresh)
+        if (ScopeGuard.extra(parsed, tokens.scope).isNotEmpty()) widened(fresh, address)
         store.save(fresh)
         lastIssued = fresh.accessToken to clock()
     }
@@ -261,43 +341,49 @@ class Tokens(
         mutex.withLock {
             val tokens = store.load(issuer)
             try {
-                if (tokens != null && proves(tokens)) revoke(http, tokens)
+                val address = tokens?.let { provedNow(it) }
+                if (tokens != null && address != null) revoke(http, tokens, at(tokens.revocationEndpoint, address))
             } finally {
                 store.wipe(issuer)
-                provedAt = null
+                book.forget()
                 _signedIn.value = false
             }
         }
     }
 
     /** A request to the server got no answer: the next token waits for a new proof (the device may be on another network). */
-    fun doubtServer() {
-        provedAt = null
-    }
+    fun doubtServer() = book.doubt(book.inUse)
 
     /**
-     * Returns once the server at this address has proved it is the one
-     * signed in to, within the last half hour and on this network: no
-     * token leaves before. A
-     * sign-in from a server without proofs has nothing to check.
+     * The address, one of the server's, that proved within the last half
+     * hour and on these networks that it is the server signed in to:
+     * [address] when given, else the one in use or another chosen now.
+     * [fresh]: one that proves itself now, as a refresh token or a PIN
+     * needs. No token leaves before. A sign-in from a server without proofs
+     * has nothing to check: its address is the sign-in's.
      */
-    private suspend fun proved(tokens: StoredTokens, now: Boolean = false) {
-        val proof = tokens.proof ?: return
-        // A refresh token or a PIN waits for a proof of its own.
-        if (now) provedAt = null
-        if (recentlyProved()) return
-        proofMutex.withLock {
-            // Proved by another caller meanwhile.
-            if (recentlyProved()) return
-            val network = ServerProofs.network
-            ServerProofs.prove(http, issuer, proof, random)
-            provedAt = clock() to network
+    private suspend fun proved(tokens: StoredTokens, address: String? = null, fresh: Boolean = false): String {
+        if (tokens.proof == null) return issuer
+        if (address != null && !fresh) {
+            book.ensureProved(address)
+            return address
         }
+        return book.proved(fresh)
     }
 
-    // A clock set back makes an age below zero: proved again.
-    private fun recentlyProved(): Boolean =
-        provedAt?.let { (at, network) -> network == ServerProofs.network && clock() - at in 0 until ServerProofs.TTL_MS } == true
+    /** [proved] now, or `null` when no address of the server proves itself. */
+    private suspend fun provedNow(tokens: StoredTokens): String? = try {
+        proved(tokens, fresh = true)
+    } catch (_: IOException) {
+        null
+    }
+
+    /** [endpoint], on the sign-in address, at [address], another of the server's. */
+    private fun at(endpoint: String, address: String): String {
+        if (address == issuer || Addresses.origin(endpoint) != issuer) return endpoint
+        val to = address.toHttpUrlOrNull() ?: return endpoint
+        return endpoint.toHttpUrlOrNull()?.newBuilder()?.scheme(to.scheme)?.host(to.host)?.port(to.port)?.build()?.toString() ?: endpoint
+    }
 
     /** Whether the server proves it holds [tokens]' key (none: nothing to check). */
     internal suspend fun proves(tokens: StoredTokens): Boolean {
@@ -320,7 +406,7 @@ class Tokens(
         val previous = store.load(issuer)
         store.save(fresh)
         // A new sign-in, a new key: the next token waits for its proof.
-        provedAt = null
+        book.forgetProofs()
         _signedIn.value = true
         previous
     }
@@ -341,19 +427,21 @@ class Tokens(
     private fun end(reason: SignOutReason) {
         store.wipe(issuer)
         lastIssued = null
-        provedAt = null
+        book.forget()
         _signedIn.value = false
         events?.signedOut(issuer, reason)
     }
 
     /**
      * A refresh or switch gave more than this sign-in holds: the grant is
-     * ended with the new refresh token (the old one is spent), and the app
-     * is signed out.
+     * ended with the new refresh token (the old one is spent), at
+     * [address], where the exchange just proved the server, and the app is
+     * signed out.
      */
-    private suspend fun widened(fresh: StoredTokens): Nothing {
-        revoke(http, fresh)
+    private suspend fun widened(fresh: StoredTokens, address: String): Nothing {
+        revoke(http, fresh, at(fresh.revocationEndpoint, address))
         store.wipe(issuer)
+        book.forget()
         _signedIn.value = false
         events?.signedOut(issuer, SignOutReason.WIDER_SCOPE)
         throw WiderScopeException()
@@ -363,12 +451,12 @@ class Tokens(
         /** How long a refreshed token counts as just issued: refused within this, the sign-in is over. */
         const val JUST_ISSUED_MS = 60_000L
 
-        /** Ends the grant of [tokens] on its server; errors are left to the caller. */
-        internal suspend fun revoke(http: OkHttpClient, tokens: StoredTokens) {
+        /** Ends the grant of [tokens] on its server, at [endpoint]; errors are left to the caller. */
+        internal suspend fun revoke(http: OkHttpClient, tokens: StoredTokens, endpoint: String = tokens.revocationEndpoint) {
             // The refresh token ends the whole grant; the access token too, when there is no other.
             val token = tokens.refreshToken ?: tokens.accessToken
             try {
-                TokenEndpoint.post(http, tokens.revocationEndpoint, listOf("token" to token, "client_id" to CLIENT_ID))
+                TokenEndpoint.post(http, endpoint, listOf("token" to token, "client_id" to CLIENT_ID))
             } catch (_: IOException) {
                 // Offline or refused: the person can still sign the app out in Account → Apps.
             }

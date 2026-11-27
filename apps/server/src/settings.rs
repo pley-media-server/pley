@@ -142,6 +142,10 @@ pub struct Settings {
     /// whose `Host` has no port gets the port of the one with its scheme
     /// and host name back, so pley names itself as apps reached it.
     pub proxy_addresses: Vec<String>,
+    /// Addresses apps reach Pley at, in the order an administrator lists
+    /// them (`https://pley.example.com`), before those Pley finds at home:
+    /// apps switch between them as they move (see [`crate::addresses`]).
+    pub addresses: Vec<String>,
     /// OpenSubtitles.com's API key, which each server's administrator gets
     /// from opensubtitles.com (pley can't ship one): subtitle search is off
     /// without it.
@@ -265,6 +269,7 @@ impl Default for Settings {
             require_two_step: false,
             cast_devices: false,
             proxy_addresses: Vec::new(),
+            addresses: Vec::new(),
             opensubtitles_api_key: String::new(),
             opensubtitles_username: String::new(),
             opensubtitles_password: String::new(),
@@ -294,28 +299,47 @@ impl Default for Settings {
 
 /// Proxy addresses kept at most.
 const MAX_PROXY_ADDRESSES: usize = 16;
+/// Addresses an administrator lists at most.
+const MAX_ADDRESSES: usize = 16;
+
+/// `value` as an address of http or https, a host and an optional port
+/// (not 0: nothing listens there), with nothing else (no user, path, query
+/// or fragment); `None` otherwise.
+fn plain_address(value: &str) -> Option<url::Url> {
+    let url = url::Url::parse(value.trim()).ok()?;
+    let plain = matches!(url.scheme(), "http" | "https")
+        && url.host().is_some()
+        && url.port() != Some(0)
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.path() == "/"
+        && url.query().is_none()
+        && url.fragment().is_none();
+    plain.then_some(url)
+}
 
 /// A proxy address as kept (`https://media.example.com:9999`): http or
 /// https, a host and a port that isn't the scheme's own (without one,
 /// `Host` names it right already), nothing else.
 fn proxy_address(value: &str) -> Result<String, AppError> {
     let wrong = || AppError::bad_request(format!("{value} isn't an address like https://media.example.com:9999"));
-    let url = url::Url::parse(value.trim()).map_err(|_| wrong())?;
-    let plain = matches!(url.scheme(), "http" | "https")
-        && url.host().is_some()
-        && url.username().is_empty()
-        && url.password().is_none()
-        && url.path() == "/"
-        && url.query().is_none()
-        && url.fragment().is_none();
-    if !plain {
-        return Err(wrong());
-    }
+    let url = plain_address(value).ok_or_else(wrong)?;
     if url.port().is_none() {
         return Err(AppError::bad_request(format!(
             "{value} has no port of its own: Pley needs nothing to be reached there"
         )));
     }
+    Ok(url.origin().ascii_serialization())
+}
+
+/// An address apps reach Pley at, as kept (`https://pley.example.com`):
+/// http or https, a host and an optional port, nothing else, written as
+/// Pley names itself there (its issuer), so the same address is written
+/// one way: in lower case, without its scheme's own port or a `/` at its
+/// end.
+fn server_address(value: &str) -> Result<String, AppError> {
+    let url = plain_address(value)
+        .ok_or_else(|| AppError::bad_request(format!("{value} isn't an address like https://pley.example.com")))?;
     Ok(url.origin().ascii_serialization())
 }
 
@@ -651,6 +675,7 @@ pub struct SettingsPatch {
     pub require_two_step: Option<bool>,
     pub cast_devices: Option<bool>,
     pub proxy_addresses: Option<Vec<String>>,
+    pub addresses: Option<Vec<String>>,
     pub opensubtitles_api_key: Option<String>,
     pub opensubtitles_username: Option<String>,
     /// Left out: the saved one stays; empty: none.
@@ -874,6 +899,21 @@ impl SettingsStore {
                 return Err(AppError::bad_request(format!("at most {MAX_PROXY_ADDRESSES} proxy addresses")));
             }
             next.proxy_addresses = addresses;
+        }
+        if let Some(v) = patch.addresses {
+            let mut addresses: Vec<String> = Vec::new();
+            for value in v.iter().filter(|value| !value.trim().is_empty()) {
+                let address = server_address(value)?;
+                // The same address written two ways is listed once, where
+                // it came first.
+                if !addresses.contains(&address) {
+                    addresses.push(address);
+                }
+            }
+            if addresses.len() > MAX_ADDRESSES {
+                return Err(AppError::bad_request(format!("at most {MAX_ADDRESSES} addresses")));
+            }
+            next.addresses = addresses;
         }
         if let Some(v) = patch.opensubtitles_api_key {
             next.opensubtitles_api_key = v.trim().to_owned();
@@ -1210,6 +1250,48 @@ mod tests {
         assert!(SettingsStore::load(&db).await.unwrap().get().require_two_step, "kept");
         let s = store.update(&db, patch(serde_json::json!({"server_name": "Den"}))).await.unwrap();
         assert!(s.require_two_step, "other changes leave it alone");
+    }
+
+    #[tokio::test]
+    async fn addresses_are_kept_in_order_each_written_one_way() {
+        let (_dir, db, store) = store().await;
+        assert!(store.get().addresses.is_empty(), "none on a new server");
+        let set = |json: serde_json::Value| store.update(&db, patch(json));
+        let listed = serde_json::json!({"addresses": [
+            " HTTPS://Pley.Example.com:443/ ",
+            "http://192.168.1.20:7539",
+            "",
+            "https://pley.example.com",
+            "http://192.168.1.20:80/",
+            "http://[FD00::5]:7539",
+        ]});
+        let s = set(listed).await.unwrap();
+        let kept =
+            ["https://pley.example.com", "http://192.168.1.20:7539", "http://192.168.1.20", "http://[fd00::5]:7539"];
+        assert_eq!(s.addresses, kept, "the same address written two ways is listed once, where it came first");
+        assert_eq!(SettingsStore::load(&db).await.unwrap().get().addresses, kept, "saved");
+        assert_eq!(set(serde_json::json!({"server_name": "Den"})).await.unwrap().addresses, kept, "left alone");
+
+        for bad in [
+            "pley.example.com",
+            "ftp://pley.example.com",
+            "https://pley.example.com/pley",
+            "https://pley.example.com/?from=home",
+            "https://pley.example.com/#top",
+            "https://user:pw@pley.example.com",
+            "https://",
+            // Ports nothing listens on: typos.
+            "http://192.168.1.20:0",
+            "http://192.168.1.20:75390",
+        ] {
+            assert!(set(serde_json::json!({"addresses": [bad]})).await.is_err(), "{bad}");
+        }
+        let many: Vec<String> = (1..=17).map(|n| format!("http://192.168.1.{n}:7539")).collect();
+        assert!(set(serde_json::json!({"addresses": many})).await.is_err(), "17 addresses");
+        assert_eq!(store.get().addresses, kept, "a refused list changes nothing");
+        let sixteen = set(serde_json::json!({"addresses": &many[..16]})).await.unwrap();
+        assert_eq!(sixteen.addresses, many[..16]);
+        assert!(set(serde_json::json!({"addresses": []})).await.unwrap().addresses.is_empty());
     }
 
     fn encoder(name: &str, accel: HwAccel) -> pley_transcoder_api::EncoderInfo {

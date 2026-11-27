@@ -357,6 +357,14 @@
     "wouldStop": "Pley 将停止在此页面所在的地址监听：此页面将无法继续工作。",
     "pageMoves": "此页面将跳转到新端口。"
   },
+  "addresses": {
+    "title": "地址",
+    "hint": "应用会自行在这些地址之间切换。家中的地址会自动添加。",
+    "automatic": "自动",
+    "addHere": "添加你正在使用的地址",
+    "remove": "移除 {{address}}",
+    "address": "地址"
+  },
   "proxy": {
     "title": "通过反向代理访问",
     "description": "某些代理转发的地址不带端口（如 nginx 的 <code>$host</code>、Nginx Proxy Manager）。此时 Pley 会报告不含端口的自身地址，应用将拒绝该地址。请添加通过这些方式访问 Pley 时带端口的地址，或让代理转发端口（<code>proxy_set_header Host $http_host;</code>）。",

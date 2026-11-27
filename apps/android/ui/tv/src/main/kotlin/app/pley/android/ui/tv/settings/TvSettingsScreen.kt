@@ -67,6 +67,8 @@ import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.R as ScreensR
+import app.pley.android.screens.account.AddressesUiState
+import app.pley.android.screens.account.AddressesViewModel
 import app.pley.android.screens.account.MeEvent
 import app.pley.android.screens.account.MeUiState
 import app.pley.android.screens.account.MeViewModel
@@ -132,9 +134,11 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
     val me: MeViewModel = viewModel(factory = MeViewModel.factory)
     val settingsModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory)
     val languageModel: LanguageViewModel = viewModel(factory = LanguageViewModel.factory)
+    val addressesModel: AddressesViewModel = viewModel(factory = AddressesViewModel.factory)
     val meState by me.state.collectAsStateWithLifecycle()
     val settings by settingsModel.state.collectAsStateWithLifecycle()
     val language by languageModel.state.collectAsStateWithLifecycle()
+    val addresses by addressesModel.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
     val memory = rememberFocusMemory()
     var shown by rememberSaveable { mutableStateOf(start) }
@@ -246,6 +250,7 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
                         settings,
                         settingsModel,
                         language,
+                        addresses,
                         memory = memory,
                         requester = ::requester,
                         pick = pick,
@@ -268,7 +273,8 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
         }
         Panels(picking, lastPicking, meState, settings, me, settingsModel, language, languageModel, onClose = { picking = null }, returnTo = lastPicking?.let { requester(rowKeyOf(it)) })
         web?.let { path ->
-            val server = meState.profile?.server.orEmpty()
+            // The address in use: away from home, a phone can't open a home address signed in at.
+            val server = addresses.inUseUrl ?: meState.profile?.server.orEmpty()
             TvWebDialog(server, path, onDismiss = {
                 web = null
                 rows["row-web"]?.let { runCatching { it.requestFocus() } }
@@ -327,6 +333,7 @@ private fun LazyListScope.pane(
     ui: SettingsUiState,
     model: SettingsViewModel,
     language: LanguageUiState,
+    addresses: AddressesUiState,
     memory: app.pley.android.ui.tv.kit.FocusMemory,
     requester: (String) -> FocusRequester,
     pick: (Picking) -> Unit,
@@ -566,6 +573,22 @@ private fun LazyListScope.pane(
                     icon = PleyIcons.Server,
                     onClick = {},
                     modifier = keyed("row-server"),
+                )
+            }
+            // The address in use, and whether that is at home or away once the server has more than one.
+            item(key = "row-addresses", contentType = SETTING_ROW) {
+                val inUse = addresses.inUse
+                TvSettingRow(
+                    stringResource(R.string.tv_settings_addresses),
+                    value = when {
+                        inUse == null || !addresses.several -> inUse
+                        addresses.atHome -> stringResource(R.string.tv_settings_addresses_home, inUse)
+                        else -> stringResource(R.string.tv_settings_addresses_away, inUse)
+                    },
+                    icon = if (addresses.atHome) PleyIcons.House else PleyIcons.Globe,
+                    chevron = true,
+                    onClick = { onOpen(PleyKey.Addresses) },
+                    modifier = keyed("row-addresses"),
                 )
             }
             item(key = "row-switch-server", contentType = SETTING_ROW) {

@@ -23,6 +23,7 @@ fun EntryProviderScope<NavKey>.accountEntries() {
     entry<PleyKey.Downloads> { key -> WithGraph(key) { DownloadsScreen() } }
     entry<PleyKey.Settings> { key -> WithGraph(key) { SettingsScreen() } }
     entry<PleyKey.Diagnostics> { key -> WithGraph(key) { DiagnosticsScreen() } }
+    entry<PleyKey.Addresses> { key -> WithGraph(key) { AddressesScreen() } }
 }
 
 /**

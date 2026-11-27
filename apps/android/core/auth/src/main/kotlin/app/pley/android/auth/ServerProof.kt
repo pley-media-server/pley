@@ -13,6 +13,8 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -82,8 +84,20 @@ object ServerProofs {
 
     private val networks = AtomicInteger()
 
+    /** The Wi-Fi and Ethernet networks the device is on, once followed. */
+    private val homeNetworks = ConcurrentHashMap.newKeySet<Any>()
+
+    @Volatile
+    private var followingHomes = false
+
     /** Counts the networks the device joined or lost: a proof counts on the network it was made on. */
     val network: Int get() = networks.get()
+
+    /**
+     * Whether the device is on a Wi-Fi or Ethernet network, where a home
+     * address can answer; true while the networks aren't followed.
+     */
+    val homeNetwork: Boolean get() = !followingHomes || homeNetworks.isNotEmpty()
 
     /** The device may be on another network: every server proves itself again before its next token. */
     fun networkMayHaveChanged() {
@@ -99,10 +113,21 @@ object ServerProofs {
      */
     fun followNetworks(context: Context) {
         val connectivity = context.getSystemService(ConnectivityManager::class.java) ?: return
-        fun changes() = object : ConnectivityManager.NetworkCallback() {
+        val default = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = networkMayHaveChanged()
 
             override fun onLost(network: Network) = networkMayHaveChanged()
+        }
+        val home = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                homeNetworks += network
+                networkMayHaveChanged()
+            }
+
+            override fun onLost(network: Network) {
+                homeNetworks -= network
+                networkMayHaveChanged()
+            }
         }
         val homes = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
@@ -111,8 +136,16 @@ object ServerProofs {
             .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
         try {
-            connectivity.registerDefaultNetworkCallback(changes())
-            connectivity.registerNetworkCallback(homes, changes())
+            // The networks the device is on already: the callbacks tell of them a moment later.
+            @Suppress("DEPRECATION")
+            for (network in connectivity.allNetworks) {
+                val capabilities = connectivity.getNetworkCapabilities(network) ?: continue
+                val wired = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                if (wired || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) homeNetworks += network
+            }
+            connectivity.registerDefaultNetworkCallback(default)
+            connectivity.registerNetworkCallback(homes, home)
+            followingHomes = true
         } catch (_: RuntimeException) {
             // Too many callbacks registered app-wide: sign-in still works, and
             // a proof still lasts half an hour at most, or until a request
@@ -137,12 +170,13 @@ object ServerProofs {
     }
 
     /**
-     * Asks the server at [issuer] to prove it holds [proof]'s key. Throws
+     * Asks the server at [issuer] (or another of its addresses) to prove it
+     * holds [proof]'s key, giving it [timeoutMs] in all when above 0. Throws
      * an IOException when nothing answers or the server (or a proxy before
      * it) fails for now, or [NotYourServerException] when what answers
      * can't prove it.
      */
-    suspend fun prove(http: OkHttpClient, issuer: String, proof: ServerProof, random: (Int) -> ByteArray) {
+    suspend fun prove(http: OkHttpClient, issuer: String, proof: ServerProof, random: (Int) -> ByteArray, timeoutMs: Long = 0) {
         val key = ServerProof.keyBytes(proof.proofKey) ?: throw NotYourServerException()
         val challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(random(CHALLENGE_BYTES))
         // The address as the server reads it from the request: the proof covers it.
@@ -152,7 +186,9 @@ object ServerProofs {
             .header("Accept", "application/json")
             .build()
         val text = withContext(Dispatchers.IO) {
-            http.newCall(request).execute().use { response ->
+            val call = http.newCall(request)
+            if (timeoutMs > 0) call.timeout().timeout(timeoutMs, TimeUnit.MILLISECONDS)
+            call.execute().use { response ->
                 if (response.code >= 500) throw IOException("the server couldn't answer (HTTP ${response.code})")
                 if (response.code != 200) throw NotYourServerException()
                 response.peekBody(MAX_ANSWER_BYTES).string()

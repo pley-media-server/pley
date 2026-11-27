@@ -288,7 +288,13 @@ Apps sign in on Pley's own page with OAuth 2.1.
 - Each sign-in gets a key of its own, derived from `secret.key`, with which
   the server proves it is the server an app signed in to before the app
   sends its token to an address (every app). Another device at that
-  address can't, nor can another app's key. The proof covers
+  address can't, nor can another app's key. A token isn't tied to the
+  address it was issued at: an app sends it to any address that proves
+  itself so, such as the server's other addresses
+  (`GET /api/server/addresses`: those an administrator lists, then those
+  the server finds at home from its own network adapters, never from a
+  request's `Host`). Only someone signed in reads that list, which pairs a
+  home address with a public one. The proof covers
   the address it was asked at; the server makes none for a plain-http
   address to a client on the internet, none for an https address but
   through a proxy on the home network, and none for a page other than

@@ -38,6 +38,10 @@ describes how they are made.
 
 ### Added
 
+- Home and away: Pley reaches your server at whichever of its addresses
+  answers, at home and away, and moves between them by itself, without
+  signing in again, even while something plays. Me → Addresses (on TVs,
+  Settings → Server) shows them, and adds one at home.
 - Audiobooks on phones and TVs: book libraries, Continue Listening on
   Home, books in search and history, and a page for each book with who
   wrote and reads it, how far you are, Play where you left off on any

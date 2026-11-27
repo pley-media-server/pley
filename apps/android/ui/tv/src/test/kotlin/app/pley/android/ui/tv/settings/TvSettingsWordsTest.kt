@@ -73,6 +73,17 @@ class TvSettingsWordsTest {
     }
 
     @Test
+    fun addressesPutTheAddressWhereEachLanguageDoes() {
+        val address = "pley.example.com"
+        assertEquals("Away · pley.example.com", UiText.res(R.string.tv_settings_addresses_away, address).resolve(english))
+        assertEquals("Remove pley.example.com?", UiText.res(R.string.tv_addresses_remove_title, address).resolve(english))
+        // French sets its question mark off with a no-break space.
+        assertEquals("Retirer pley.example.com\u00a0?", UiText.res(R.string.tv_addresses_remove_title, address).resolve(inLanguage("fr")))
+        assertEquals("¿Quitar pley.example.com?", UiText.res(R.string.tv_addresses_remove_title, address).resolve(inLanguage("es")))
+        assertEquals("En casa · 192.168.1.20", UiText.res(R.string.tv_settings_addresses_home, "192.168.1.20").resolve(inLanguage("es")))
+    }
+
+    @Test
     fun formatNamesAreTheSameInEveryLanguage() {
         assertEquals("Dolby Atmos", UiText.res(R.string.tv_settings_format_atmos).resolve(inLanguage("fr")))
         assertEquals("DTS-HD y DTS:X", UiText.res(R.string.tv_settings_format_dts_hd).resolve(inLanguage("es")))

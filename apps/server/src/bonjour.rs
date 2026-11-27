@@ -127,7 +127,7 @@ pub fn adapter_name_ok(name: &str) -> bool {
 /// Whether a socket bound to the unspecified address `web` takes `ip`'s
 /// family. `0.0.0.0` takes IPv4 only. Pley leaves `::` as the system has it:
 /// dual-stack on Linux and macOS, so IPv4 too, and IPv6 only on Windows.
-fn listens_on_family(web: IpAddr, ip: IpAddr) -> bool {
+pub(crate) fn listens_on_family(web: IpAddr, ip: IpAddr) -> bool {
     web.is_ipv4() == ip.is_ipv4() || (web.is_ipv6() && cfg!(not(windows)))
 }
 

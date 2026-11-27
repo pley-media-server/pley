@@ -2,6 +2,7 @@ package app.pley.android.network
 
 import android.content.Context
 import app.pley.android.auth.AuthGraph
+import app.pley.android.auth.RequestsSent
 import app.pley.android.auth.Tokens
 import app.pley.android.common.Addresses
 import app.pley.android.common.DeviceProfile
@@ -50,6 +51,13 @@ interface NetworkGraph {
 
     /** The event stream of [issuer]. */
     fun events(issuer: String): ServerEvents
+
+    /**
+     * Where requests for [url] go now: the address in use of the server
+     * signed in at its origin, which may be another of the server's
+     * (docs/ANDROID.md, "Home and away"); [url] itself otherwise.
+     */
+    fun addressInUse(url: String): String = url
 
     /**
      * Lets go of [issuer]'s API and pictures' clients once its HTTP caches
@@ -179,7 +187,8 @@ internal class HttpNetworkGraph(
             .protocols(listOf(Protocol.HTTP_1_1))
             .followRedirects(true)
             .followSslRedirects(false)
-            .addInterceptor(auth.unanswered)
+            .apply { interceptors().add(0, auth.route) }
+            .eventListenerFactory(RequestsSent)
             .addNetworkInterceptor(auth)
             .authenticator(auth)
             .build()
@@ -205,6 +214,11 @@ internal class HttpNetworkGraph(
     /** The client of [origin]'s event stream: a read gives up after 45 s, the server's keep-alives come every 15 s. */
     internal fun eventsClient(origin: String): OkHttpClient = eventClients.getOrPut(originOf(origin)) {
         signedInClient(originOf(origin), EVENTS_READ_SECONDS)
+    }
+
+    override fun addressInUse(url: String): String {
+        val origin = Addresses.origin(url) ?: return url
+        return tokens(origin).addresses.value.inUse
     }
 
     override fun events(issuer: String): ServerEvents {
