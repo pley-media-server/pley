@@ -3094,6 +3094,12 @@ A `.strm` file in a movie or TV library names the address its media is at
 - `MediaFile.path` is the `.strm` file's. Until the media is known,
   `container` is `"strm"`, `size` is 0 and `streams` holds only the
   subtitle files beside it.
+- With `strm_probe` on, once a scan of the library is done, what the media
+  is gets found for every file it isn't known for yet (as `GET
+  /api/items/{id}` finds it), a few files at a time; the apps are told the
+  library changed (`library_changed`) every 30 s while that goes on and
+  once at its end. An address that failed isn't asked again by a scan for a
+  day, unless its file names another.
 - `GET /api/items/{id}` of a movie, an episode or an extra finds what the
   media is when it isn't known, waiting up to 2.5 s for it; a play request
   and `POST /api/conversions` wait for it as long as it takes. Then
@@ -5085,6 +5091,9 @@ interface Settings {
                                     // true; see CONFIGURATION.md). A change scans every library
   strm_files: boolean;              // movie and TV libraries list and play .strm files (default false; see
                                     // .strm files). A change scans those libraries
+  strm_probe: boolean;              // after a scan, find what each .strm file's media is before anyone opens
+                                    // it (default false; see .strm files). Of no use while strm_files is off.
+                                    // Turned on, the files listed are looked at at once
   hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "rkmpp" | "vulkan";
   hardware_decoding: boolean;       // decode on the GPU when possible
   tonemapping: "auto" | "libplacebo" | "opencl" | "zscale" | "none"; // HDR10/HLG/Dolby Vision to SDR

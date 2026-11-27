@@ -16,6 +16,10 @@ describes how they are made.
   beside Settings, and stays as it was left. Narrowed, its icons show their
   names in a tip on hover, as the remote's button and Sort libraries now do.
 
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.9] - 2026-11-25
 
 ### Changed

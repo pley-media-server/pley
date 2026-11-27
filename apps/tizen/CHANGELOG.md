@@ -201,6 +201,7 @@ describes how they are made.
   sets, and a stream on them keeps its sound.
 - Seeking in a song works when the TV won't seek in its file, and holding
   a key on Now Playing seeks once.
+- A title whose size isn't known yet shows none, not "0 B".
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end instead.
 - A video whose audio the TV can't decode plays with the audio converted

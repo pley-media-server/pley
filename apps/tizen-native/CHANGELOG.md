@@ -18,6 +18,10 @@ describes how they are made.
 - Playback details name Rockchip MPP when a Rockchip server's video
   engines made the transcode.
 
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.14] - 2026-11-24
 
 ### Changed

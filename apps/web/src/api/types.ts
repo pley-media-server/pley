@@ -1071,6 +1071,12 @@ export interface Settings {
    * name. Off: scans leave them out. Absent from servers before it.
    */
   strm_files?: boolean;
+  /**
+   * After a scan, find what each `.strm` file's media is (its size, its
+   * tracks) before anyone opens it. Of no use while `strm_files` is off.
+   * Absent from servers before it.
+   */
+  strm_probe?: boolean;
   hwaccel: HwAccel;
   hardware_decoding: boolean;
   tonemapping: ToneMapping;

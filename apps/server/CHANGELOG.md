@@ -14,6 +14,9 @@ describes how they are made.
 - Live TV plays a channel as the provider sends it when the device decodes
   it (HEVC and 10-bit included), and transcodes only for players that need it.
 - Playback details in the web app's Live TV player.
+- Settings → Server can preload media info from `.strm` files after each
+  scan (tracks, length, size), so listings show it before they play; off
+  by default.
 - The web app's sidebar can be narrowed to its icons by the button at its
   foot, beside Settings; each browser remembers how it was left. Narrowed,
   its icons show their names in a tip on hover, as the remote's button and
