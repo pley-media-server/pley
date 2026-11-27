@@ -41,7 +41,11 @@ use url::Url;
 /// Where the web app sends people who want another server.
 const SWITCH_SERVER: &str = "/__app/servers";
 /// Tells the web app it runs in this app (src/lib/shell.ts over there), and
-/// gives it a way to tell the app the theme it shows ([`theme_picked`]).
+/// gives it a way to tell the app the theme it shows ([`theme_picked`]). The
+/// server's Content-Security-Policy allows connections to the server alone,
+/// so Tauri's own channel is refused on a page's first call, with one CSP
+/// warning in its console, and the call goes over Tauri's other one: the
+/// policy stays as narrow as a browser's.
 const INIT_SCRIPT: &str = "window.__PLEY_APP__ = 'desktop';
 window.__PLEY_DESKTOP__ = Object.freeze({
   theme(theme, accent) {

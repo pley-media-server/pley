@@ -638,6 +638,8 @@ add-on's changelog.
 - Picture subtitles picked in Kodi's player during a converted stream don't
   show; the profile's choice is burned in from the start.
 - Discover and the requests open in Kodi's lists, not Pley's own screens.
+- No themes: the add-on's own screens are drawn in Midnight, whichever theme
+  a profile picked in the other apps ([THEMES.md](THEMES.md)).
   Approve takes what was asked: no choice of profile, folder or seasons.
   With no title page to stop on, a show partly in a library opens there,
   as one a library has whole does, with Request more seasons in its

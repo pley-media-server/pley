@@ -105,7 +105,7 @@ draws:
 | App | Appearance | Backdrops | Its doc |
 |---|---|---|---|
 | Web | Account → Appearance | All | This one |
-| Desktop | The web's; the app's own server picker, title bar and icon follow the web's pick | All on the server picker | `apps/desktop/src-tauri/src/lib.rs` |
+| Desktop | The web's; the window's title bar and icon follow the theme a server's pages show, and the list of servers, outside a profile, is Midnight | The web's | `apps/desktop/src-tauri/src/lib.rs` |
 | Android phone and tablet | Settings → Appearance | The glows; not Sunshine's rainbow | [ANDROID.md](ANDROID.md) |
 | Android TV, Fire TV | Settings → Appearance | The glows, and Sunshine's rainbow on the open side menu | [ANDROID.md](ANDROID.md) |
 | Samsung | Settings → Appearance | Sunshine's rainbow on the open rail | [TV_PLATFORMS.md](TV_PLATFORMS.md) |
@@ -113,8 +113,8 @@ draws:
 | LG | Settings → Appearance | All, on mid- and high-tier TVs | [LG.md](LG.md) |
 | Roku | Settings → Appearance | All, as one picture under the pages, and Sunshine's rainbow on the open rail | [ROKU.md](ROKU.md) |
 
-Kodi and the Apple apps don't offer themes yet, and draw Midnight. The
-window an Android device draws before Pley starts is Midnight's, and the
+Kodi and the Apple apps draw Midnight and offer no themes (their docs'
+Known limits). The window an Android device draws before Pley starts is Midnight's, and the
 Mac's Dock keeps Pley's own icon.
 
 ## Accents
