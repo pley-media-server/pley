@@ -288,15 +288,10 @@ ${form.opensubtitles_password ?? ""}`}
                   <Toggle checked={form.strm_files} onChange={(v) => set("strm_files", v)} label={t("server.scanning.strmToggle")} />
                 </Row>
               ) : null}
-              {form.strm_probe !== undefined ? (
+              {/* Only while .strm files are read: without them there is nothing to find. */}
+              {form.strm_probe !== undefined && form.strm_files ? (
                 <Row label={t("server.scanning.strmProbe")} hint={t("server.scanning.strmProbeHint")}>
-                  <Toggle
-                    checked={!!form.strm_probe}
-                    disabled={!form.strm_files}
-                    onChange={(v) => set("strm_probe", v)}
-                    label={t("server.scanning.strmProbeToggle")}
-                  />
-                  {form.strm_files ? null : <Note>{t("server.scanning.strmProbeNeedsReading")}</Note>}
+                  <Toggle checked={form.strm_probe} onChange={(v) => set("strm_probe", v)} label={t("server.scanning.strmProbeToggle")} />
                 </Row>
               ) : null}
               <LibraryWorkRows form={form} set={set} />

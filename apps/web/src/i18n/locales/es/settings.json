@@ -92,7 +92,6 @@
       "strmProbe": "Averiguar qué reproducen los archivos .strm",
       "strmProbeHint": "Tras un escaneo, preguntar a la dirección de cada archivo .strm qué es el video (sus pistas, su duración, su tamaño), para que las páginas y las listas lo muestren antes de reproducirlo.",
       "strmProbeToggle": "Averiguar qué reproducen los archivos .strm",
-      "strmProbeNeedsReading": "Activa primero «Leer los archivos .strm».",
       "markers": "Detectar intros y créditos",
       "markersHint": "Compara el audio de los episodios en segundo plano para ofrecer Saltar intro y Saltar créditos. Los capítulos llamados Intro o Credits se usan siempre.",
       "noChromaprint": "Este FFmpeg no tiene Chromaprint, así que solo los capítulos pueden marcar las intros y los créditos.",

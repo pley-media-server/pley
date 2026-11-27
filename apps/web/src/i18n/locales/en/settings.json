@@ -92,7 +92,6 @@
       "strmProbe": "Find what .strm files play",
       "strmProbeHint": "After a scan, ask each .strm file's address what the video is (its tracks, its length, its size), so pages and listings show it before anyone plays it.",
       "strmProbeToggle": "Find what .strm files play",
-      "strmProbeNeedsReading": "Turn on Read .strm files first.",
       "markers": "Detect intros and credits",
       "markersHint": "Compare the audio of episodes in the background to offer Skip Intro and Skip Credits. Chapters named Intro or Credits are always used.",
       "noChromaprint": "This FFmpeg lacks Chromaprint, so only chapters can mark intros and credits.",

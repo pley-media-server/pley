@@ -92,7 +92,6 @@
       "strmProbe": "探测 .strm 文件的媒体",
       "strmProbeHint": "扫描后向每个 .strm 文件指向的地址询问视频的信息（轨道、时长、大小），页面和列表在播放前就能显示。",
       "strmProbeToggle": "探测 .strm 文件的媒体",
-      "strmProbeNeedsReading": "请先打开“读取 .strm 文件”。",
       "markers": "检测片头和片尾",
       "markersHint": "在后台比较各集的音频，以提供“跳过片头”和“跳过片尾”。名为 Intro 或 Credits 的章节始终使用。",
       "noChromaprint": "此 FFmpeg 缺少 Chromaprint，因此只有章节可以标记片头和片尾。",
