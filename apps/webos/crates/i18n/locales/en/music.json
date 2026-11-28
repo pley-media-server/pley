@@ -42,14 +42,5 @@
     "signedOut": "Sign in again to play.",
     "stopped": "Playback was stopped by the server.",
     "unplayable": "This track can't be played."
-  },
-  "sleep": {
-    "timer": "Sleep timer",
-    "pausingIn": "Pausing in {{seconds}} s",
-    "keepListening": "Keep listening",
-    "minutesLeft_one": "Sleep timer: {{count}} min left",
-    "minutesLeft_other": "Sleep timer: {{count}} min left",
-    "minutes": "Sleep timer: {{minutes}} min",
-    "endOfTrack": "Sleep timer: End of this track"
   }
 }

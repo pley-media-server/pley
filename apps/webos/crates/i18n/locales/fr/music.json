@@ -44,15 +44,5 @@
     "signedOut": "Reconnectez-vous pour lancer la lecture.",
     "stopped": "La lecture a été arrêtée par le serveur.",
     "unplayable": "Ce titre ne peut pas être lu."
-  },
-  "sleep": {
-    "timer": "Minuteur de veille",
-    "pausingIn": "Mise en pause dans {{seconds}} s",
-    "keepListening": "Continuer à écouter",
-    "minutesLeft_one": "Minuteur de veille : il reste {{count}} min",
-    "minutesLeft_many": "Minuteur de veille : il reste {{count}} min",
-    "minutesLeft_other": "Minuteur de veille : il reste {{count}} min",
-    "minutes": "Minuteur de veille : {{minutes}} min",
-    "endOfTrack": "Minuteur de veille : fin de ce titre"
   }
 }

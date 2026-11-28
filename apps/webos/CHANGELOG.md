@@ -18,7 +18,7 @@ describes how they are made.
   credits and hold the remote's OK.
 - The player's controls no longer say "Ends at" with a time under the
   clock while paused: the time left stays by the scrubber.
-- The video player no longer has a sleep timer. Music keeps its own.
+- The sleep timer is gone, from videos and music.
 
 ## [0.1.16] - 2026-11-27
 

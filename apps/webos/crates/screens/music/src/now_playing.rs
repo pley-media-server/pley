@@ -1,6 +1,6 @@
 //! Now Playing (`TvNowPlayingScreen.kt`; the TV app's `NowPlayingScreen`): the album art faint
 //! behind the page; the cover; the title, "Artist · Album" and a status line; the scrubber with
-//! its times; Shuffle, Previous, Play/Pause, Next and the sleep timer; and the queue, "Up next".
+//! its times; Shuffle, Previous, Play/Pause and Next; and the queue, "Up next".
 //! Focus starts on Play/Pause. The scrubber takes Left and Right (10 s) and OK (play or pause);
 //! the remote's media keys work anywhere on the page. The music plays on when the page is left.
 //! The shell dims the page after two minutes without a key, as Android's does.
@@ -12,7 +12,6 @@ use pley_core::format::format_clock;
 use pley_core::model::{ImageKind, ItemSummary};
 use pley_i18n::t;
 use pley_kit::{RoundButton, SCROLL, TrackLine, backdrop_px, look};
-use pley_player::sleep::SleepState;
 use pley_shell::{AppCx, Chrome, Screen};
 use pley_ui::theme::focus::{self, ControlLook};
 use pley_ui::theme::{self, radius};
@@ -118,7 +117,6 @@ pub struct NowPlayingScreen {
     queue_focus: Option<usize>,
     /// The times under the scrubber, for the whole seconds they show.
     times: Option<((i64, i64), String, String)>,
-    sleep_label: Option<(SleepState, String)>,
 }
 
 impl NowPlayingScreen {
@@ -160,13 +158,6 @@ impl NowPlayingScreen {
         }
         let (_, played, left) = self.times.as_ref().expect("the times were just made");
         (played, left)
-    }
-
-    fn sleep_label(&mut self, sleep: SleepState) -> &str {
-        if self.sleep_label.as_ref().is_none_or(|s| s.0 != sleep) {
-            self.sleep_label = Some((sleep, pages::sleep_label(&sleep)));
-        }
-        &self.sleep_label.as_ref().expect("the label was just made").1
     }
 }
 
@@ -244,10 +235,9 @@ impl Screen for NowPlayingScreen {
         ui.text(Point::new(scrub.right() - w, y), left, &theme::CAPTION, &TextOpts::default(), theme::FG);
         y += theme::CAPTION.line_height + 16.0;
 
-        // Shuffle, Previous, Play/Pause, Next, the sleep timer.
+        // Shuffle, Previous, Play/Pause, Next.
         let controls = ui.id("controls");
         let pause = m.shows_pause();
-        let sleep_text = self.sleep_label(m.sleep());
         ui.group(controls, Group::row().edge(Dir::Left, Edge::Out).edge(Dir::Right, Edge::Stop), |ui| {
             let mut bx = x;
             let round = |ui: &mut Ui, bx: &mut f32, key: &str, b: RoundButton| {
@@ -271,9 +261,6 @@ impl Screen for NowPlayingScreen {
             let next = RoundButton::new(Icon::SkipForward, t!("music.actions.next")).enabled(index + 1 < count);
             if round(ui, &mut bx, "next", next) {
                 m.next();
-            }
-            if round(ui, &mut bx, "sleep", RoundButton::new(Icon::Moon, sleep_text)) {
-                m.step_sleep();
             }
         });
         y += CONTROLS_HEIGHT;

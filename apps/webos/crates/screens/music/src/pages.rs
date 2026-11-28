@@ -1,12 +1,11 @@
 //! What the music pages say, worked out from the server's answers: an artist's counts and albums,
-//! an album's facts and rows, a track's lines, and Now Playing's status and sleep timer words
+//! an album's facts and rows, a track's lines, and Now Playing's status words
 //! (the Android app's `MusicPages.kt` and `strings_tv_music.xml`, the TV app's `music.tsx`).
 
 use pley_core::format::{format_clock, format_duration};
 use pley_core::model::{ItemDetail, ItemKind, ItemSummary};
 use pley_i18n::t;
 use pley_player::music::{MusicError, NowPlaying};
-use pley_player::sleep::{SleepChoice, SleepState};
 use pley_ui::theme;
 
 /// An artist's albums, newest first, then by title (`artistPage`).
@@ -111,8 +110,8 @@ pub fn track_length(track: &ItemSummary) -> String {
 }
 
 /// Now Playing's status line and whether it reports a failure (drawn in DangerText): what went
-/// wrong, else "Loading…" while the track opens, else the sleep timer's last seconds.
-pub fn status(error: Option<MusicError>, loading: bool, sleep: &SleepState) -> (String, bool) {
+/// wrong, else "Loading…" while the track opens, else nothing.
+pub fn status(error: Option<MusicError>, loading: bool) -> (String, bool) {
     if let Some(e) = error {
         let text = match e {
             MusicError::Offline => t!("music.errors.offline"),
@@ -125,24 +124,7 @@ pub fn status(error: Option<MusicError>, loading: bool, sleep: &SleepState) -> (
     if loading {
         return (t!("music.nowPlaying.loading").into(), false);
     }
-    match sleep.seconds_left {
-        Some(s) => (t!("music.sleep.pausingIn", seconds = s), false),
-        None => (String::new(), false),
-    }
-}
-
-/// The sleep timer button's label: "Sleep timer", "Sleep timer: 42 min left", "Sleep timer: End of
-/// this track", and "Keep listening" during its last 30 s.
-pub fn sleep_label(sleep: &SleepState) -> String {
-    if sleep.seconds_left.is_some() {
-        return t!("music.sleep.keepListening").into();
-    }
-    match (sleep.choice, sleep.minutes_left) {
-        (SleepChoice::Off, _) => t!("music.sleep.timer").into(),
-        (SleepChoice::Minutes(_), Some(m)) => t!("music.sleep.minutesLeft", count = m),
-        (SleepChoice::Minutes(m), None) => t!("music.sleep.minutes", minutes = m),
-        (SleepChoice::EndOfItem, _) => t!("music.sleep.endOfTrack").into(),
-    }
+    (String::new(), false)
 }
 
 /// Whether Play/Pause shows Pause: playing, or about to (loading without a failure).
@@ -302,33 +284,16 @@ mod tests {
 
     #[test]
     fn the_status_line_says_trouble_first() {
-        let off = SleepState::default();
-        let counting = SleepState { seconds_left: Some(12), ..off };
-        assert_eq!(status(None, false, &off), (String::new(), false));
-        assert_eq!(status(None, true, &counting), ("Loading…".into(), false));
-        assert_eq!(status(None, false, &counting), ("Pausing in 12 s".into(), false));
+        assert_eq!(status(None, false), (String::new(), false));
+        assert_eq!(status(None, true), ("Loading…".into(), false));
         let failed = now(|n| {
             n.loading = true;
             n.error = Some(MusicError::Offline);
         });
-        assert_eq!(status(failed.error, failed.loading, &counting), ("Can't reach the server.".into(), true));
-        assert_eq!(status(Some(MusicError::SignedOut), false, &off).0, "Sign in again to play.");
+        assert_eq!(status(failed.error, failed.loading), ("Can't reach the server.".into(), true));
+        assert_eq!(status(Some(MusicError::SignedOut), false).0, "Sign in again to play.");
         assert!(!shows_pause(&failed));
         assert!(shows_pause(&now(|n| n.loading = true)));
-    }
-
-    #[test]
-    fn the_sleep_button_says_what_runs() {
-        let mut s = SleepState::default();
-        assert_eq!(sleep_label(&s), "Sleep timer");
-        s.choice = SleepChoice::Minutes(45);
-        s.minutes_left = Some(42);
-        assert_eq!(sleep_label(&s), "Sleep timer: 42 min left");
-        s.choice = SleepChoice::EndOfItem;
-        s.minutes_left = None;
-        assert_eq!(sleep_label(&s), "Sleep timer: End of this track");
-        s.seconds_left = Some(20);
-        assert_eq!(sleep_label(&s), "Keep listening");
     }
 
     #[test]
@@ -345,18 +310,11 @@ mod tests {
     }
 
     #[test]
-    fn the_sleep_timer_and_status_speak_the_language_shown() {
+    fn the_status_speaks_the_language_shown() {
         use pley_i18n::{Language, with_language};
-        let mut s = SleepState { choice: SleepChoice::Minutes(45), minutes_left: Some(1), ..SleepState::default() };
-        assert_eq!(with_language(Language::Es, || sleep_label(&s)), "Temporizador: queda 1 min");
-        s.minutes_left = Some(42);
-        assert_eq!(with_language(Language::Es, || sleep_label(&s)), "Temporizador: quedan 42 min");
-        assert_eq!(with_language(Language::Fr, || sleep_label(&s)), "Minuteur de veille\u{a0}: il reste 42 min");
-        s.minutes_left = None;
-        assert_eq!(with_language(Language::Fr, || sleep_label(&s)), "Minuteur de veille\u{a0}: 45 min");
-        let counting = SleepState { seconds_left: Some(12), ..SleepState::default() };
-        let status = with_language(Language::Fr, || status(None, false, &counting));
-        assert_eq!(status, ("Mise en pause dans 12 s".into(), false));
+        assert_eq!(with_language(Language::Fr, || status(None, true)), ("Chargement…".into(), false));
+        let offline = with_language(Language::Es, || status(Some(MusicError::Offline), false));
+        assert_eq!(offline, ("No se puede conectar con el servidor.".into(), true));
     }
 
     #[test]

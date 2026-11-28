@@ -17,7 +17,6 @@ use pley_player::env::PlayerEnv;
 use pley_player::music::{MusicError, MusicSession, shuffled};
 use pley_player::server::PlayerServer;
 use pley_player::sim::{SIM_LOAD_MS, SimClock, SimEngine, SimHandle};
-use pley_player::sleep::SleepChoice;
 
 fn track(id: i64) -> ItemSummary {
     ItemSummary {
@@ -220,23 +219,6 @@ fn yields_to_a_video_and_play_starts_a_new_session_where_it_was() {
     w.settle();
     let last = w.fake.requests().last().cloned().unwrap();
     assert_eq!((last.item_id, last.start_ms), (1, Some(4_000)));
-}
-
-#[test]
-fn a_sleep_timer_ending_with_the_track_leaves_the_next_one_waiting() {
-    let mut w = Music::new();
-    w.m.play(vec![track(1), track(2)], 0, false);
-    w.settle();
-    w.advance(SIM_LOAD_MS);
-    for _ in 0..6 {
-        w.m.step_sleep();
-    }
-    assert_eq!(w.m.sleep().choice, SleepChoice::EndOfItem);
-    w.sim.end();
-    w.settle();
-    let now = w.m.now_playing().unwrap();
-    assert_eq!((now.index, now.playing), (1, false));
-    assert_eq!(w.fake.requests().len(), 1);
 }
 
 #[test]

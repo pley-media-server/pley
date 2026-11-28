@@ -27,7 +27,6 @@ use pley_i18n::t;
 
 use crate::env::PlayerEnv;
 use crate::remote::{Command, MUSIC_CONTROLS, RemoteAction, RemoteKind, RemotePlayer, remote_action, restarts_track};
-use crate::sleep::{SLEEP_CHOICES, SleepChoice, SleepItem, SleepState, SleepTimer};
 
 /// Progress reports while music plays.
 pub const REPORT_MS: i64 = 10_000;
@@ -132,7 +131,6 @@ pub struct MusicSession {
     retry_at: Option<(i64, i64, Option<PlaybackMode>)>,
     report_at: Option<i64>,
     last_report_at: i64,
-    sleep: SleepTimer,
     /// Where it was when a video took over: the next session starts there.
     yielded_at: Option<i64>,
     duration_ms: Option<u64>,
@@ -164,7 +162,6 @@ impl MusicSession {
             retry_at: None,
             report_at: None,
             last_report_at: 0,
-            sleep: SleepTimer::default(),
             yielded_at: None,
             duration_ms: None,
             buffered_end: None,
@@ -185,11 +182,6 @@ impl MusicSession {
     /// What plays; none once nothing does (Now Playing leaves the rail).
     pub fn now_playing(&self) -> Option<&NowPlaying> {
         self.now_playing.as_ref()
-    }
-
-    /// The sleep timer.
-    pub fn sleep(&self) -> SleepState {
-        self.sleep.state
     }
 
     /// The queue in play order.
@@ -230,7 +222,7 @@ impl MusicSession {
 
     /// When [`MusicSession::tick`] has something to do next.
     pub fn next_wake(&self) -> Option<i64> {
-        [self.report_at, self.retry_at.map(|r| r.0), self.sleep.next_due()].into_iter().flatten().min()
+        [self.report_at, self.retry_at.map(|r| r.0)].into_iter().flatten().min()
     }
 
     fn changed(&mut self) {
@@ -298,7 +290,6 @@ impl MusicSession {
         self.engine.pause();
         self.end_session();
         self.engine.unload();
-        self.sleep.cancel();
         self.queue.clear();
         self.order.clear();
         self.index = 0;
@@ -382,23 +373,6 @@ impl MusicSession {
             n.shuffle = on;
             n.index = index;
         });
-    }
-
-    /// The sleep timer steps through its choices: Off, 15 … 90 min, end of this track; during its notice, Keep listening.
-    pub fn step_sleep(&mut self) {
-        let item = self.sleep_item();
-        if self.sleep.state.seconds_left.is_some() {
-            self.sleep.extend(self.now, item);
-            self.changed();
-            return;
-        }
-        let at = SLEEP_CHOICES.iter().position(|c| *c == self.sleep.state.choice).unwrap_or(0);
-        let next = SLEEP_CHOICES[(at + 1) % SLEEP_CHOICES.len()];
-        if self.order.is_empty() && next != SleepChoice::Off {
-            return;
-        }
-        self.sleep.set(self.now, next, item);
-        self.changed();
     }
 
     /// A video takes the screen and the TV's media pipeline: the music pauses
@@ -491,11 +465,6 @@ impl MusicSession {
         action
     }
 
-    fn sleep_item(&self) -> SleepItem {
-        let left = (self.duration_ms() > 0).then(|| (self.duration_ms() - self.engine.position_ms() as i64).max(0));
-        SleepItem { key: self.order.get(self.index).map_or(-1, |t| t.id), left_ms: left }
-    }
-
     fn start(&mut self, from_ms: i64, mode: Option<PlaybackMode>, shuffle: bool) {
         let Some(track) = self.order.get(self.index).cloned() else { return };
         let g = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
@@ -576,13 +545,6 @@ impl MusicSession {
             } else if self.now - self.last_report_at >= PAUSED_REPORT_MS {
                 self.report(ProgressState::Paused);
             }
-        }
-        if self.sleep.next_due().is_some_and(|t| self.now >= t) {
-            let item = self.sleep_item();
-            if self.sleep.tick(self.now, item) {
-                self.engine.pause();
-            }
-            self.changed();
         }
         self.collect();
         self.version != before
@@ -726,25 +688,12 @@ impl MusicSession {
     }
 
     fn track_ended(&mut self) {
-        let Some(track) = self.order.get(self.index).cloned() else { return };
+        if self.order.get(self.index).is_none() {
+            return;
+        }
         // `stopped` at its length, then the session's end (once, as on Android).
         self.end_session();
         self.retries = 0;
-        if self.sleep.item_ended(track.id) {
-            // The timer ends with this track: the next one waits, paused.
-            if self.index + 1 < self.order.len() {
-                self.index += 1;
-                let (next, index) = (self.order[self.index].clone(), self.index);
-                self.update(|n| {
-                    n.track = next;
-                    n.index = index;
-                    n.playing = false;
-                    n.loading = false;
-                });
-                self.session = None;
-            }
-            return;
-        }
         if self.index + 1 < self.order.len() {
             self.index += 1;
             let shuffle = self.shuffle();
