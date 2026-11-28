@@ -39,6 +39,7 @@ pub enum Icon {
     CornerLeftUp,
     Delete,
     Disc3,
+    Droplet,
     Ellipsis,
     EyeOff,
     FastForward,

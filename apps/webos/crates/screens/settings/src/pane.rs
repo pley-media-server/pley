@@ -385,7 +385,7 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
             let label = t!("settings.appearance.theme");
             out.push(Item::Row(Row::new(Some(Icon::Palette), label, theme, open(false)).chevron()));
             let label = t!("settings.appearance.accent.title");
-            out.push(Item::Row(Row::new(Some(Icon::Sparkles), label, accent, open(true)).chevron()));
+            out.push(Item::Row(Row::new(Some(Icon::Droplet), label, accent, open(true)).chevron()));
         }
         SettingsSection::Server => {
             let name = f.server.clone().unwrap_or_else(|| t!("settings.server.unknown").into());
@@ -866,6 +866,8 @@ mod tests {
         let icons = |c| rows(&items(c, &f)).iter().map(|r| r.icon).collect::<Vec<_>>();
         let display = [Icon::Captions, Icon::Square, Icon::Pencil, Icon::ArrowUp, Icon::Sparkles].map(Some);
         assert_eq!(icons(SettingsSection::SubtitlesAndDisplay), display);
+        // Theme and Accent, as on every TV app (docs/THEMES.md).
+        assert_eq!(icons(SettingsSection::Appearance), [Some(Icon::Palette), Some(Icon::Droplet)]);
         assert!(icons(SettingsSection::Audio).iter().all(|i| *i == Some(Icon::Volume2)));
         assert_eq!(icons(SettingsSection::Diagnostics)[0], Some(Icon::Activity));
         assert_eq!(category_look(SettingsSection::Diagnostics).1, Icon::Activity);

@@ -41,6 +41,7 @@ pub const ALL: &[Icon] = &[
     Icon::CornerLeftUp,
     Icon::Delete,
     Icon::Disc3,
+    Icon::Droplet,
     Icon::Ellipsis,
     Icon::EyeOff,
     Icon::FastForward,
@@ -418,7 +419,7 @@ mod tests {
         for icon in ALL {
             assert!(seen.insert(*icon), "{icon:?} twice");
         }
-        assert_eq!(ALL.len(), 99);
+        assert_eq!(ALL.len(), 100);
     }
 
     #[test]
