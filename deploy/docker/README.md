@@ -197,7 +197,8 @@ docker run -d --name pley -p 7539:7539 --shm-size 2g \
 
 For NVIDIA, use `--gpus all` instead of `--device /dev/dri`; for Rockchip,
 add `--device` for `/dev/mpp_service`, `/dev/rga` and `/dev/dma_heap`, and
-`--security-opt systempaths=unconfined` ([above](#hardware-transcoding)). For
+`--security-opt systempaths=unconfined` ([above](#hardware-transcoding);
+never with `PUID=0`, see [Security](#security)). For
 the Plex-compatible API on Plex's port, add
 `-p 32400:32400 -e PLEY_PLEX_BIND=0.0.0.0:32400`; it answers on Pley's port
 without them.
@@ -225,7 +226,9 @@ work.
   render node; NVIDIA's goes through the toolkit; Rockchip's hands over
   its video engines' devices and `/dev/dri`, and shows the hidden system
   files, the device tree among them, which a user without capabilities
-  can read but not change.
+  can read but not change. Root could change them, the host's kernel
+  settings among them: with Rockchip, never run Pley as root (`PLEY_UID=0`
+  or `PUID=0`) outside rootless Docker.
 - **Bounded.** Processes are capped and Docker's log is rotated. On a machine
   that does other work, also cap memory and CPU in `compose.override.yaml`
   (`mem_limit: 8g`, `cpus: 6`; each transcode takes about 1 GB).
