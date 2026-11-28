@@ -20,6 +20,7 @@ sealed class AppearanceScreen : ShellPage
     const float Width = PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal;
     const float Gap = 14, RowGap = 16, Pad = 6, Columns = Appearance.Columns;
     const float CardWidth = (Width - (Columns - 1) * Gap) / Columns, PreviewWidth = CardWidth - 2 * Pad, PreviewHeight = PreviewWidth * 9 / 16;
+    const float CheckSize = 22, CheckInset = 5;
     const float HeadingY = PleyTv.SafeVertical + 34 + 10, GridY = HeadingY + 30, PillHeight = PleyTv.ButtonHeight;
 
     readonly AppState state;
@@ -186,9 +187,9 @@ sealed class AppearanceScreen : ShellPage
             };
             ring.Hide();
             Add(ring);
-            // At the card's corner, as the web's, clear of the preview's button; over the ring, which
-            // passes under its rim in the page's color rather than across it.
-            if (choice.Checked) Add(Check(CardWidth - 14, -6));
+            // At the preview's bottom right, 5 dp in from both edges, as on every TV app: at the top right
+            // it sat against the preview's accent button. Added last, so it stays over the card and the ring.
+            if (choice.Checked) Add(Check(Pad + PreviewWidth - CheckInset - CheckSize, Pad + PreviewHeight - CheckInset - CheckSize));
             Item.FocusChanged += Look;
         }
 
@@ -279,8 +280,8 @@ sealed class AppearanceScreen : ShellPage
         var badge = new View
         {
             Position = new Position(Ui.Dp(x), Ui.Dp(y)),
-            Size = new Size(Ui.Dp(22), Ui.Dp(22)),
-            CornerRadius = Ui.Dp(11),
+            Size = new Size(Ui.Dp(CheckSize), Ui.Dp(CheckSize)),
+            CornerRadius = Ui.Dp(CheckSize / 2),
             BackgroundColor = PleyColors.Accent,
             BorderlineWidth = Ui.Dp(2),
             BorderlineColor = PleyColors.Bg,
