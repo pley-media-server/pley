@@ -823,7 +823,9 @@ N of them use the slowest that makes 2 N times real time alone.
     speed is known, about 2 s in, once 10 s are ready past where the player
     can be: from where the process started, playing at up to twice real
     time. Before anything is measured, it hands over to the processors'
-    preset.
+    preset. A process paused far ahead before it handed over (a quick
+    preset on a big computer makes a minute and a half in seconds) hands
+    over by the speed it made before the pause.
   - In the process's first minute, the hand-over doesn't wait for the
     number of encodes to settle: it moves this job alone.
 - **Before anything is measured**, a job starts by the processors each

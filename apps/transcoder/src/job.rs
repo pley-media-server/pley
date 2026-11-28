@@ -1324,8 +1324,11 @@ impl JobManager {
                     ceiling,
                 };
                 // A process started quick for a waiting player hands over to
-                // the steady preset once its speed is known.
-                let hand_over = quick && speed.is_some();
+                // the steady preset once its speed is known: what it made
+                // before it paused, where it got far enough ahead first (a
+                // quick preset on a big computer makes a minute and a half
+                // of video in seconds).
+                let hand_over = quick && measured.is_some();
                 let to = adaptive::decide(speeds, going, now).or_else(|| {
                     hand_over
                         .then(|| adaptive::hand_over(speeds, load, current, moved_at.elapsed(), ahead, ceiling, now))?
