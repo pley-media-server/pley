@@ -27,11 +27,9 @@ export interface SleepState {
   secondsLeft: number | null;
   /** Minutes before it pauses, rounded up, for the button's label; `null` when off or unknown. */
   minutesLeft: number | null;
-  /** It paused the music, which hasn't played since. */
-  fired: boolean;
 }
 
-export const SLEEP_OFF: SleepState = { choice: { kind: "off" }, secondsLeft: null, minutesLeft: null, fired: false };
+export const SLEEP_OFF: SleepState = { choice: { kind: "off" }, secondsLeft: null, minutesLeft: null };
 
 /** The notice shows this long before the timer pauses. */
 export const NOTICE_MS = 30_000;
@@ -119,11 +117,6 @@ export class SleepTimer {
     return true;
   }
 
-  /** It plays again: the pause the timer made is over. */
-  resumed(): void {
-    if (this.state.fired) this.publish({ ...this.state, fired: false });
-  }
-
   cancel(): void {
     this.stop();
     this.publish(SLEEP_OFF);
@@ -166,7 +159,7 @@ export class SleepTimer {
   private fire(): void {
     this.stop();
     this.spared = null;
-    this.publish({ ...SLEEP_OFF, fired: true });
+    this.publish(SLEEP_OFF);
     this.onFire();
   }
 }

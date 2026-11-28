@@ -235,7 +235,6 @@ public final class MusicPlayback: ObservableObject {
         } else if error != nil || expired || session == nil && loadTask == nil {
             startTrack(at: lastPosition, sameTrack: true, play: true)
         } else {
-            timer.resumed()
             output().play()
         }
     }
@@ -558,7 +557,6 @@ public final class MusicPlayback: ObservableObject {
             loading = buffering
             publish()
         case .playWhenReady(let play):
-            if play { timer.resumed() }
             if !play, !ended, let session {
                 reportPaused(session)
                 startTicker()

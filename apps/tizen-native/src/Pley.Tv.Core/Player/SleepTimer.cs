@@ -23,8 +23,7 @@ public abstract record SleepChoice
 /// <summary>Where the sleep timer stands.</summary>
 /// <param name="SecondsLeft">Seconds before it pauses, during the notice (its last 30 s); null otherwise.</param>
 /// <param name="MinutesLeft">Minutes before it pauses, rounded up, for the button's label; null when off or unknown.</param>
-/// <param name="Fired">It paused the music, which hasn't played since.</param>
-public sealed record SleepState(SleepChoice? Choice = null, int? SecondsLeft = null, int? MinutesLeft = null, bool Fired = false)
+public sealed record SleepState(SleepChoice? Choice = null, int? SecondsLeft = null, int? MinutesLeft = null)
 {
     public SleepChoice Set => Choice ?? new SleepChoice.Off();
 }
@@ -134,12 +133,6 @@ public sealed class SleepTimer
         return true;
     }
 
-    /// <summary>It plays again: the pause the timer made is over.</summary>
-    public void Resumed()
-    {
-        if (State.Value.Fired) State.Value = State.Value with { Fired = false };
-    }
-
     public void Cancel()
     {
         job?.Dispose();
@@ -189,7 +182,7 @@ public sealed class SleepTimer
         job?.Dispose();
         job = null;
         spared = null;
-        State.Value = new SleepState(Fired: true);
+        State.Value = new SleepState();
         onFire();
     }
 }

@@ -200,7 +200,6 @@ public sealed class MusicPlayer : IMusicControl
         else
         {
             wantPlay = true;
-            timer.Resumed();
             Output().Play();
             Publish();
         }

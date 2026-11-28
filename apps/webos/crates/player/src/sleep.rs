@@ -35,8 +35,6 @@ pub struct SleepState {
     pub seconds_left: Option<i64>,
     /// Minutes before it pauses, rounded up, for the menu; none when off or unknown.
     pub minutes_left: Option<i64>,
-    /// It paused the playback, which hasn't played since.
-    pub fired: bool,
 }
 
 impl Default for SleepState {
@@ -46,8 +44,7 @@ impl Default for SleepState {
 }
 
 /// The timer off.
-pub const SLEEP_OFF: SleepState =
-    SleepState { choice: SleepChoice::Off, seconds_left: None, minutes_left: None, fired: false };
+pub const SLEEP_OFF: SleepState = SleepState { choice: SleepChoice::Off, seconds_left: None, minutes_left: None };
 
 /// The notice shows this long before the timer pauses.
 pub const NOTICE_MS: i64 = 30_000;
@@ -112,11 +109,6 @@ impl SleepTimer {
         true
     }
 
-    /// It plays again: the pause the timer made is over.
-    pub fn resumed(&mut self) {
-        self.state.fired = false;
-    }
-
     /// Off.
     pub fn cancel(&mut self) {
         self.due = None;
@@ -177,7 +169,7 @@ impl SleepTimer {
     fn fire(&mut self) {
         self.due = None;
         self.spared = None;
-        self.state = SleepState { fired: true, ..SLEEP_OFF };
+        self.state = SLEEP_OFF;
     }
 }
 
@@ -217,10 +209,7 @@ mod tests {
         assert!(!run(&mut t, &mut now, 15 * MINUTE_MS - 10_000, ITEM));
         assert_eq!(t.state.seconds_left, Some(10));
         assert!(run(&mut t, &mut now, 15 * MINUTE_MS, ITEM));
-        assert!(t.state.fired);
-        assert_eq!(t.state.choice, SleepChoice::Off);
-        t.resumed();
-        assert!(!t.state.fired);
+        assert_eq!(t.state, SLEEP_OFF);
     }
 
     #[test]
@@ -247,6 +236,6 @@ mod tests {
         t.tick(now + 1_000, SleepItem { key: 8, left_ms: Some(50_000) });
         assert!(t.ends_with(8));
         assert!(t.item_ended(8));
-        assert!(t.state.fired);
+        assert_eq!(t.state, SLEEP_OFF);
     }
 }

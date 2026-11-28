@@ -36,14 +36,11 @@ public struct SleepState: Equatable, Sendable {
     public var secondsLeft: Int?
     /// Minutes before it pauses, rounded up, for the menu; `nil` when off or unknown.
     public var minutesLeft: Int?
-    /// It paused the playback, which hasn't played since.
-    public var fired = false
 
-    public init(choice: SleepChoice = .off, secondsLeft: Int? = nil, minutesLeft: Int? = nil, fired: Bool = false) {
+    public init(choice: SleepChoice = .off, secondsLeft: Int? = nil, minutesLeft: Int? = nil) {
         self.choice = choice
         self.secondsLeft = secondsLeft
         self.minutesLeft = minutesLeft
-        self.fired = fired
     }
 
     /// The notice's words in its last 30 s: "Pausing in 30 s"; `nil` before.
@@ -135,11 +132,6 @@ public final class SleepTimer {
         return true
     }
 
-    /// It plays again: the pause the timer made is over.
-    public func resumed() {
-        if state.fired { state.fired = false }
-    }
-
     public func cancel() {
         stop()
         spared = nil
@@ -218,7 +210,7 @@ public final class SleepTimer {
     private func fire() {
         stop()
         spared = nil
-        state = SleepState(fired: true)
+        state = SleepState()
         onFire()
     }
 }

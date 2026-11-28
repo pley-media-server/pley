@@ -273,7 +273,7 @@ struct MusicPlaybackTests {
         try await until("the next track") { rig.output.loads.count == 2 }
         #expect(!rig.output.loads[1].play)
         #expect(rig.music.state.track?.id == 303)
-        #expect(rig.music.state.sleep.fired)
+        #expect(rig.music.state.sleep == SleepState())
         #expect(!rig.music.state.playing)
     }
 

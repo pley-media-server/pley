@@ -154,9 +154,7 @@ public class SleepTimerTests
         Assert.Equal(0, fired);
         scheduler.Advance(15_000);
         Assert.Equal(1, fired);
-        Assert.Equal(new SleepState(Fired: true), t.State.Value);
-        t.Resumed();
-        Assert.False(t.State.Value.Fired);
+        Assert.Equal(new SleepState(), t.State.Value);
     }
 
     [Fact]
@@ -393,7 +391,7 @@ public class MusicPlayerTests
         Assert.IsType<SleepChoice.EndOfItem>(p.Sleep.Value.Set);
         Engine.Status(EngineStatus.Ended);
         Assert.Contains($"prepare {FakeMusicServer.Server}/api/media/pley_mk_12/file.flac paused", Engine.Calls);
-        Assert.True(p.Sleep.Value.Fired);
+        Assert.IsType<SleepChoice.Off>(p.Sleep.Value.Set);
     }
 }
 

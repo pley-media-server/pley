@@ -31,9 +31,7 @@ struct SleepTimerTests {
         rig.clock.advance(ms: 19_000)
         rig.timer.tick()
         #expect(rig.fired == 1)
-        #expect(rig.timer.state == SleepState(fired: true))
-        rig.timer.resumed()
-        #expect(!rig.timer.state.fired)
+        #expect(rig.timer.state == SleepState())
     }
 
     @Test func keepListeningAddsTheSameTimeAgain() {

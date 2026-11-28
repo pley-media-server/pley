@@ -660,7 +660,6 @@ impl MusicSession {
         match event {
             EngineEvent::Playing => {
                 self.opening = false;
-                self.sleep.resumed();
                 self.update(|n| {
                     n.playing = true;
                     n.loading = false;
