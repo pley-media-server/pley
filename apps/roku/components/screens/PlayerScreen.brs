@@ -1979,8 +1979,7 @@ sub pressButton(id as string)
     end if
 end sub
 
-' Play or pause; the person's pause brings up the controls, with when it
-' ends.
+' Play or pause; the person's pause brings up the controls.
 sub togglePlay()
     if m.video.state = "paused"
         m.video.control = "resume"
