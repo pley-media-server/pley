@@ -2,7 +2,8 @@ name: Samsung TV (native)
 
 # The native Samsung TV app (apps/tizen-native, Tizen .NET): one release unit,
 # samsung-native (docs/RELEASING.md). Its logic's tests run the web TV app's
-# fixtures (packages/tv/test/fixtures), so a change there runs them too. A TV
+# fixtures (packages/tv/test/fixtures) and hold its themes to the web app's logo
+# and its words for them, so a change to any of them runs them too. A TV
 # installs only a package signed with a Samsung certificate that lists it,
 # which only the TV's owner can make, so the Release workflow calls this with
 # `release: true` for the .tpk as the .NET SDK signs it, with Tizen's default
@@ -15,6 +16,8 @@ on:
       - packages/tv/test/fixtures/**
       - packages/placeholder/**
       - packages/themes/**
+      - apps/web/src/components/Logo.tsx
+      - apps/web/src/i18n/locales/**/pages.json
       - apps/android/core/testing/src/main/resources/fixtures/discover/**
       - apps/android/core/testing/src/main/resources/fixtures/requests/**
       - scripts/check-nuget-licenses.mjs
@@ -27,6 +30,8 @@ on:
       - packages/tv/test/fixtures/**
       - packages/placeholder/**
       - packages/themes/**
+      - apps/web/src/components/Logo.tsx
+      - apps/web/src/i18n/locales/**/pages.json
       - apps/android/core/testing/src/main/resources/fixtures/discover/**
       - apps/android/core/testing/src/main/resources/fixtures/requests/**
       - scripts/check-nuget-licenses.mjs

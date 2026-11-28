@@ -1,7 +1,8 @@
 name: Samsung TV
 
 # The Samsung TV app (apps/tizen, built with packages/tv): one release unit
-# (docs/RELEASING.md). Runs when either changes.
+# (docs/RELEASING.md). Runs when either changes, or the web app's index.css,
+# whose Sunshine rainbow its tests hold the open rail to.
 # Its package is signed with a Samsung certificate only its owner can make,
 # so a release has none: `bun run --cwd apps/tizen package` makes it
 # (docs/TV_PLATFORMS.md). The Release workflow still calls this first.
@@ -13,6 +14,7 @@ on:
       - packages/tv/**
       - packages/placeholder/**
       - packages/themes/**
+      - apps/web/src/index.css
       - package.json
       - bun.lock
       - bunfig.toml
@@ -26,6 +28,7 @@ on:
       - packages/tv/**
       - packages/placeholder/**
       - packages/themes/**
+      - apps/web/src/index.css
       - package.json
       - bun.lock
       - bunfig.toml
