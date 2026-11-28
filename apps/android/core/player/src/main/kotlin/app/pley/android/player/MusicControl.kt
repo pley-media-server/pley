@@ -3,8 +3,6 @@ package app.pley.android.player
 import app.pley.android.model.Chapter
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -221,15 +219,6 @@ interface MusicControl {
      * [playOn], unless it was played, paused or changed meanwhile.
      */
     fun returnAfterLeave(playOn: Boolean) {}
-
-    /** The sleep timer of the music. */
-    val sleep: StateFlow<SleepState> get() = NO_SLEEP
-
-    /** Sets the sleep timer (not remembered after the music stops). */
-    fun setSleep(choice: SleepChoice) {}
-
-    /** "Keep listening" during the sleep timer's notice: the same time again. */
-    fun keepListening() {}
 }
 
 /**
@@ -255,4 +244,3 @@ const val BOOK_FORWARD_MS = 30_000L
 
 private val NO_QUEUE: StateFlow<MusicQueueState> = MutableStateFlow(MusicQueueState()).asStateFlow()
 private val NO_SPEED: StateFlow<Float> = MutableStateFlow(1f).asStateFlow()
-private val NO_SLEEP: StateFlow<SleepState> = MutableStateFlow(SleepState()).asStateFlow()

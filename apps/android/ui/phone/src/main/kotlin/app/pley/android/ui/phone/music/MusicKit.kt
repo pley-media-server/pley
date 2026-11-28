@@ -199,7 +199,7 @@ internal fun MusicChoices(content: @Composable ColumnScope.() -> Unit) {
 }
 
 /**
- * One choice in a sheet of Now Playing's (a book's speed, the sleep timer):
+ * One choice in a sheet of Now Playing's (a book's speed):
  * its label, and the accent check at the end when it is the one in force.
  * Screen readers hear a radio button.
  */

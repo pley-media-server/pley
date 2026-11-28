@@ -13,9 +13,6 @@ import app.pley.android.player.live.LivePlayback
 import app.pley.android.player.live.LiveTrouble
 import app.pley.android.player.session.Qualities
 import app.pley.android.player.session.ResourcePlayerTexts
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepState
-import app.pley.android.player.sleep.SleepTexts
 import app.pley.android.player.subtitles.SubtitleSync
 import java.util.Locale
 import org.junit.Assert.assertEquals
@@ -54,8 +51,6 @@ class PlayerWordsTest {
         assertEquals("Dropped frames: 3 of 5000", texts.engineDroppedFrames(3, 5_000))
         assertEquals("The server answered 503.", LiveTrouble.of(refused(503)).text.inEnglish())
         assertEquals("Live TV was stopped by the server's administrator.", LivePlayback.stoppedText(" ", byAdmin = true).inEnglish())
-        assertEquals("1 min left", SleepTexts.summary(app.resources, SleepState(SleepChoice.Minutes(30), minutesLeft = 1)))
-        assertEquals("42 min left", SleepTexts.summary(app.resources, SleepState(SleepChoice.Minutes(60), minutesLeft = 42)))
         assertEquals("1.25×", PlaybackSpeeds.label(1.25f))
         assertEquals("2×", PlaybackSpeeds.label(2f))
         assertEquals("−1.5 s", AudioDelays.label(-1_500))
@@ -74,11 +69,6 @@ class PlayerWordsTest {
         )
         // The server's own words stay as it wrote them, as a sentence.
         assertEquals("Bob is watching.", LiveTrouble.of(ApiException(410, "gone", "Bob is watching")).text.resolve(spanish))
-        assertEquals("1 min restante", SleepTexts.summary(french, SleepState(SleepChoice.Minutes(30), minutesLeft = 1)))
-        assertEquals("Queda 1 min", SleepTexts.summary(spanish, SleepState(SleepChoice.Minutes(30), minutesLeft = 1)))
-        assertEquals("Quedan 42 min", SleepTexts.summary(spanish, SleepState(SleepChoice.Minutes(60), minutesLeft = 42)))
-        assertEquals("Fin de ce titre", SleepTexts.choice(french, SleepChoice.EndOfItem))
-        assertEquals("Mise en pause dans 30 s", SleepTexts.notice(french, 30))
         assertEquals("1 téléchargement", french.getQuantityString(R.plurals.session_search_downloads, 1, 1L))
         assertEquals("2 descargas", spanish.getQuantityString(R.plurals.session_search_downloads, 2, 2L))
         assertEquals("1,25×", PlaybackSpeeds.label(1.25f, Locale.FRENCH))

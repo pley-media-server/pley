@@ -1364,11 +1364,10 @@ it (`keep_previous`, and `ahead`, so the server doesn't list it as
 playing yet) and waits after it in the player, which goes on to it as
 the track ends: it says it plays, and the session of the track that
 ended then ends, as at any end. Shuffle and Repeat ask again for the
-track that now comes next; the sleep timer set to the end of the track,
-Next, Previous and a pick from the queue let it go. The server forgets a
-session it doesn't hear from, so the one asked ahead is let go too after
-half a minute paused or a seek a minute or more from the end, and asked
-again once the music plays near the end. When the server refuses it (no
+track that now comes next; Next, Previous and a pick from the queue let
+it go. The server forgets a session it doesn't hear from, so the one
+asked ahead is let go too after half a minute paused or a seek a minute
+or more from the end, and asked again once the music plays near the end. When the server refuses it (no
 conversion free beside the track playing), the next track is asked for
 as the one playing ends, after a short wait; when the server is out of
 reach for a moment, it is asked again 10 seconds later. One the player can't read

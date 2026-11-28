@@ -45,8 +45,6 @@ import app.pley.android.player.MusicPosition
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepState
 import app.pley.android.player.PlaybackServices
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerGraph
@@ -212,16 +210,6 @@ class TvAccountTestGraph : ScreensGraph {
             repeats += repeat
         }
         override fun pauseForVideo() = Unit
-
-        val sleepState = MutableStateFlow(SleepState())
-        var keeps = 0
-        override val sleep: StateFlow<SleepState> = sleepState
-        override fun setSleep(choice: SleepChoice) {
-            sleepState.value = SleepState(choice)
-        }
-        override fun keepListening() {
-            keeps++
-        }
     }
 
     companion object {

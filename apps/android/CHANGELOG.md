@@ -19,8 +19,7 @@ describes how they are made.
   On TVs, OK and the arrows act on the video again once Skip has gone.
 - On TVs, the player's controls no longer say "Ends at" with a time under
   the clock while paused: the time left stays by the scrubber.
-- The video player no longer has a sleep timer. Music and audiobooks keep
-  theirs.
+- The sleep timer is gone, from videos, music and audiobooks.
 
 ### Fixed
 

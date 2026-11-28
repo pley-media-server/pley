@@ -28,8 +28,6 @@
     <string name="tv_music_next">下一首</string>
     <string name="tv_music_previous">上一首</string>
     <string name="tv_music_position">播放進度</string>
-    <!-- The sleep timer's button while it runs: "Sleep timer: 30 min". -->
-    <string name="tv_music_sleep_running">%1$s：%2$s</string>
     <string name="tv_music_loading">載入中…</string>
     <string name="tv_music_nothing_playing">目前沒有播放</string>
     <string name="tv_music_nothing_playing_body">播放專輯或藝人後，會顯示在這裡。</string>

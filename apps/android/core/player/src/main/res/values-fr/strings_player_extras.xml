@@ -13,17 +13,6 @@
     <string name="cast_playing_from">Lecture depuis %1$s</string>
     <string name="cast_playing_from_another">Lecture depuis un autre appareil</string>
 
-    <string name="sleep_timer">Minuteur de veille</string>
-    <string name="sleep_off">Désactivé</string>
-    <string name="sleep_minutes">%1$d min</string>
-    <string name="sleep_end_of_track">Fin de ce titre</string>
-    <plurals name="sleep_minutes_left">
-        <item quantity="one">%1$d min restante</item>
-        <item quantity="many">%1$d min restantes</item>
-        <item quantity="other">%1$d min restantes</item>
-    </plurals>
-    <string name="sleep_notice">Mise en pause dans %1$d s</string>
-    <string name="sleep_keep_listening">Continuer à écouter</string>
     <string name="cast_switch_failed">Impossible de passer au profil de la télécommande</string>
     <string name="session_remote_paused">En pause</string>
     <string name="session_remote_playing">Lecture</string>

@@ -80,7 +80,6 @@ import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PlayPauseGlyph
-import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.TrackChange
 import app.pley.android.designsystem.TrackWords
@@ -93,8 +92,6 @@ import app.pley.android.player.BOOK_SPEEDS
 import app.pley.android.player.MusicError
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepTexts
 import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.music.NowPlayingState
 import app.pley.android.screens.music.NowPlayingViewModel
@@ -183,7 +180,7 @@ internal fun TvNowPlayingScreen() {
                         BasicText(words.byline, style = PleyType.Tv.BodyLarge.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                Status(now, model)
+                Status(now)
                 Spacer(Modifier.height(14.dp))
                 Scrubber(now, model)
                 Spacer(Modifier.height(16.dp))
@@ -211,9 +208,7 @@ private fun trackWords(now: NowPlaying): TrackWords {
 private const val CHAPTERS_PER_PART = 10_000
 
 @Composable
-private fun Status(now: NowPlaying, model: NowPlayingViewModel) {
-    val sleep by model.sleep.collectAsStateWithLifecycle()
-    val pausingIn = sleep.secondsLeft
+private fun Status(now: NowPlaying) {
     val nextIn = now.nextIn
     // A track says it loads only once it has for a moment, as the phone's: most start sooner, and the line would blink
     // at every change of track.
@@ -231,7 +226,6 @@ private fun Status(now: NowPlaying, model: NowPlayingViewModel) {
         now.error != null && nextIn != null -> pluralStringResource(R.plurals.tv_music_error_unplayable_next, nextIn, nextIn)
         now.error != null -> stringResource(R.string.tv_music_error_unplayable)
         now.loading && slow -> stringResource(R.string.tv_music_loading)
-        pausingIn != null -> SleepTexts.notice(LocalResources.current, pausingIn)
         else -> ""
     }
     BasicText(
@@ -346,7 +340,6 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) {
                 selected = now.repeat != MusicRepeat.Off,
             )
         }
-        Box(Modifier.padding(top = BESIDE_PLAY)) { SleepButton(model) }
     }
 }
 
@@ -354,7 +347,7 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) {
  * A book's controls, as audiobook apps have them: back 15 seconds,
  * Previous and Next (from chapter to chapter, and part to part), forward
  * 30, then Speed, each Select taking it to the next speed, as the car's
- * button does, and the sleep timer.
+ * button does.
  */
 @Composable
 private fun RowScope.BookControls(now: NowPlaying, model: NowPlayingViewModel) {
@@ -374,42 +367,7 @@ private fun RowScope.BookControls(now: NowPlaying, model: NowPlayingViewModel) {
             onArt = true,
         )
     }
-    Box(Modifier.padding(top = BESIDE_PLAY)) { SleepButton(model) }
 }
-
-/**
- * The sleep timer: each Select moves to the next choice (Off, 15 … 90 min,
- * End of this track), its label saying the one running; during the
- * timer's last 30 s it is "Keep listening".
- */
-@Composable
-private fun SleepButton(model: NowPlayingViewModel) {
-    val sleep by model.sleep.collectAsStateWithLifecycle()
-    val resources = LocalResources.current
-    val notice = sleep.secondsLeft != null
-    val label = when {
-        notice -> SleepTexts.keep(resources)
-        sleep.choice == SleepChoice.Off -> SleepTexts.title(resources)
-        else -> resources.getString(R.string.tv_music_sleep_running, SleepTexts.title(resources), SleepTexts.summary(resources, sleep))
-    }
-    TvRoundButton(
-        label,
-        MoonIcon,
-        onClick = {
-            if (notice) {
-                model.keepListening()
-            } else {
-                val all = SleepChoice.ALL
-                model.setSleep(all[(all.indexOf(sleep.choice) + 1) % all.size])
-            }
-        },
-        modifier = Modifier.testTag(TV_MUSIC_SLEEP),
-        onArt = true,
-    )
-}
-
-/** Lucide `moon`: the sleep timer. */
-private val MoonIcon = PleyIcon("moon", false, "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z")
 
 /** Play/Pause: a 56 dp circle with a 28 dp glyph (design spec §2.7), the page's initial focus. */
 @Composable
@@ -528,7 +486,6 @@ private const val DIMMED = 0.3f
 internal const val TV_NOW_PLAYING_PAGE = "pley.tv.now_playing"
 internal const val TV_PLAY_PAUSE = "pley.tv.now_playing.play_pause"
 internal const val TV_QUEUE = "pley.tv.now_playing.queue"
-internal const val TV_MUSIC_SLEEP = "pley.tv.now_playing.sleep"
 
 /** How long a track loads before its status line says so (the phone's too). */
 private const val LOADING_AFTER_MS = 700L

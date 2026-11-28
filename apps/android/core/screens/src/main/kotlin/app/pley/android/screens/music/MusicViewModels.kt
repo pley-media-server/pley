@@ -22,8 +22,6 @@ import app.pley.android.player.BOOK_FORWARD_MS
 import app.pley.android.player.MusicControl
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepState
 import app.pley.android.screens.screensGraph
 import java.util.Locale
 import kotlin.random.Random
@@ -345,14 +343,6 @@ class NowPlayingViewModel(
     val bookSpeed: StateFlow<Float> get() = music.bookSpeed
 
     fun setBookSpeed(speed: Float) = music.setBookSpeed(speed)
-
-    /** The music's sleep timer. */
-    val sleep: StateFlow<SleepState> get() = music.sleep
-
-    fun setSleep(choice: SleepChoice) = music.setSleep(choice)
-
-    /** "Keep listening" during the timer's notice: the same time again. */
-    fun keepListening() = music.keepListening()
 
     companion object {
         val factory: ViewModelProvider.Factory = viewModelFactory {

@@ -105,7 +105,6 @@ import app.pley.android.player.MusicError
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.screens.PleyKey
-import app.pley.android.player.sleep.SleepState
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.ui.phone.player.CarGap
 import app.pley.android.ui.phone.player.CarScrubKnob
@@ -121,7 +120,6 @@ import androidx.compose.foundation.layout.BoxScope
 import java.text.NumberFormat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.MutableStateFlow
 import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.music.NowPlayingState
 import app.pley.android.screens.music.NowPlayingViewModel
@@ -136,10 +134,10 @@ import app.pley.android.ui.phone.shell.LocalPhoneNavigator
  * Now Playing on the phone (design spec §4.10): the art at 80 % of the
  * width over a faint copy of itself, the title, the artist and album, the
  * scrubber with its times, and Shuffle, Previous, Play/Pause, Next and
- * Repeat; the queue, in a sheet, and the sleep timer at the top right. In
- * a short, wide window (a phone on its side, a car's screen) the art sits
- * beside the title, as Android Auto's own Now Playing has it, over the
- * scrubber and the controls, so all of it shows. On a car's screen it is
+ * Repeat; the queue, in a sheet, at the top right. In a short, wide
+ * window (a phone on its side, a car's screen) the art sits beside the
+ * title, as Android Auto's own Now Playing has it, over the scrubber and
+ * the controls, so all of it shows. On a car's screen it is
  * car-sized ([CarSized]): 64 dp buttons and no text under 24 sp.
  *
  * A change of track moves, it doesn't blink: the cover stays until the
@@ -160,9 +158,6 @@ private fun NowPlayingPage() {
     var queue by rememberSaveable { mutableStateOf(false) }
     val now = state.now
     val art = remember(now?.artUrl) { now?.artUrl?.let { ArtworkImage(listOf(it)) } }
-    val music = rememberMusicControl()
-    val noSleep = remember { MutableStateFlow(SleepState()) }
-    val sleep by (music?.sleep ?: noSleep).collectAsStateWithLifecycle()
     val cover = remember { ShownCover() }
     // A track without a cover has no backdrop: not the one of the track before it.
     LaunchedEffect(art) { if (art == null) cover.image = null }
@@ -195,7 +190,7 @@ private fun NowPlayingPage() {
                         Spacer(Modifier.weight(1f))
                     } else {
                         // As much room on the label's left as the buttons take on its right: it stays centered.
-                        if (now != null) Spacer(Modifier.width(if (now.book) 96.dp else 48.dp))
+                        if (now?.book == true) Spacer(Modifier.width(48.dp))
                         Text(
                             stringResource(R.string.music_now_playing),
                             style = MaterialTheme.typography.labelLarge,
@@ -206,14 +201,14 @@ private fun NowPlayingPage() {
                     }
                     if (now?.book == true) {
                         SpeedButton(model)
-                        // A car's targets stand apart, as Queue and the timer do.
+                        // A car's targets stand apart.
                         if (car) Spacer(Modifier.width(CarGap))
                     }
                     if (now != null) {
                         PleyIconButton(PleyIcons.ListMusic, stringResource(R.string.music_queue), onClick = { queue = true }, tint = PleyColors.Muted)
-                        if (car) Spacer(Modifier.width(CarGap))
+                    } else {
+                        Spacer(Modifier.width(48.dp))
                     }
-                    if (music != null && now != null) MusicSleepButton(sleep, music) else Spacer(Modifier.width(48.dp))
                 }
                 if (now == null) {
                     EmptyState(
@@ -231,7 +226,6 @@ private fun NowPlayingPage() {
                 }
             }
         }
-        if (music != null) MusicSleepNotice(sleep.secondsLeft, onKeep = music::keepListening)
     }
     if (queue) QueueSheet(state, onPick = model::jumpTo, onDismiss = { queue = false })
 }
