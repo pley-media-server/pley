@@ -214,7 +214,7 @@ export function GuideGrid({
           {nowX > 0 ? (
             <div
               aria-hidden
-              className="pointer-events-none absolute bottom-0 z-[5] w-0.5 bg-accent/80 shadow-[0_0_8px_rgba(56,189,248,0.6)]"
+              className="pointer-events-none absolute bottom-0 z-[5] w-0.5 bg-accent/80 shadow-[0_0_8px_color-mix(in_oklab,var(--color-accent)_60%,transparent)]"
               style={{ left: layout.channelWidth + nowX - 1, top: layout.headerHeight }}
             />
           ) : null}
@@ -249,7 +249,7 @@ export function GuideGrid({
         <button
           type="button"
           onClick={() => toNow()}
-          className="absolute bottom-4 right-4 z-40 flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-accent-fg shadow-lg shadow-black/40 transition-transform animate-pop-in hover:scale-105"
+          className="absolute bottom-4 right-4 z-40 flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-accent-fg shadow-lg shadow-shade/40 transition-transform animate-pop-in hover:scale-105"
         >
           <Clock className="size-4" /> {t("guide.now")}
         </button>
@@ -363,7 +363,7 @@ const GuideRow = memo(function GuideRow({
       <div className="relative flex-1">
         {visible.length === 0 && loaded ? (
           <div
-            className="absolute inset-y-1 flex items-center rounded-md bg-white/[0.02] px-3 text-xs text-subtle"
+            className="absolute inset-y-1 flex items-center rounded-md bg-fg/[0.02] px-3 text-xs text-subtle"
             style={{ left: Math.max(0, (viewFrom - start) * pxPerSec) + 2, width: Math.max(0, (viewTo - viewFrom) * pxPerSec) - 4 }}
           >
             {channel.has_guide ? t("guide.noInformation") : <span className="truncate text-muted">{channelName(channel, category)}</span>}
@@ -427,7 +427,7 @@ function ProgramCell({
         <div className="flex h-full flex-col justify-center px-2.5" style={{ paddingLeft: 10 + indent }}>
           <div className="flex min-w-0 items-center gap-1.5">
             {program.is_live ? (
-              <span className="shrink-0 rounded-sm bg-danger px-1 text-[9px] font-bold uppercase leading-[14px] text-white">{t("live", { ns: "livetv" })}</span>
+              <span className="shrink-0 rounded-sm bg-danger px-1 text-[9px] font-bold uppercase leading-[14px] text-danger-fg">{t("live", { ns: "livetv" })}</span>
             ) : program.is_new ? (
               <span className="shrink-0 rounded-sm bg-accent/20 px-1 text-[9px] font-bold uppercase leading-[14px] text-accent">{t("new", { ns: "livetv" })}</span>
             ) : null}

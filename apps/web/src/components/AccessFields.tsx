@@ -150,7 +150,7 @@ export function AccessFields({
                 <label
                   key={lib.id}
                   htmlFor={`${idPrefix}-lib-${lib.id}`}
-                  className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 text-sm hover:bg-white/5"
+                  className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 text-sm hover:bg-fg/5"
                 >
                   <input
                     id={`${idPrefix}-lib-${lib.id}`}

@@ -635,9 +635,9 @@ fn fact_height(ui: &Ui, f: &Fact, width: f32) -> f32 {
 
 /// A fact: its label in Muted in a 112 dp column, up to two lines, its value in Fg, up to three.
 fn fact_line(ui: &mut Ui, f: &Fact, at: Point, width: f32) -> f32 {
-    let label = ui.text(at, &f.label, &theme::CAPTION, &label_opts(), theme::MUTED);
+    let label = ui.text(at, &f.label, &theme::CAPTION, &label_opts(), theme::muted());
     let value =
-        ui.text(Point::new(at.x + FACT_LABEL_W, at.y), &f.value, &theme::CAPTION, &value_opts(width), theme::FG);
+        ui.text(Point::new(at.x + FACT_LABEL_W, at.y), &f.value, &theme::CAPTION, &value_opts(width), theme::fg());
     label.h.max(value.h).max(theme::CAPTION.line_height)
 }
 

@@ -25,7 +25,9 @@ pub struct Well {
 
 impl Well {
     /// The pages' well: Surface3, the tiles' 4 dp corners, the number in `Tv.Label`.
-    pub const PAGE: Well = Well { color: theme::SURFACE3, radius: radius::TILE, name: false, style: theme::LABEL };
+    pub fn page() -> Well {
+        Well { color: theme::surface3(), radius: radius::TILE, name: false, style: theme::LABEL }
+    }
 
     /// The well with the channel's name instead of its number.
     pub fn named(self) -> Well {

@@ -154,20 +154,20 @@ impl LicencesScreen {
         self.scroll = self.scroll.clamp(0.0, max);
         let shown = ui.animate(id.with("scroll"), self.scroll, PAGE_SCROLL);
         let p = focus_progress(ui, id, r.focused);
-        ui.fill(rect, mix(theme::SURFACE, theme::SURFACE2, p), radius::CARD);
+        ui.fill(rect, mix(theme::surface(), theme::surface2(), p), radius::CARD);
         ui.text(
             Point::new(rect.x + INSET, rect.y + INSET),
             &part.name,
             &theme::TITLE,
             &TextOpts::line(rect.w - 2.0 * INSET),
-            theme::FG,
+            theme::fg(),
         );
         let opts = TextOpts::wrap(view.w, 0);
         ui.clip(view, |ui| {
             let mut y = view.y - shown;
             for (line, h) in self.lines.iter().zip(&self.heights) {
                 if y + h >= view.y && !line.is_empty() {
-                    ui.text(Point::new(view.x, y), line, &theme::BODY, &opts, theme::SUMMARY);
+                    ui.text(Point::new(view.x, y), line, &theme::BODY, &opts, theme::summary());
                 }
                 y += h;
                 if y > view.bottom() {
@@ -178,11 +178,11 @@ impl LicencesScreen {
         if content > view.h {
             // Where the text is: a 3 dp bar along the pane's right edge.
             let track = Rect::new(rect.right() - 6.0, view.y, 3.0, view.h);
-            ui.fill(track, theme::SURFACE4, 1.5);
+            ui.fill(track, theme::surface4(), 1.5);
             let thumb_h = (view.h * view.h / content).max(24.0);
             let at = shown / (content - view.h);
             let thumb_y = track.y + (track.h - thumb_h) * at.clamp(0.0, 1.0);
-            ui.fill(Rect::new(track.x, thumb_y, 3.0, thumb_h), theme::MUTED, 1.5);
+            ui.fill(Rect::new(track.x, thumb_y, 3.0, thumb_h), theme::muted(), 1.5);
         }
     }
 }
@@ -200,7 +200,7 @@ impl Screen for LicencesScreen {
             t!("settings.about.licences"),
             &theme::PAGE_TITLE,
             &TextOpts::line(LIST_W + PANE_W),
-            theme::FG,
+            theme::fg(),
         );
         let Some(read) = notices::shared(cx.tasks()) else { return };
         let Some(notices) = read.filter(|n| !n.parts.is_empty()) else {

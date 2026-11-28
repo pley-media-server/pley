@@ -3,6 +3,7 @@
   "categories": {
     "profile": "Profil",
     "playback": "Lecture",
+    "appearance": "Apparence",
     "server": "Serveur",
     "diagnostics": "Diagnostic",
     "about": "À propos"
@@ -46,5 +47,45 @@
     "app": "Pley pour Roku {{version}}",
     "plays": "Ce qu’il lit"
   },
-  "licence": "Pley pour Roku est un logiciel libre distribué sous la licence publique générale GNU Affero, version 3 (AGPL-3.0-only)."
+  "licence": "Pley pour Roku est un logiciel libre distribué sous la licence publique générale GNU Affero, version 3 (AGPL-3.0-only).",
+  "appearance": {
+    "title": "Apparence",
+    "theme": "Thème",
+    "hint": "L’apparence de Pley pour vous sur ce téléviseur. Chaque profil garde la sienne.",
+    "names": {
+      "midnight": "Minuit",
+      "midday": "Midi",
+      "starlight": "Clair d’étoiles",
+      "twilight": "Crépuscule",
+      "moonlight": "Clair de lune",
+      "nightshade": "Belladone",
+      "greenlight": "Feu vert",
+      "sunshine": "Soleil",
+      "blacklight": "Lumière noire"
+    },
+    "about": {
+      "midnight": "Lumière éteinte, pop-corn prêt",
+      "midday": "Minuit, version brunch",
+      "starlight": "Champagne, sans gueule de bois",
+      "twilight": "Coucher de soleil, sans coup de soleil",
+      "moonlight": "Mode smoking",
+      "nightshade": "Tapi dans les fougères",
+      "greenlight": "Toucher l’herbe sans sortir",
+      "sunshine": "Validé à l’heure du goûter",
+      "blacklight": "Aucune couleur, aucun regret"
+    },
+    "accent": {
+      "title": "Accent",
+      "hint": "S’applique aux boutons, aux liens et aux autres éléments mis en avant.",
+      "own": "Par défaut",
+      "names": {
+        "sky": "Ciel",
+        "violet": "Violet",
+        "miami": "Miami",
+        "gold": "Or",
+        "mint": "Menthe",
+        "amber": "Ambre"
+      }
+    }
+  }
 }

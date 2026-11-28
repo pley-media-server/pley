@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import app.pley.android.common.AppLanguage
 import app.pley.android.data.SubtitleBackground
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.player.PlaybackController
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerPhase
@@ -84,7 +85,7 @@ class TvPlayerActivity : ComponentActivity() {
             return
         }
         setContent {
-            TvTheme(tier = graph.device.tier) {
+            TvTheme(tier = graph.device.tier, palette = Appearance.palette.dark) {
                 val playing = controller
                 if (playing != null) {
                     key(playing) {

@@ -14,14 +14,19 @@
         <field id="height" type="float" value="870" />
         <!-- Where a fact's value starts. -->
         <field id="labelWidth" type="integer" value="320" />
+        <!-- In a player: drawn in the player's colors, a light theme's
+             twin's. -->
+        <field id="dark" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/FactSheet.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Group id="page" />
-        <Rectangle id="track" width="4" color="0x2E3440FF" visible="false" />
-        <Rectangle id="thumb" width="4" color="0x8B95A5FF" visible="false" />
+        <Rectangle id="track" width="4" color="0x222731FF" visible="false" />
+        <Rectangle id="thumb" width="4" color="0x7E8795FF" visible="false" />
         <Animation id="scroll" duration="0.18" easeFunction="outQuad">
             <Vector2DFieldInterpolator id="pageTo" key="[0, 1]" fieldToInterp="page.translation" />
             <Vector2DFieldInterpolator id="thumbTo" key="[0, 1]" fieldToInterp="thumb.translation" />

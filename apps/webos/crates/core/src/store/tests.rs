@@ -172,6 +172,36 @@ fn settings_this_version_doesnt_know_fall_back_alone() {
     assert_eq!(s.passthrough.get(PassthroughFormat::Ac3), PassthroughChoice::Off);
 }
 
+/// Each profile's theme is kept apart, by server and profile, by the ids of the theme and accent.
+#[test]
+fn each_profile_keeps_its_own_theme() {
+    let s = store("settings-themes");
+    let mut settings = Settings::default();
+    settings.save(&s).unwrap();
+    assert_eq!(s.get::<serde_json::Value>(keys::SETTINGS).unwrap(), serde_json::json!({}));
+    let pick = |theme: &str, accent: Option<&str>| ThemePick { theme: theme.into(), accent: accent.map(Into::into) };
+    settings.set_theme("http://nas:7539", 2, pick("sunshine", Some("mint")));
+    settings.set_theme("http://nas:7539", 3, pick("blacklight", None));
+    assert_eq!(settings.theme_of("http://nas:7539", 2), pick("sunshine", Some("mint")));
+    assert_eq!(settings.theme_of("http://nas:7539", 3), pick("blacklight", None));
+    // A profile new to the TV, or the same id on another server, shows Midnight in its own accent.
+    assert_eq!(settings.theme_of("http://nas:7539", 4), ThemePick::default());
+    assert_eq!(settings.theme_of("http://den:7539", 2), pick("midnight", None));
+    // The same profile id on another server keeps a pick of its own.
+    settings.set_theme("http://den:7539", 2, pick("greenlight", Some("violet")));
+    assert_eq!(settings.theme_of("http://den:7539", 2), pick("greenlight", Some("violet")));
+    assert_eq!(settings.theme_of("http://nas:7539", 2), pick("sunshine", Some("mint")));
+    settings.save(&s).unwrap();
+    let kept: serde_json::Value = s.get(keys::SETTINGS).unwrap();
+    let nas =
+        serde_json::json!({"2": {"theme": "sunshine", "accent": "mint"}, "3": {"theme": "blacklight", "accent": null}});
+    assert_eq!(kept["themes"]["http://nas:7539"], nas);
+    assert_eq!(Settings::load(&s), settings);
+    // A shape this version doesn't know keeps none.
+    let read = Settings::from_json(&serde_json::json!({"themes": {"http://nas:7539": "sunshine"}}));
+    assert_eq!(read.theme_of("http://nas:7539", 2), ThemePick::default());
+}
+
 #[test]
 fn snapshots_round_trip_and_skip_unchanged_writes() {
     let snaps = Snapshots::open(scratch_dir("snap-trip"));

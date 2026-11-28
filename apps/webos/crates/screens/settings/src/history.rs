@@ -449,25 +449,19 @@ impl HistoryScreen {
             t!("history.title"),
             &theme::PAGE_TITLE,
             &TextOpts::default(),
-            theme::FG,
+            theme::fg(),
         );
         let bottom = theme::SAFE_Y + title.h;
         if self.rows.is_some() {
             let x = theme::GUTTER + title.w + 16.0;
             let y = bottom - 6.0 - theme::CAPTION.line_height;
-            ui.text(Point::new(x, y), &plays(self.total), &theme::CAPTION, &TextOpts::default(), theme::MUTED);
+            ui.text(Point::new(x, y), &plays(self.total), &theme::CAPTION, &TextOpts::default(), theme::muted());
         }
         if let Some(problem) = &self.problem {
             let w = 360.0;
             let opts = TextOpts::line(w).aligned(pley_base::Align::End);
             let x = theme::CANVAS_W - theme::SAFE_X - w;
-            ui.text(
-                Point::new(x, bottom - theme::LABEL.line_height),
-                problem,
-                &theme::LABEL,
-                &opts,
-                theme::DANGER_TEXT,
-            );
+            ui.text(Point::new(x, bottom - theme::LABEL.line_height), problem, &theme::LABEL, &opts, theme::danger());
         }
     }
 
@@ -587,10 +581,10 @@ fn history_line(ui: &mut Ui, id: Id, y: f32, row: &HistoryRow, art: &[ImageReque
     let rect = Rect::new(theme::GUTTER, y, ROW_W, ROW_H);
     let r = ui.focusable_with(id, rect, FocusOpts::default().long_press());
     let p = focus_progress(ui, id, r.focused);
-    ui.fill(rect, mix(pley_base::Color::TRANSPARENT, theme::ACCENT, p), radius::FIELD);
+    ui.fill(rect, mix(pley_base::Color::TRANSPARENT, theme::accent(), p), radius::FIELD);
     let (w, h) = if row.square { (48.0, 48.0) } else { (34.0, 51.0) };
     let cell = Rect::new(rect.x + 12.0 + (48.0 - w) / 2.0, rect.y + (ROW_H - h) / 2.0, w, h);
-    ui.fill(cell, theme::SURFACE2, radius::BADGE);
+    ui.fill(cell, theme::surface2(), radius::BADGE);
     let shown = first_art(ui, art, Priority::Visible);
     if !shown.as_ref().is_some_and(|s| s.opaque()) {
         placeholder(ui, cell, &row.title, "", shown.is_none().then_some(row.mark), radius::BADGE);
@@ -602,8 +596,8 @@ fn history_line(ui: &mut Ui, id: Id, y: f32, row: &HistoryRow, art: &[ImageReque
     let tw = rect.right() - 12.0 - x;
     let block = theme::BODY.line_height + theme::CAPTION.line_height;
     let ty = rect.y + (ROW_H - block) / 2.0;
-    let fg = mix(theme::FG, theme::ON_ACCENT, p);
-    let second = mix(theme::MUTED, theme::ON_ACCENT, p);
+    let fg = mix(theme::fg(), theme::on_accent(), p);
+    let second = mix(theme::muted(), theme::on_accent(), p);
     ui.text(Point::new(x, ty), &row.title, &theme::BODY, &TextOpts::line(tw), fg);
     ui.text(Point::new(x, ty + theme::BODY.line_height), row.line(), &theme::CAPTION, &TextOpts::line(tw), second);
     r
@@ -614,9 +608,9 @@ fn remove_button(ui: &mut Ui, id: Id, y: f32) -> pley_ui::Response {
     let rect = Rect::new(theme::GUTTER + ROW_W + 12.0, y + (ROW_H - CROSS) / 2.0, CROSS, CROSS);
     let r = ui.focusable(id, rect);
     let p = focus_progress(ui, id, r.focused);
-    ui.fill(rect, mix(theme::SURFACE3, theme::ACCENT, p), CROSS / 2.0);
+    ui.fill(rect, mix(theme::surface3(), theme::accent(), p), CROSS / 2.0);
     let icon = Rect::new(rect.x + 10.0, rect.y + 10.0, 20.0, 20.0);
-    ui.icon(icon, Icon::X, mix(theme::MUTED, theme::ON_ACCENT, p));
+    ui.icon(icon, Icon::X, mix(theme::muted(), theme::on_accent(), p));
     r
 }
 
@@ -627,8 +621,8 @@ pub(crate) fn message(ui: &mut Ui, id: Id, title: &str, body: &str, action: &str
     let x = theme::GUTTER;
     let w = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
     let mut y = TOP + 60.0;
-    y += ui.text(Point::new(x, y), title, &theme::TITLE, &TextOpts::wrap(w, 2), theme::FG).h + 10.0;
-    y += ui.text(Point::new(x, y), body, &theme::BODY, &TextOpts::wrap(w, 0), theme::MUTED).h + 32.0;
+    y += ui.text(Point::new(x, y), title, &theme::TITLE, &TextOpts::wrap(w, 2), theme::fg()).h + 10.0;
+    y += ui.text(Point::new(x, y), body, &theme::BODY, &TextOpts::wrap(w, 0), theme::muted()).h + 32.0;
     ui.group(id, pley_kit::bar_group(), |ui| {
         let bid = ui.id("action");
         ui.initial_focus(bid);

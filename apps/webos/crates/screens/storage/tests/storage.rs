@@ -191,7 +191,7 @@ fn a_video_started_before_says_where_it_resumes_and_plays_from_there() {
     // Its bar: a quarter of 160 dp, in the accent.
     let bar = (1_830_000.0 / 7_200_000.0) * 160.0;
     let fills = app.list.cmds.iter().filter(|c| {
-        matches!(c, pley_base::Cmd::Fill { rect, color, .. } if *color == pley_ui::theme::ACCENT && (rect.w - bar).abs() < 0.01)
+        matches!(c, pley_base::Cmd::Fill { rect, color, .. } if *color == pley_ui::theme::accent() && (rect.w - bar).abs() < 0.01)
     });
     assert_eq!(fills.count(), 1);
     app.press(Key::Down);

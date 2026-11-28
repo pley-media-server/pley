@@ -11,22 +11,13 @@ namespace Pley.Tv.Core.Ui;
 
 /// <summary>A profile on "Who's watching?".</summary>
 /// <param name="AvatarUrl">The picture's full address, or null for the initial on <paramref name="Color"/>.</param>
-/// <param name="Color">"#e07a5f"; null: picked from the name, as the web does.</param>
+/// <param name="Color">"#e07a5f"; null: picked from the name (<see cref="ProfileAvatar"/>).</param>
 /// <param name="Needs">What switching to it takes: "none", "pin", "password" or "locked".</param>
 /// <param name="Current">The profile the app uses now.</param>
 public sealed record ProfileTile(long Id, string Name, string? AvatarUrl, string? Color, string Needs, bool Current)
 {
     /// <summary>A lock badge: switching to it takes its PIN.</summary>
     public bool Locked => Needs == "pin";
-
-    public string Initial
-    {
-        get
-        {
-            var trimmed = Name.Trim();
-            return trimmed.Length > 0 ? char.ToUpperInvariant(trimmed[0]).ToString() : "?";
-        }
-    }
 
     /// <summary><paramref name="profile"/> as a tile, its picture's address made whole against <paramref name="origin"/>.</summary>
     public static ProfileTile Of(HouseholdProfile profile, string origin)
@@ -36,43 +27,6 @@ public sealed record ProfileTile(long Id, string Name, string? AvatarUrl, string
         else if (!url!.StartsWith("http://", StringComparison.Ordinal) && !url.StartsWith("https://", StringComparison.Ordinal))
             url = origin.TrimEnd('/') + "/" + url.TrimStart('/');
         return new ProfileTile(profile.Id, profile.Name, url, string.IsNullOrEmpty(profile.AvatarColor) ? null : profile.AvatarColor, profile.Takes, profile.Current);
-    }
-}
-
-/// <summary>The web's profile colors (apps/web/src/components/Avatar.tsx; the Android app's ProfileColors).</summary>
-public static class ProfileColors
-{
-    static readonly uint[] Palette = { 0x38BDF8, 0xA78BFA, 0xF472B6, 0xFB923C, 0xFACC15, 0x4ADE80, 0x2DD4BF, 0xF87171 };
-
-    /// <summary>The profile's own color as 0xRRGGBB, or one picked from its name.</summary>
-    public static uint Of(string name, string? chosen)
-    {
-        var parsed = chosen == null ? null : Parse(chosen);
-        if (parsed != null) return parsed.Value;
-        ulong hash = 0;
-        var i = 0;
-        while (i < name.Length)
-        {
-            hash = (hash * 31 + name[i]) & 0xFFFFFFFFUL;
-            // A step per code point, as the web's for…of; the first unit of a pair is what counts.
-            i += char.IsHighSurrogate(name[i]) && i + 1 < name.Length && char.IsLowSurrogate(name[i + 1]) ? 2 : 1;
-        }
-        return Palette[hash % (ulong)Palette.Length];
-    }
-
-    /// <summary>Whether text on <paramref name="rgb"/> is dark (Bg) rather than white: the web's luminance test, on unconverted channels.</summary>
-    public static bool DarkTextOn(uint rgb)
-    {
-        float r = (rgb >> 16 & 0xff) / 255f, g = (rgb >> 8 & 0xff) / 255f, b = (rgb & 0xff) / 255f;
-        return 0.2126f * r + 0.7152f * g + 0.0722f * b > 0.45f;
-    }
-
-    static uint? Parse(string hex)
-    {
-        var digits = hex.StartsWith("#", StringComparison.Ordinal) ? hex.Substring(1) : hex;
-        if ((digits.Length != 3 && digits.Length != 6) || !digits.All(Uri.IsHexDigit)) return null;
-        var full = digits.Length == 3 ? string.Concat(digits.Select(c => new string(c, 2))) : digits;
-        return Convert.ToUInt32(full, 16);
     }
 }
 

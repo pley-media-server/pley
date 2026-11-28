@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -114,8 +115,10 @@ internal fun requestTile(request: MediaRequest, origin: String, texts: RequestTe
 /** A stage pill's colors: its words and dot, and the tint behind them. */
 private class Tone(val content: Color, val container: Color)
 
+@Composable
+@ReadOnlyComposable
 private fun toneOf(tone: PillTone): Tone = when (tone) {
-    PillTone.Amber -> Tone(PleyColors.Amber, PleyColors.Amber.copy(alpha = 0.14f))
+    PillTone.Amber -> Tone(PleyColors.Warning, PleyColors.Warning.copy(alpha = 0.14f))
     PillTone.Blue -> Tone(PleyColors.AccentBright, PleyColors.Accent.copy(alpha = 0.16f))
     PillTone.Green -> Tone(PleyColors.Success, PleyColors.Success.copy(alpha = 0.16f))
     PillTone.Red -> Tone(PleyColors.DangerText, PleyColors.Danger.copy(alpha = 0.16f))

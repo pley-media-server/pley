@@ -26,6 +26,8 @@ names.push("Usb", "Folder", "FolderOpen", "FileVideo", "CornerLeftUp");
 names.push("Activity", "BookmarkMinus", "Volume2", "Square", "ArrowUp", "Sparkles", "AppWindow");
 // And requests': a decline, and TMDB refusing the server's key.
 names.push("TicketX", "TriangleAlert");
+// And Settings' Appearance: its category and theme, and its accent, as every TV app draws them.
+names.push("Palette", "Droplet");
 
 const kebab = (name) => name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/([A-Za-z])([0-9])/g, "$1-$2").toLowerCase();
 const attrs = (o) => Object.entries(o).map(([k, v]) => ` ${k}="${String(v).replace(/"/g, "&quot;")}"`).join("");

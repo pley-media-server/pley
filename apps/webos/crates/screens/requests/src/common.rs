@@ -21,25 +21,22 @@ use pley_shell::{AppCx, Route};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Id, Ui};
 
-/// Waiting for a decision: the TV app's `--warning`.
-pub const WARNING: Color = Color::rgb(0xf2b544);
-
 /// A tone's color, for words and the stage's dot.
 pub fn tone_color(tone: Tone) -> Color {
     match tone {
-        Tone::Amber => WARNING,
-        Tone::Blue => theme::INFO,
-        Tone::Green => theme::SUCCESS,
-        Tone::Red => theme::DANGER_TEXT,
-        Tone::Gray => theme::MUTED,
+        Tone::Amber => theme::warning(),
+        Tone::Blue => theme::info(),
+        Tone::Green => theme::success(),
+        Tone::Red => theme::danger(),
+        Tone::Gray => theme::muted(),
     }
 }
 
 /// A pill or badge in a tone: the tone at 20 % (gray 16 %) over art's Bg at 80 %, so it reads on
 /// posters and pages alike.
 fn tone_fill(ui: &mut Ui, rect: Rect, tone: Tone, corner: f32) {
-    ui.fill(rect, theme::ON_ART, corner);
-    let tint = if tone == Tone::Gray { theme::MUTED.alpha(0.16) } else { tone_color(tone).alpha(0.2) };
+    ui.fill(rect, theme::on_art(), corner);
+    let tint = if tone == Tone::Gray { theme::muted().alpha(0.16) } else { tone_color(tone).alpha(0.2) };
     ui.fill(rect, tint, corner);
 }
 
@@ -98,10 +95,10 @@ pub fn stage_pill(ui: &mut Ui, at: Point, words: &StageWords, small: bool, max_w
 
 /// How much of a download is in (`DownloadBar`): 4 high, blue on a faint track.
 pub fn download_bar(ui: &mut Ui, rect: Rect, progress: f64) {
-    ui.fill(rect, theme::FG.alpha(0.16), 2.0);
+    ui.fill(rect, theme::fg().alpha(0.16), 2.0);
     let p = progress.clamp(0.0, 1.0) as f32;
     if p > 0.0 {
-        ui.fill(Rect::new(rect.x, rect.y, rect.w * p, rect.h), theme::INFO, 2.0);
+        ui.fill(Rect::new(rect.x, rect.y, rect.w * p, rect.h), theme::info(), 2.0);
     }
 }
 
@@ -220,15 +217,15 @@ impl ToneTile<'_> {
                 }
                 if self.news {
                     let dot = Rect::new(rect.right() - 18.0, rect.y + 8.0, 10.0, 10.0);
-                    ui.fill(dot.expand(2.0), theme::ON_ART, 7.0);
-                    ui.fill(dot, theme::ACCENT, 5.0);
+                    ui.fill(dot.expand(2.0), theme::on_art(), 7.0);
+                    ui.fill(dot, theme::accent(), 5.0);
                 }
             });
         }
         // The line under the title, as the caption's second.
         let rect = slot.rect;
         let y = rect.bottom() + theme::TILES_TO_CAPTION + theme::CAPTION.line_height;
-        let color = self.tone.map_or(theme::MUTED, tone_color);
+        let color = self.tone.map_or(theme::muted(), tone_color);
         let text = match (self.lines, self.line.split_once(" · ")) {
             (2, Some((first, rest))) => format!("{first}\n{rest}"),
             _ => self.line.to_string(),

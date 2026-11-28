@@ -63,7 +63,7 @@ fn fits(title: &str) -> bool {
 
 /// The words at the gutter: a 32 dp list-plus glyph in Muted, 16, then `draw`'s.
 fn behind(ui: &mut Ui, draw: impl FnOnce(&mut Ui, f32)) {
-    ui.icon(Rect::new(theme::GUTTER, LEFT_Y, 32.0, 32.0), Icon::ListPlus, theme::MUTED);
+    ui.icon(Rect::new(theme::GUTTER, LEFT_Y, 32.0, 32.0), Icon::ListPlus, theme::muted());
     draw(ui, LEFT_Y + 32.0 + 16.0);
 }
 
@@ -73,9 +73,9 @@ fn panel_title(ui: &mut Ui, area: Rect, y: f32, title: &str, subtitle: &str) -> 
     let w = area.w - 16.0;
     let x = area.x + 16.0;
     let mut h = 8.0;
-    h += ui.text(Point::new(x, y + h), title, &theme::TITLE, &TextOpts::wrap(w, 2), theme::FG).h;
+    h += ui.text(Point::new(x, y + h), title, &theme::TITLE, &TextOpts::wrap(w, 2), theme::fg()).h;
     if !subtitle.is_empty() {
-        h += ui.text(Point::new(x, y + h), subtitle, &theme::CAPTION, &TextOpts::line(w), theme::MUTED).h;
+        h += ui.text(Point::new(x, y + h), subtitle, &theme::CAPTION, &TextOpts::line(w), theme::muted()).h;
     }
     h + 12.0
 }
@@ -83,7 +83,8 @@ fn panel_title(ui: &mut Ui, area: Rect, y: f32, title: &str, subtitle: &str) -> 
 /// A heading inside a panel ("For", "Your playlists": `TvPanelHeading`, `Tv.Label` Muted, 16 in,
 /// 16 above, 6 below); returns the height used.
 fn panel_heading(ui: &mut Ui, area: Rect, y: f32, text: &str) -> f32 {
-    let h = ui.text(Point::new(area.x + 16.0, y + 16.0), text, &theme::LABEL, &TextOpts::line(area.w), theme::MUTED).h;
+    let h =
+        ui.text(Point::new(area.x + 16.0, y + 16.0), text, &theme::LABEL, &TextOpts::line(area.w), theme::muted()).h;
     16.0 + h + 6.0
 }
 
@@ -166,9 +167,9 @@ impl Screen for NewPlaylistScreen {
         let body = self.body();
         behind(ui, |ui, y| {
             let x = theme::GUTTER;
-            let h = ui.text(Point::new(x, y), heading, &theme::PAGE_TITLE, &TextOpts::wrap(LEFT_W, 2), theme::FG).h;
+            let h = ui.text(Point::new(x, y), heading, &theme::PAGE_TITLE, &TextOpts::wrap(LEFT_W, 2), theme::fg()).h;
             let opts = TextOpts::wrap(LEFT_W, 0);
-            ui.text(Point::new(x, y + h + 12.0), &body, &theme::BODY_LARGE, &opts, theme::MUTED);
+            ui.text(Point::new(x, y + h + 12.0), &body, &theme::BODY_LARGE, &opts, theme::muted());
         });
         let busy = self.making.is_some();
         let ok = fits(&self.typing.edit.text) && !busy;
@@ -194,7 +195,7 @@ impl Screen for NewPlaylistScreen {
             y += 6.0 + 44.0 + 6.0;
             let hint = t!("playlists.form.hint");
             let opts = TextOpts::wrap(area.w - 8.0, 2);
-            y += 4.0 + ui.text(Point::new(area.x + 8.0, y + 4.0), hint, &theme::CAPTION, &opts, theme::MUTED).h;
+            y += 4.0 + ui.text(Point::new(area.x + 8.0, y + 4.0), hint, &theme::CAPTION, &opts, theme::muted()).h;
             if asks {
                 y += panel_heading(ui, area, y, t!("playlists.form.for"));
                 let video = ListRow::new(t!("playlists.form.video"))
@@ -386,9 +387,15 @@ impl Screen for AddToPlaylistScreen {
         behind(ui, |ui, y| {
             let x = theme::GUTTER;
             let h = ui
-                .text(Point::new(x, y), t!("playlists.add.title"), &theme::LABEL, &TextOpts::line(LEFT_W), theme::MUTED)
+                .text(
+                    Point::new(x, y),
+                    t!("playlists.add.title"),
+                    &theme::LABEL,
+                    &TextOpts::line(LEFT_W),
+                    theme::muted(),
+                )
                 .h;
-            ui.text(Point::new(x, y + h + 6.0), &title, &theme::PAGE_TITLE, &TextOpts::wrap(LEFT_W, 3), theme::FG);
+            ui.text(Point::new(x, y + h + 6.0), &title, &theme::PAGE_TITLE, &TextOpts::wrap(LEFT_W, 3), theme::fg());
         });
 
         let music = self.kind == Some(PlaylistKind::Audio);
@@ -412,9 +419,9 @@ impl Screen for AddToPlaylistScreen {
         if loading {
             lines.push(AddLine::Loading);
         } else if let Some(problem) = &failed {
-            lines.push(AddLine::Note(problem, theme::DANGER_TEXT));
+            lines.push(AddLine::Note(problem, theme::danger()));
         } else if known && list.is_empty() && kind.is_some() {
-            lines.push(AddLine::Note(none, theme::MUTED));
+            lines.push(AddLine::Note(none, theme::muted()));
         } else {
             lines.extend(list.iter().map(|c| AddLine::Playlist(c)));
         }
@@ -438,8 +445,8 @@ impl Screen for AddToPlaylistScreen {
                 let text_h = ui.measure(message, &theme::TITLE, &opts).h;
                 let top = area.y + (area.h - (48.0 + 16.0 + text_h)) / 2.0;
                 let icon = Rect::new(area.x + (area.w - 48.0) / 2.0, top, 48.0, 48.0);
-                ui.icon(icon, Icon::CircleCheck, theme::ACCENT);
-                ui.text(Point::new(area.x, top + 64.0), message, &theme::TITLE, &opts, theme::FG);
+                ui.icon(icon, Icon::CircleCheck, theme::accent());
+                ui.text(Point::new(area.x, top + 64.0), message, &theme::TITLE, &opts, theme::fg());
                 return;
             }
             let placeholder = if music { t!("playlists.add.newMusic") } else { t!("playlists.add.newVideo") };

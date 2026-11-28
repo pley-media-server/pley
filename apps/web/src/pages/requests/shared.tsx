@@ -66,7 +66,7 @@ export const TitleCard = memo(function TitleCard({ title, width, fixed }: { titl
       <Link
         to={to}
         aria-label={titleName(title)}
-        className="relative block overflow-hidden rounded-md bg-surface-2 outline-none ring-1 ring-white/5 transition duration-200 hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
+        className="relative block overflow-hidden rounded-md bg-surface-2 outline-none ring-1 ring-fg/5 transition duration-200 hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
       >
         <Artwork
           candidates={title.poster_url ? [title.poster_url] : []}
@@ -318,7 +318,7 @@ const PILL_TONES: Record<StageTone, string> = {
   info: "bg-info/15 text-info",
   success: "bg-success/15 text-success",
   danger: "bg-danger/15 text-danger",
-  neutral: "bg-white/10 text-fg/80",
+  neutral: "bg-fg/10 text-fg/80",
 };
 
 const BAR_TONES: Record<RequestDownloadState, string> = {
@@ -368,7 +368,7 @@ export function StagePill({
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(download.progress * 100)}
-          className="h-1 w-full max-w-56 overflow-hidden rounded-full bg-white/10"
+          className="h-1 w-full max-w-56 overflow-hidden rounded-full bg-fg/10"
         >
           <div
             className={cn("h-full rounded-full transition-[width] duration-500", BAR_TONES[download.state])}

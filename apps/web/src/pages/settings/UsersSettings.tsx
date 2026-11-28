@@ -165,7 +165,7 @@ function UserDevices({ user, self }: { user: User; self: boolean }) {
       ) : list.length === 0 ? (
         <p className="text-sm text-subtle">{t("users.devices.none")}</p>
       ) : (
-        <ul className="divide-y divide-white/[0.05] rounded-md border border-border">
+        <ul className="divide-y divide-fg/[0.05] rounded-md border border-border">
           {list.map((d) => {
             const Icon = isPhone(d) ? Smartphone : Laptop;
             return (
@@ -203,7 +203,7 @@ function UserApps({ user }: { user: User }) {
       ) : list.length === 0 ? (
         <p className="text-sm text-subtle">{t("users.apps.none")}</p>
       ) : (
-        <ul className="divide-y divide-white/[0.05] rounded-md border border-border">
+        <ul className="divide-y divide-fg/[0.05] rounded-md border border-border">
           {list.map((a) => {
             const label = appLabel(a);
             return (
@@ -683,7 +683,7 @@ function UserRow({ user, self, libraries, onOpen }: { user: User; self: boolean;
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] focus-visible:bg-white/[0.04] focus-visible:outline-none"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-fg/[0.03] focus-visible:bg-fg/[0.04] focus-visible:outline-none"
       >
         <Avatar user={user} size="md" className={cn(user.disabled && "opacity-40 grayscale")} />
         <div className="min-w-0 flex-1">
@@ -761,7 +761,7 @@ export function UsersSettings() {
       {users.data.length === 0 ? (
         <EmptyState icon={<UserPlus />} title={t("users.empty")} />
       ) : (
-        <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-border bg-surface">
+        <ul className="divide-y divide-fg/[0.05] overflow-hidden rounded-lg border border-border bg-surface">
           {users.data.map((u) => (
             <UserRow key={u.id} user={u} self={u.id === me.id} libraries={libs.data} onOpen={() => setDialog({ user: u })} />
           ))}

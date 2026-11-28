@@ -98,13 +98,14 @@ internal fun PleySheet(
 
 @Composable
 private fun SheetHandle() {
+    val palette = PleyColors.palette
     Box(
         Modifier
             .fillMaxWidth()
             .height(24.dp)
             .drawBehind {
                 val hair = PleyElevation.Level2Hairline.toPx()
-                drawLine(PleyColors.Surface4, Offset(PleyShape.SheetRadius.toPx(), hair / 2f), Offset(size.width - PleyShape.SheetRadius.toPx(), hair / 2f), hair)
+                drawLine(palette.border, Offset(PleyShape.SheetRadius.toPx(), hair / 2f), Offset(size.width - PleyShape.SheetRadius.toPx(), hair / 2f), hair)
             },
         contentAlignment = Alignment.Center,
     ) {

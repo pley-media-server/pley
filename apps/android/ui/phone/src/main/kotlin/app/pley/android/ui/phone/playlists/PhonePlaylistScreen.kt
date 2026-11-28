@@ -529,7 +529,7 @@ private fun EntryRow(
                 Modifier.fillMaxSize().background(PleyColors.Danger).padding(horizontal = 24.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(TrashIcon, contentDescription = null, size = 22.dp, tint = PleyColors.Bg)
+                Icon(TrashIcon, contentDescription = null, size = 22.dp, tint = PleyColors.DangerFg)
             }
         },
     ) { content() }

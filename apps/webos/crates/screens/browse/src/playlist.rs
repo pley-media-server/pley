@@ -557,14 +557,14 @@ impl PlaylistScreen {
                 let mut y = area.y + 8.0;
                 let opts = TextOpts::wrap(area.w - 16.0, 2);
                 let heading = t!("playlists.page.renameTitle");
-                y += ui.text(Point::new(area.x + 16.0, y), heading, &theme::TITLE, &opts, theme::FG).h;
+                y += ui.text(Point::new(area.x + 16.0, y), heading, &theme::TITLE, &opts, theme::fg()).h;
                 y += 12.0 + 12.0;
                 ui.initial_focus(field_id);
                 typing.field(ui, field_id, Point::new(area.x, y), area.w, t!("playlists.page.titleField"));
                 y += 44.0 + 12.0;
                 let hint = t!("playlists.page.hint");
                 let opts = TextOpts::wrap(area.w - 4.0, 2);
-                y += ui.text(Point::new(area.x + 4.0, y), hint, &theme::CAPTION, &opts, theme::MUTED).h;
+                y += ui.text(Point::new(area.x + 4.0, y), hint, &theme::CAPTION, &opts, theme::muted()).h;
                 y += 12.0 + 4.0 + 12.0;
                 let ok = typing.title().is_some();
                 save = Button::pill(t!("playlists.page.save"))
@@ -673,22 +673,23 @@ fn draw_card(ui: &mut Ui, id: Id, rect: Rect, row: &Row, number: usize, video: b
     let lifted = look == CardLook::Lifted;
     let focused = look == CardLook::Focused;
     let fill = if lifted {
-        theme::SURFACE3
+        theme::surface3()
     } else if focused {
-        theme::ACCENT
+        theme::accent()
     } else {
         pley_base::Color::TRANSPARENT
     };
     ui.fill(rect, fill, radius::CARD);
     if lifted {
         let s = theme::focus::RING_STROKE;
-        ui.stroke(rect.expand(-s / 2.0), theme::ACCENT_BRIGHT, radius::CARD - s / 2.0, s);
+        ui.stroke(rect.expand(-s / 2.0), theme::accent_bright(), radius::CARD - s / 2.0, s);
     }
     let on_accent = focused && !lifted;
-    let (content, secondary) = if on_accent { (theme::ON_ACCENT, theme::ON_ACCENT) } else { (theme::FG, theme::MUTED) };
+    let (content, secondary) =
+        if on_accent { (theme::on_accent(), theme::on_accent()) } else { (theme::fg(), theme::muted()) };
     let mid = rect.y + rect.h / 2.0;
     let mut x = rect.x + 16.0;
-    let number_color = if on_accent { theme::ON_ACCENT } else { theme::SUBTLE };
+    let number_color = if on_accent { theme::on_accent() } else { theme::subtle() };
     let number = number.to_string();
     let layout = ui.layout(&number, &theme::LABEL, &TextOpts::line(28.0));
     let nw = layout.size.w;
@@ -711,8 +712,8 @@ fn draw_card(ui: &mut Ui, id: Id, rect: Rect, row: &Row, number: usize, video: b
     let mut right = rect.right() - 16.0;
     if lifted {
         let ax = right - 22.0;
-        ui.icon(Rect::new(ax, mid - 22.0, 22.0, 22.0), Icon::ChevronUp, theme::ACCENT_BRIGHT);
-        ui.icon(Rect::new(ax, mid, 22.0, 22.0), Icon::ChevronDown, theme::ACCENT_BRIGHT);
+        ui.icon(Rect::new(ax, mid - 22.0, 22.0, 22.0), Icon::ChevronUp, theme::accent_bright());
+        ui.icon(Rect::new(ax, mid, 22.0, 22.0), Icon::ChevronDown, theme::accent_bright());
         right = ax - 16.0;
     } else if !row.duration.is_empty() {
         let layout = ui.layout(&row.duration, &theme::CAPTION, &TextOpts::default());
@@ -833,14 +834,14 @@ impl Screen for PlaylistScreen {
         Backdrop::new(BackdropScrim::Item).show(ui, ui.id("backdrop"), &mut self.backdrop, self.art.as_ref());
         if shift > 0.5 {
             let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
-            ui.fill(full, theme::BG.alpha(DIM * (shift / HERO_H).min(1.0)), 0.0);
+            ui.fill(full, theme::bg().alpha(DIM * (shift / HERO_H).min(1.0)), 0.0);
         }
 
         // The top: what it plays, the title, the facts, the buttons.
         let x = theme::GUTTER;
         let mut y = CONTENT_Y - shift;
         let kind_icon = if video { Icon::ListVideo } else { Icon::ListMusic };
-        ui.icon(Rect::new(x, y, 18.0, 18.0), kind_icon, theme::MUTED);
+        ui.icon(Rect::new(x, y, 18.0, 18.0), kind_icon, theme::muted());
         let kind = if smart {
             t!("playlists.page.smart")
         } else if video {
@@ -849,10 +850,10 @@ impl Screen for PlaylistScreen {
             t!("playlists.page.music")
         };
         let ky = y + (18.0 - theme::CAPTION.line_height) / 2.0;
-        ui.text(Point::new(x + 26.0, ky), kind, &theme::CAPTION, &TextOpts::line(TEXT_W - 26.0), theme::MUTED);
+        ui.text(Point::new(x + 26.0, ky), kind, &theme::CAPTION, &TextOpts::line(TEXT_W - 26.0), theme::muted());
         y += 18.0 + 10.0;
         let title = &self.view.title;
-        y += ui.text(Point::new(x, y), title, &theme::HERO_TITLE, &TextOpts::wrap(TEXT_W, 2), theme::FG).h;
+        y += ui.text(Point::new(x, y), title, &theme::HERO_TITLE, &TextOpts::wrap(TEXT_W, 2), theme::fg()).h;
         y += 12.0;
         let mut fx = x;
         if smart {
@@ -861,7 +862,7 @@ impl Screen for PlaylistScreen {
                 + 8.0;
         }
         let opts = TextOpts::wrap((TEXT_W - (fx - x)).max(1.0), 2);
-        ui.text(Point::new(fx, y), &self.view.facts, &theme::LABEL, &opts, theme::MUTED);
+        ui.text(Point::new(fx, y), &self.view.facts, &theme::LABEL, &opts, theme::muted());
 
         let lifting = self.lift.moving.is_some();
         let by = buttons_y - shift;
@@ -901,7 +902,7 @@ impl Screen for PlaylistScreen {
                 t!("playlists.page.emptyMusic")
             };
             let ey = by + theme::BUTTON_HEIGHT + theme::BUTTON_LABEL_ROOM + 12.0;
-            ui.text(Point::new(x, ey), text, &theme::BODY, &TextOpts::wrap(TEXT_W, 3), theme::MUTED);
+            ui.text(Point::new(x, ey), text, &theme::BODY, &TextOpts::wrap(TEXT_W, 3), theme::muted());
         }
 
         // The entries near the screen, and always the focused one's neighbors.
@@ -1047,8 +1048,8 @@ impl Screen for PlaylistScreen {
             let size = layout.size;
             let (w, h) = (size.w + 40.0, size.h + 24.0);
             let rect = Rect::new((theme::CANVAS_W - w) / 2.0, theme::CANVAS_H - theme::SAFE_Y - h, w, h);
-            ui.fill(rect, theme::SURFACE3, h / 2.0);
-            ui.draw_text(Point::new(rect.x + 20.0, rect.y + 12.0), layout, theme::FG);
+            ui.fill(rect, theme::surface3(), h / 2.0);
+            ui.draw_text(Point::new(rect.x + 20.0, rect.y + 12.0), layout, theme::fg());
         }
 
         self.overlays(ui, cx, &ids, editable);

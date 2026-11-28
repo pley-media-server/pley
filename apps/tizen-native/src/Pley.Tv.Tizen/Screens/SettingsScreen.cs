@@ -31,6 +31,7 @@ sealed class SettingsScreen : ShellPage
     readonly List<IDisposable> watches = new List<IDisposable>();
     readonly FocusGroup categories = new FocusGroup(Axis.Column, "categories");
     readonly FocusGroup pane = new FocusGroup(Axis.Column, "pane");
+    readonly FocusGroup columns = new FocusGroup(Axis.Row, "settings");
     readonly Dictionary<SettingsCategory, SettingRowView> categoryRows = new Dictionary<SettingsCategory, SettingRowView>();
     readonly View rows = new View();
     readonly View message;
@@ -56,7 +57,6 @@ sealed class SettingsScreen : ShellPage
         title.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(PleyTv.SafeVertical));
         View.Add(title);
 
-        var columns = new FocusGroup(Axis.Row, "settings");
         columns.Add(categories);
         columns.Add(pane);
         Group.Add(columns);
@@ -174,6 +174,33 @@ sealed class SettingsScreen : ShellPage
             DrawPane();
         }
         if (spot.Row == null || !FocusRow(spot.Row)) Tree.Focus(categoryRows[shown].Item);
+    }
+
+    /// <summary>Where focus was on this page while another opened from it is on top: the category shown, and its row (null: the category).</summary>
+    public (SettingsCategory Category, string? Row) Under =>
+        (shown, columns.Last == 1 && pane.Last >= 0 && pane.Last < pane.Children.Count ? (pane.Children[pane.Last] as FocusItem)?.Name : null);
+
+    /// <summary>
+    /// Under another page, as it was before both were drawn again (another language or theme): back on
+    /// top, focus comes back to <paramref name="spot"/>.
+    /// </summary>
+    public void Remember((SettingsCategory Category, string? Row) spot)
+    {
+        if (gone) return;
+        if (shown != spot.Category)
+        {
+            shown = spot.Category;
+            scroll = 0;
+            DrawPane();
+        }
+        categories.RememberChild(SettingsModel.Categories.ToList().IndexOf(spot.Category));
+        if (spot.Row == null) return;
+        for (var i = 0; i < pane.Children.Count; i++)
+        {
+            if ((pane.Children[i] as FocusItem)?.Name != spot.Row) continue;
+            pane.RememberChild(i);
+            columns.RememberChild(1);
+        }
     }
 
     bool FocusRow(string key)

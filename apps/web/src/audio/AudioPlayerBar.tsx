@@ -66,7 +66,7 @@ function QueuePopover() {
         <ListMusic className="size-4" />
       </IconButton>
       {open ? (
-        <div className="absolute bottom-full right-0 mb-3 max-h-96 w-80 animate-pop-in overflow-y-auto rounded-lg border border-border bg-surface-2 py-2 shadow-2xl shadow-black/60">
+        <div className="absolute bottom-full right-0 mb-3 max-h-96 w-80 animate-pop-in overflow-y-auto rounded-lg border border-border bg-surface-2 py-2 shadow-2xl shadow-shade/60">
           <div className="px-4 pb-2 text-xs font-medium text-subtle">{t("upNext.title")}</div>
           {player.queue.map((t, i) => (
             <button
@@ -75,7 +75,7 @@ function QueuePopover() {
               aria-current={i === player.index ? "true" : undefined}
               onClick={() => player.jumpTo(i)}
               className={cn(
-                "flex w-full items-center gap-3 px-4 py-1.5 text-left text-sm transition-colors hover:bg-white/5",
+                "flex w-full items-center gap-3 px-4 py-1.5 text-left text-sm transition-colors hover:bg-fg/5",
                 i === player.index && "text-accent",
               )}
             >
@@ -120,7 +120,7 @@ export function AudioPlayerBar() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur-md transition-[left] duration-200 motion-reduce:transition-none lg:left-[var(--sidebar-width,15rem)]">
       {/* Mobile progress line */}
-      <div className="h-0.5 bg-white/10 md:hidden">
+      <div className="h-0.5 bg-fg/10 md:hidden">
         <div className="h-full bg-accent" style={{ width: `${length ? (at / length) * 100 : 0}%` }} />
       </div>
       <div className="flex h-[76px] items-center gap-3 px-3 sm:px-5">

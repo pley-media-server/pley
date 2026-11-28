@@ -6,7 +6,8 @@ import type { CompatibilityToken, CreatedCompatibilityToken } from "@/api/compat
 import type { User } from "@/api/types";
 import { AudioPlayerProvider } from "@/audio/AudioPlayer";
 import { apiError, type FakeRequest, mockApi, renderWithProviders, testUser } from "@/test/render";
-import { AccountPage, PlaybackCard } from "./AccountPage";
+import { Route, Routes } from "react-router";
+import { ACCOUNT_SECTIONS, AccountIndex, AccountLayout, PlaybackCard } from "./AccountPage";
 
 /** The last account change: queries refetched after it may come later. */
 function lastSave(requests: FakeRequest[]) {
@@ -81,7 +82,8 @@ const NOT_AN_ADDRESS = "10.0.0.300";
  * The whole page as `user`, with nothing in its history or devices, these
  * apps and these tokens for other apps; returns the requests it makes.
  */
-function renderAccount(user: User, apps: AppGrant[] = [], tokens: CompatibilityToken[] = []) {
+/** Account at one of its sections (`ACCOUNT_SECTIONS`), or at a query of bare /account (`?section=…`), with its sidebar to the others. */
+function renderAccount(user: User, section: string, apps: AppGrant[] = [], tokens: CompatibilityToken[] = []) {
   let list = apps;
   let tokenList = tokens;
   const requests = mockApi({
@@ -127,9 +129,16 @@ function renderAccount(user: User, apps: AppGrant[] = [], tokens: CompatibilityT
   });
   renderWithProviders(
     <AudioPlayerProvider>
-      <AccountPage />
+      <Routes>
+        <Route path="/account" element={<AccountLayout />}>
+          <Route index element={<AccountIndex />} />
+          {ACCOUNT_SECTIONS.map(({ path, element }) => (
+            <Route key={path} path={path} element={element} />
+          ))}
+        </Route>
+      </Routes>
     </AudioPlayerProvider>,
-    { user },
+    { user, route: section.startsWith("?") ? `/account${section}` : `/account/${section}` },
   );
   return requests;
 }
@@ -194,26 +203,75 @@ const tool: CompatibilityToken = {
 const NO_PASSWORD = "This account has no password: an administrator can give it one.";
 
 describe("AccountPage", () => {
+  it("shows one section at a time, the others a click away in its sidebar", async () => {
+    const user = userEvent.setup();
+    renderAccount(testUser, "profile");
+    const nav = screen.getByRole("navigation", { name: "Account" });
+    expect(within(nav).getAllByRole("link").map((a) => a.textContent)).toEqual([
+      "Profile and Security",
+      "Appearance",
+      "Language",
+      "Watch history",
+    ]);
+    expect(within(nav).getByRole("link", { name: "Profile and Security" })).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByRole("heading", { name: "Theme" })).not.toBeInTheDocument();
+
+    await user.click(within(nav).getByRole("link", { name: "Appearance" }));
+    expect(screen.getByRole("heading", { name: "Theme" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Appearance" })).toHaveAttribute("aria-current", "page");
+
+    await user.click(within(nav).getByRole("link", { name: "Language" }));
+    expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Audio and subtitles" })).toBeInTheDocument();
+  });
+
+  it("opens the section an app's link names", () => {
+    renderAccount(testUser, "?section=language");
+    const nav = screen.getByRole("navigation", { name: "Account" });
+    expect(within(nav).getByRole("link", { name: "Language" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("heading", { name: "Audio and subtitles" })).toBeInTheDocument();
+  });
+
+  it("opens Profile for a section it doesn't have", () => {
+    renderAccount(testUser, "?section=nothing");
+    const nav = screen.getByRole("navigation", { name: "Account" });
+    expect(within(nav).getByRole("link", { name: "Profile and Security" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("picks a section from one menu in a narrow window", async () => {
+    const user = userEvent.setup();
+    renderAccount(testUser, "profile");
+    await user.click(screen.getByRole("button", { name: "Account: Profile and Security" }));
+    const menu = screen.getByRole("menu", { name: "Account" });
+    expect(within(menu).getAllByRole("menuitem")).toHaveLength(4);
+    expect(within(menu).getByRole("menuitem", { name: "Profile and Security" })).toHaveAttribute("aria-current", "page");
+
+    await user.click(within(menu).getByRole("menuitem", { name: "Watch history" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Account: Watch history" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Watch history" })).toBeInTheDocument();
+  });
+
   it("tells an account without a password that an administrator can give it one", () => {
-    renderAccount({ ...testUser, is_admin: false, has_password: false });
+    renderAccount({ ...testUser, is_admin: false, has_password: false }, "profile");
     expect(screen.getByText(NO_PASSWORD)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Change password" })).not.toBeInTheDocument();
   });
 
   it("lets an account with a password change it", () => {
-    renderAccount(testUser);
+    renderAccount(testUser, "profile");
     expect(screen.getByRole("heading", { name: "Change password" })).toBeInTheDocument();
     expect(screen.queryByText(NO_PASSWORD)).not.toBeInTheDocument();
   });
 
   it("says nothing about passwords to a managed profile", () => {
-    renderAccount({ ...testUser, is_admin: false, managed: true, has_password: false });
+    renderAccount({ ...testUser, is_admin: false, managed: true, has_password: false }, "profile");
     expect(screen.queryByRole("heading", { name: "Change password" })).not.toBeInTheDocument();
     expect(screen.queryByText(NO_PASSWORD)).not.toBeInTheDocument();
   });
 
   it("lists the apps that use the account, and what they may do", async () => {
-    renderAccount(testUser, [android, other]);
+    renderAccount(testUser, "profile", [android, other]);
     const card = (await screen.findByText("Pley for Android")).closest("ul");
     if (!card) throw new Error("no list of apps");
     const [own, theirs] = within(card).getAllByRole("listitem");
@@ -232,7 +290,7 @@ describe("AccountPage", () => {
 
   it("says who allowed an app that uses the profile", async () => {
     const kiddo: User = { ...testUser, id: 2, name: "Kiddo", is_admin: false, managed: true, has_password: false };
-    renderAccount(kiddo, [other]);
+    renderAccount(kiddo, "profile", [other]);
     expect(await screen.findByText("apps.example.com")).toBeInTheDocument();
     expect(screen.getByText(/Allowed by Admin/)).toBeInTheDocument();
     expect(screen.queryByText(/Using Kiddo/)).not.toBeInTheDocument();
@@ -240,7 +298,7 @@ describe("AccountPage", () => {
 
   it("signs an app out", async () => {
     const user = userEvent.setup();
-    const requests = renderAccount(testUser, [android, other]);
+    const requests = renderAccount(testUser, "profile", [android, other]);
     await user.click(await screen.findByRole("button", { name: "Sign out Pley for Android" }));
 
     expect(await screen.findByText("Signed out Pley for Android")).toBeInTheDocument();
@@ -250,14 +308,14 @@ describe("AccountPage", () => {
   });
 
   it("leads to the page where a TV's code is typed", async () => {
-    renderAccount(testUser, [android]);
+    renderAccount(testUser, "profile", [android]);
     await screen.findByText("Pley for Android");
     expect(screen.getByRole("link", { name: "Sign in on a TV" })).toHaveAttribute("href", "/link");
   });
 
   it("lists the apps again once a new password signed them out", async () => {
     const user = userEvent.setup();
-    renderAccount(testUser, [android]);
+    renderAccount(testUser, "profile", [android]);
     await screen.findByText("Pley for Android");
     await user.type(screen.getByLabelText("Current password"), "old-password-1");
     await user.type(screen.getByLabelText("New password"), "new-password-2");
@@ -271,21 +329,21 @@ describe("AccountPage", () => {
 
   it("never says an app was used in the future when this device's clock is behind", async () => {
     const ahead = Math.floor(Date.now() / 1000) + 5;
-    renderAccount(testUser, [{ ...android, created_at: ahead, last_used_at: ahead }]);
+    renderAccount(testUser, "profile", [{ ...android, created_at: ahead, last_used_at: ahead }]);
     const row = (await screen.findByText("Pley for Android")).closest("li");
     expect(row).toHaveTextContent(/last active now · allowed now/);
     expect(row).not.toHaveTextContent(/\bin \d+ seconds?/);
   });
 
   it("says how apps get access when none has it", async () => {
-    renderAccount(testUser);
+    renderAccount(testUser, "profile");
     expect(
       await screen.findByText("No apps use your account. Apps ask on a Pley page before they get access."),
     ).toBeInTheDocument();
   });
 
   it("lists the apps signed in and the tokens made, with what they may do, from where, and their last use", async () => {
-    renderAccount(testUser, [], [findroid, tool]);
+    renderAccount(testUser, "profile", [], [findroid, tool]);
     const used = (await screen.findByText("Findroid on Phone")).closest("li");
     expect(used).toHaveTextContent(/Findroid\/0\.16 · 192\.0\.2\.9 · last used 2 minutes ago · made 2 days ago/);
     expect(used).toHaveTextContent("Watch");
@@ -297,7 +355,7 @@ describe("AccountPage", () => {
 
   it("makes a token and shows it once", async () => {
     const user = userEvent.setup();
-    const requests = renderAccount(testUser);
+    const requests = renderAccount(testUser, "profile");
     await user.click(await screen.findByRole("button", { name: "New token" }));
     await user.click(screen.getByRole("button", { name: "Make token" }));
     expect(screen.getByText("Give the token a name.")).toBeInTheDocument();
@@ -322,7 +380,7 @@ describe("AccountPage", () => {
 
   it("makes a token that may manage libraries, only from the home network and the addresses given", async () => {
     const user = userEvent.setup();
-    const requests = renderAccount(testUser);
+    const requests = renderAccount(testUser, "profile");
     await user.click(await screen.findByRole("button", { name: "New token" }));
     // Every token may watch.
     expect(screen.getByLabelText(/^Watch/)).toBeChecked();
@@ -349,7 +407,7 @@ describe("AccountPage", () => {
 
   it("lets an account that isn't an administrator make tokens that only watch", async () => {
     const user = userEvent.setup();
-    const requests = renderAccount({ ...testUser, is_admin: false });
+    const requests = renderAccount({ ...testUser, is_admin: false }, "profile");
     await user.click(await screen.findByRole("button", { name: "New token" }));
     expect(screen.getByLabelText(/^Watch/)).toBeChecked();
     expect(screen.queryByLabelText(/^See everyone's activity/)).not.toBeInTheDocument();
@@ -363,7 +421,7 @@ describe("AccountPage", () => {
 
   it("says which entry of where a token may be used from the server refuses, and how many it takes", async () => {
     const user = userEvent.setup();
-    const requests = renderAccount(testUser);
+    const requests = renderAccount(testUser, "profile");
     await user.click(await screen.findByRole("button", { name: "New token" }));
     await user.type(screen.getByLabelText("Name"), "Stats");
     const from = screen.getByLabelText("Only from");
@@ -385,7 +443,7 @@ describe("AccountPage", () => {
 
   it("revokes an app's sign-in", async () => {
     const user = userEvent.setup();
-    const requests = renderAccount(testUser, [], [findroid, tool]);
+    const requests = renderAccount(testUser, "profile", [], [findroid, tool]);
     await user.click(await screen.findByRole("button", { name: "Revoke Findroid on Phone" }));
     expect(await screen.findByText("Revoked Findroid on Phone")).toBeInTheDocument();
     expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/me/compatibility-tokens/3")).toBe(true);
@@ -397,17 +455,18 @@ describe("AccountPage", () => {
 
   it("lists the tokens again once a new password ended them", async () => {
     const user = userEvent.setup();
-    renderAccount(testUser, [], [findroid]);
+    renderAccount(testUser, "profile", [], [findroid]);
     await screen.findByText("Findroid on Phone");
     await user.type(screen.getByLabelText("Current password"), "old-password-1");
     await user.type(screen.getByLabelText("New password"), "new-password-2");
     await user.type(screen.getByLabelText("Confirm new password"), "new-password-2");
     await user.click(screen.getByRole("button", { name: "Update password" }));
+    expect(await screen.findByText("Password changed")).toBeInTheDocument();
     expect(await screen.findByText("No tokens yet.")).toBeInTheDocument();
   });
 
   it("links to the source code where the server says it is offered", async () => {
-    renderAccount({ ...testUser, is_admin: false });
+    renderAccount({ ...testUser, is_admin: false }, "profile");
     const link = await within(screen.getByTestId("build")).findByRole("link", { name: "Source code" });
     expect(link).toHaveAttribute("href", SOURCE);
   });

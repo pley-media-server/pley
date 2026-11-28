@@ -7,14 +7,18 @@
 //! (<https://webostv.developer.lge.com/develop/guides/back-button>): from webOS 6 it asks "Exit
 //! Pley?" first, as the Samsung app does (`Kit/Shell.cs`); up to webOS 5 the TV's Home shows.
 //! What the user's remotes cast to the TV opens its player over whatever page shows ([`cast`]).
+//! Each frame starts by showing the theme picked on this TV ([`page_palette`]), its dark twin's
+//! under a player, and the theme's backdrop under the page.
 //!
 //! [`cast`]: crate::cast
 
 use pley_base::{ImageRequest, Key};
 use pley_core::ApiError;
 use pley_core::model::{Library, LiveCategory, RequestSummary, ServerEvent};
+use pley_core::store::ThemePick;
 use pley_i18n::t;
 use pley_kit::{Dialog, DialogButton};
+use pley_ui::theme::{self, Accent, Palette, Theme};
 use pley_ui::{Dir, Edge, Group, Id, InputEvent, PageMemory, Ui, UiState};
 
 use crate::cast::{
@@ -27,6 +31,12 @@ use crate::rail::{Rail, RailEntries, RailView, current_entry, rail_entries};
 use crate::route::{PlayRequest, Route};
 use crate::screen::{AppEvent, Chrome, Overlay, Registry, Screen};
 use crate::state::AppState;
+
+/// The palette of a theme and accent picked on this TV, Midnight and the theme's own for ids it
+/// doesn't know (docs/THEMES.md).
+pub fn page_palette(pick: &ThemePick) -> &'static Palette {
+    Palette::of(Theme::from_id(Some(&pick.theme)), Accent::from_id(pick.accent.as_deref()))
+}
 
 /// One page on the back stack: its route, its screen (kept while pages above it show) and the
 /// focus it had.
@@ -361,6 +371,15 @@ impl Shell {
     /// edge and the rail.
     pub fn frame(&mut self, ui: &mut Ui, state: &mut AppState) {
         let now = ui.time();
+        // The theme before anything draws, so a pick changes every color in the same frame: the
+        // profile's inside it; Midnight in its own accent on the pages outside a profile (a
+        // server, a sign-in, "Who's watching?", a PIN), which are no profile's. A player, and
+        // what shows over it, draws in a light theme's dark twin.
+        let pick = if self.chrome() == Chrome::Bare { ThemePick::default() } else { state.theme_pick() };
+        let page = page_palette(&pick);
+        let video = self.chrome() == Chrome::Video;
+        theme::show(if video { page.for_video() } else { page });
+        ui.set_clear(theme::bg());
         let Some(top) = self.stack.len().checked_sub(1) else { return };
         let rail_shown = self.rail_shown(state);
         if rail_shown {
@@ -440,6 +459,9 @@ impl Shell {
             ui.request_repaint();
         }
 
+        if !video {
+            pley_kit::theme_glow(ui);
+        }
         let entry = &mut self.stack[top];
         let group = Group::free().edge(Dir::Left, Edge::Out);
         let modal = {

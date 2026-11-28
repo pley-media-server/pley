@@ -1,4 +1,7 @@
 sub init()
+    m.c = uiColors()
+    ' The page dimmed behind the panel, in the theme's shade.
+    m.top.findNode("dim").color = themeShade(m.c, 0.5)
     m.backdrop = m.top.findNode("backdrop")
     m.page = m.top.findNode("page")
     m.poster = m.top.findNode("poster")

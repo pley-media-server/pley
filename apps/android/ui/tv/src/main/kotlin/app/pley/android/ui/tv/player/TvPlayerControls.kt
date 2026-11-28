@@ -82,6 +82,7 @@ import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.ArtworkLoad
 import app.pley.android.designsystem.image.GradientBitmaps
 import app.pley.android.designsystem.image.drawStretched
+import app.pley.android.designsystem.theme.PleyPalette
 import app.pley.android.model.MarkerKind
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.player.PlaybackController
@@ -206,6 +207,7 @@ internal fun BoxScope.TvScrubber(
     alpha: State<Float>,
     skipShown: Boolean,
 ) {
+    val trackPalette = PleyColors.palette
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     val thumbScale by animateFloatAsState(if (focused) 1f else 0f, PleyMotion.focus(), label = "thumb")
@@ -255,7 +257,7 @@ internal fun BoxScope.TvScrubber(
                 .focusable(interactionSource = interactions)
                 .drawBehind {
                     val s = state.value
-                    drawTrack(s, scrubberAt(s, seeker, ui), thumbScale)
+                    drawTrack(s, scrubberAt(s, seeker, ui), thumbScale, trackPalette)
                 },
         )
         MarkerLabel(state)
@@ -270,7 +272,7 @@ private fun scrubberAt(s: PlayerUiState, seeker: TvSeeker, ui: TvPlayerUi): Long
     ui.chapter?.let { s.chapters.getOrNull(it)?.startMs } ?: seeker.target ?: s.positionMs
 
 /** The track, the played part and the thumb at [at], the buffered part and chapter gaps. */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrack(s: PlayerUiState, at: Long, focus: Float) {
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrack(s: PlayerUiState, at: Long, focus: Float, palette: PleyPalette) {
     val h = TRACK_HEIGHT.toPx()
     val y = size.height / 2f - h / 2f
     val w = size.width
@@ -292,18 +294,18 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrack(s: Player
         val a = edges[i] + if (i == 0) 0f else gap / 2f
         val b = edges[i + 1] - if (i == edges.size - 2) 0f else gap / 2f
         if (b <= a) continue
-        drawRoundRect(TRACK, Offset(a, y), Size(b - a, h), r)
-        if (buffered > a) drawRoundRect(BUFFERED, Offset(a, y), Size(minOf(buffered, b) - a, h), r)
-        if (played > a) drawRoundRect(PleyColors.Accent, Offset(a, y), Size(minOf(played, b) - a, h), r)
+        drawRoundRect(palette.fg.copy(alpha = TRACK_ALPHA), Offset(a, y), Size(b - a, h), r)
+        if (buffered > a) drawRoundRect(palette.fg.copy(alpha = BUFFERED_ALPHA), Offset(a, y), Size(minOf(buffered, b) - a, h), r)
+        if (played > a) drawRoundRect(palette.accent, Offset(a, y), Size(minOf(played, b) - a, h), r)
     }
     val thumbX = x(at)
     val thumb = PleyTv.ScrubThumb.toPx()
     val radius = (thumb + (PleyTv.ScrubThumbFocused.toPx() - thumb) * focus) / 2f
     val centre = Offset(thumbX.coerceIn(radius, w - radius), size.height / 2f)
-    drawCircle(PleyColors.Fg, radius, centre)
+    drawCircle(palette.fg, radius, centre)
     if (focus > 0f) {
         drawCircle(
-            PleyColors.AccentBright.copy(alpha = focus),
+            palette.accentHover.copy(alpha = focus),
             radius + PleyFocus.ThumbRingOffset.toPx(),
             centre,
             style = Stroke(PleyFocus.ThumbRingStroke.toPx()),
@@ -344,6 +346,7 @@ private fun MarkerLabel(state: State<PlayerUiState>) {
  */
 @Composable
 internal fun BoxScope.TvSeekPreview(state: State<PlayerUiState>, seeker: TvSeeker, controller: PlaybackController) {
+    val palette = PleyColors.palette
     val target = seeker.target ?: return
     val hasThumbs by remember(state) { derivedStateOf { state.value.hasThumbnails } }
     val chapters by remember(state) { derivedStateOf { state.value.chapters } }
@@ -382,7 +385,7 @@ internal fun BoxScope.TvSeekPreview(state: State<PlayerUiState>, seeker: TvSeeke
                     .size(PREVIEW_WIDTH, PREVIEW_HEIGHT)
                     .clip(PleyShape.TileTv)
                     // The well until a picture shows, then black where the picture doesn't reach.
-                    .drawBehind { drawRect(if (picture != null || chapterLoad.loaded) Color.Black else PleyColors.Surface2) }
+                    .drawBehind { drawRect(if (picture != null || chapterLoad.loaded) Color.Black else palette.surface2) }
                     .border(2.dp, PleyColors.Fg.copy(alpha = 0.2f), PleyShape.TileTv)
                     .testTag(TAG_PREVIEW_PICTURE),
             ) {
@@ -604,8 +607,8 @@ internal const val PREVIEW_STEP_MS = 2_000L
 /** A chapter's picture is asked for this wide, in pixels: the preview's 240 dp on a 1080p TV. */
 internal const val PREVIEW_IMAGE_WIDTH = 480
 
-private val TRACK = PleyColors.Fg.copy(alpha = 0.25f)
-private val BUFFERED = PleyColors.Fg.copy(alpha = 0.45f)
+private const val TRACK_ALPHA = 0.25f
+private const val BUFFERED_ALPHA = 0.45f
 
 private val TRACK_HEIGHT = 4.dp
 private val CHAPTER_GAP = 2.dp

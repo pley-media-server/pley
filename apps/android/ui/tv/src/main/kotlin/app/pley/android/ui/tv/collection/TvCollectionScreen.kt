@@ -126,6 +126,7 @@ internal fun TvCollectionScreen(key: PleyKey.Collection) {
 
 @Composable
 private fun CollectionContent(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel<ArtworkTileModel>, message: UiText?) {
+    val palette = PleyColors.palette
     val navigator = LocalTvNavigator.current
     val actions = tileActions()
     val memory = rememberFocusMemory()
@@ -142,7 +143,7 @@ private fun CollectionContent(page: CollectionPage<ArtworkTileModel>, vm: Collec
                 drawContent()
                 // The grid passes over the backdrop: it darkens as the top scrolls away (one rect, drawn).
                 val scrolled = if (grid.firstVisibleItemIndex > 0) 1f else (grid.firstVisibleItemScrollOffset / heroPx).coerceIn(0f, 1f)
-                if (scrolled > 0f) drawRect(PleyColors.Bg.copy(alpha = scrolled * 0.92f))
+                if (scrolled > 0f) drawRect(palette.bg.copy(alpha = scrolled * 0.92f))
             },
         )
         TvPosterGrid(

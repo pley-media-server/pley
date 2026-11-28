@@ -34,7 +34,7 @@ export const PersonPhoto = memo(function PersonPhoto({
 
   return (
     <div
-      className={cn("relative aspect-square overflow-hidden rounded-full bg-surface-2 ring-1 ring-white/10", className)}
+      className={cn("relative aspect-square overflow-hidden rounded-full bg-surface-2 ring-1 ring-fg/10", className)}
       style={loaded ? undefined : { backgroundImage: placeholderGradient(name) }}
     >
       {loaded ? null : (

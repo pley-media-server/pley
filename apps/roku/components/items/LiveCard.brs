@@ -1,4 +1,6 @@
 sub init()
+    m.c = uiColors()
+    uiRecolor(m.top, m.c)
     m.frame = m.top.findNode("frame")
     m.plate = m.top.findNode("plate")
     m.fallback = m.top.findNode("fallback")
@@ -87,10 +89,10 @@ end sub
 sub onFocus()
     focused = m.top.itemHasFocus and m.top.rowHasFocus and m.top.rowListHasFocus and m.top.gridHasFocus
     if focused
-        m.frame.color = "0x38BDF8FF"
-        m.title.color = "0x7DD3FCFF"
+        m.frame.color = m.c.accent
+        m.title.color = m.c.accentHover
     else
-        m.frame.color = "0x262B35FF"
-        m.title.color = "0xEBEBEBFF"
+        m.frame.color = m.c.surface2
+        m.title.color = m.c.fg
     end if
 end sub

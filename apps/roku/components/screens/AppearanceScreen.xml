@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Appearance, from Settings (docs/THEMES.md, "In every app"), laid out
+     as on the other TVs: the title; Theme and its hint on one line; the
+     nine themes, five to a row, each a card with a small Pley in its colors,
+     its name and caption; Accent and its hint; the accents in a row of
+     chips, Default (the theme's own) first. The pick in use is marked: its
+     card's border in the accent with a check, its chip filled with the
+     accent. A pick shows at once, everywhere, and is kept on this Roku for
+     the profile signed in. The screen draws itself in code, and again in a
+     new theme (its theme field). -->
+<component name="AppearanceScreen" extends="Group">
+    <interface>
+        <field id="route" type="string" />
+        <!-- { focus: "accent" }: the focus starts on the accent in use, as
+             the page opens from Settings' Accent row; on the theme in use
+             otherwise. -->
+        <field id="params" type="assocarray" />
+        <field id="navigate" type="assocarray" alwaysNotify="true" />
+        <field id="active" type="boolean" alwaysNotify="true" />
+        <!-- The theme shown changed: the screen draws itself again in it. -->
+        <field id="theme" type="string" onChange="draw" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/screens/AppearanceScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Themes.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/ThemeTable.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
+    <children>
+        <Label id="title" translation="[192, 56]" />
+        <Label id="themeTitle" translation="[192, 140]" height="44" vertAlign="center" />
+        <Label id="themeHint" translation="[192, 140]" height="44" vertAlign="center" maxLines="1" />
+        <Group id="themes" translation="[192, 204]" />
+        <Label id="accentTitle" translation="[192, 868]" height="44" vertAlign="center" />
+        <Label id="accentHint" translation="[192, 868]" height="44" vertAlign="center" maxLines="1" />
+        <Group id="accents" translation="[192, 932]" />
+    </children>
+</component>

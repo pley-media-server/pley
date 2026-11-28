@@ -92,13 +92,13 @@ impl Toasts {
             ui.repaint_after(t.until - now);
             ui.announce_once(id.with("read"), || t.text.clone());
         }
-        let color = if t.error { theme::DANGER_TEXT } else { theme::FG };
+        let color = if t.error { theme::danger() } else { theme::fg() };
         let opts = TextOpts::wrap(TOAST_MAX_WIDTH - 2.0 * PAD_X, 3);
         let layout = ui.layout(&t.text, &theme::LABEL, &opts);
         let size = Size::new(layout.size.w + 2.0 * PAD_X, layout.size.h + 2.0 * PAD_Y);
         let rect = Rect::new(TOAST_RIGHT - size.w, top, size.w, size.h);
         ui.opacity(a, |ui| {
-            ui.fill(rect, theme::SURFACE3, theme::radius::CONTROL);
+            ui.fill(rect, theme::surface3(), theme::radius::CONTROL);
             ui.draw_text(Point::new(rect.x + PAD_X, rect.y + PAD_Y), layout, color);
         });
     }
@@ -116,11 +116,11 @@ pub fn offline_notice(ui: &mut Ui, showing: bool, top: f32) -> f32 {
     let width = 2.0 * PAD_X + NOTICE_ICON + NOTICE_GAP + text.size.w;
     let rect = Rect::new(TOAST_RIGHT - width, top, width, inner + 2.0 * PAD_Y);
     ui.opacity(a, |ui| {
-        ui.fill(rect, theme::SURFACE3, theme::radius::CONTROL);
+        ui.fill(rect, theme::surface3(), theme::radius::CONTROL);
         let icon = Rect::new(rect.x + PAD_X, rect.y + (rect.h - NOTICE_ICON) / 2.0, NOTICE_ICON, NOTICE_ICON);
-        ui.icon(icon, Icon::ServerOff, theme::MUTED);
+        ui.icon(icon, Icon::ServerOff, theme::muted());
         let at = Point::new(icon.right() + NOTICE_GAP, rect.y + (rect.h - text.size.h) / 2.0);
-        ui.draw_text(at, text, theme::FG);
+        ui.draw_text(at, text, theme::fg());
     });
     rect.bottom() + theme::space::S
 }
@@ -132,7 +132,7 @@ pub fn curtain(ui: &mut Ui, entry: u64) -> bool {
     if a <= 0.0 {
         return false;
     }
-    ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H), theme::alpha(theme::BG, a), 0.0);
+    ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H), theme::alpha(theme::bg(), a), 0.0);
     true
 }
 

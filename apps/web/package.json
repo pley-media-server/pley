@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "check": "tsc -b && eslint . --max-warnings 0 && vitest run"
+    "check": "tsc -b && eslint . --max-warnings 0 && vitest run",
+    "themes": "bun scripts/themes.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.105.0",

@@ -1,4 +1,6 @@
 sub init()
+    ' The pages' colors, a player's once its content says it is in one.
+    m.c = uiColors()
     m.name = m.top.findNode("name")
     m.note = m.top.findNode("note")
     m.check = m.top.findNode("check")
@@ -26,6 +28,7 @@ end sub
 sub onContent()
     entry = m.top.itemContent
     if entry = invalid then return
+    m.c = uiItemColors(entry)
     m.content = entry
     m.name.text = entry.title
     ' 简体中文 and 繁體中文 among the languages, in a font that has them.
@@ -65,13 +68,14 @@ end sub
 sub onFocus()
     focused = m.top.itemHasFocus and m.top.listHasFocus
     m.fill.visible = focused
+    m.fill.blendColor = m.c.accent
     if focused
-        m.name.color = "0x16191EFF"
-        m.note.color = "0x16191ECC"
-        m.check.blendColor = "0x16191EFF"
+        m.name.color = m.c.accentFg
+        m.note.color = themeAlpha(m.c.accentFg, "CC")
+        m.check.blendColor = m.c.accentFg
     else
-        m.name.color = "0xEBEBEBFF"
-        m.note.color = "0xA1A9B6FF"
-        m.check.blendColor = "0x38BDF8FF"
+        m.name.color = m.c.fg
+        m.note.color = m.c.muted
+        m.check.blendColor = m.c.accent
     end if
 end sub

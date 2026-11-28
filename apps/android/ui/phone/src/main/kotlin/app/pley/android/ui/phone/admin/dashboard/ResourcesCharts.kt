@@ -106,6 +106,7 @@ internal fun ResourcesCharts(data: DashboardResources) {
 
 @Composable
 private fun Chart(title: String, detail: String, data: DashboardResources, words: FormatWords, series: List<Series>) {
+    val palette = PleyColors.palette
     // The sample pointed at, by its time: new samples move the others along.
     var pointedAt by remember { mutableStateOf<Long?>(null) }
     val samples = data.samples
@@ -179,7 +180,7 @@ private fun Chart(title: String, detail: String, data: DashboardResources, words
                     val grid = 1.dp.toPx()
                     val stroke = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                     onDrawBehind {
-                        for (v in listOf(0f, 0.5f, 1f)) drawLine(PleyColors.Surface4, Offset(0f, y(v)), Offset(w, y(v)), grid)
+                        for (v in listOf(0f, 0.5f, 1f)) drawLine(palette.border, Offset(0f, y(v)), Offset(w, y(v)), grid)
                         for ((color, line, area) in drawn) {
                             drawPath(area, color.copy(alpha = 0.1f))
                             drawPath(line, color, style = stroke)
@@ -189,10 +190,10 @@ private fun Chart(title: String, detail: String, data: DashboardResources, words
                 .drawBehind {
                     val at = pointed ?: return@drawBehind
                     val x = ((at.at - start).toFloat() / WINDOW_MS) * size.width
-                    drawLine(PleyColors.Muted, Offset(x, 0f), Offset(x, size.height), 1.dp.toPx())
+                    drawLine(palette.muted, Offset(x, 0f), Offset(x, size.height), 1.dp.toPx())
                     for (s in series) {
                         val y = size.height - s.value(at).coerceIn(0f, 1f) * size.height
-                        drawCircle(PleyColors.Surface, 6.dp.toPx(), Offset(x, y))
+                        drawCircle(palette.surface, 6.dp.toPx(), Offset(x, y))
                         drawCircle(s.color, 4.dp.toPx(), Offset(x, y))
                     }
                 },

@@ -132,16 +132,16 @@ fn card(ui: &mut Ui, cx: &AppCx, slot: &TileSlot, c: &LiveChannel, category: &Ca
 /// A card's well: the logo (or the name on a gradient), the number, the favorite's star and how
 /// far what's on is.
 fn card_well(ui: &mut Ui, cx: &AppCx, rect: Rect, c: &LiveChannel, now: i64) {
-    channel_tile(ui, cx, rect, c, Well::PAGE.named().styled(theme::TITLE));
+    channel_tile(ui, cx, rect, c, Well::page().named().styled(theme::TITLE));
     if let Some(n) = c.number.as_deref().filter(|n| !n.is_empty()) {
         Badge::new(n, BadgeStyle::Number).show(ui, Point::new(rect.x + 6.0, rect.y + 6.0));
     }
     if c.favorite {
-        ui.icon(Rect::new(rect.right() - 6.0 - 16.0, rect.y + 6.0, 16.0, 16.0), Icon::Star, theme::ACCENT);
+        ui.icon(Rect::new(rect.right() - 6.0 - 16.0, rect.y + 6.0, 16.0, 16.0), Icon::Star, theme::accent());
     }
     if let Some(p) = c.on_at(now) {
         let bar = Rect::new(rect.x, rect.bottom() - 3.0, rect.w, 3.0);
-        progress(ui, bar, p, now, theme::PROGRESS_TRACK_ON_ART, theme::ACCENT);
+        progress(ui, bar, p, now, theme::PROGRESS_TRACK_ON_ART, theme::accent());
     }
 }
 

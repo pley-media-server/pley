@@ -152,7 +152,7 @@ function OptionalScope({
     <label
       htmlFor={id}
       className={cn(
-        "flex min-h-14 cursor-pointer items-start gap-3 px-3 py-3 transition-colors hover:bg-white/5",
+        "flex min-h-14 cursor-pointer items-start gap-3 px-3 py-3 transition-colors hover:bg-fg/5",
         disabled && "cursor-default opacity-60 hover:bg-transparent",
       )}
     >

@@ -36,6 +36,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import app.pley.android.common.AppLanguage
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.player.CastFrom
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerWindows
@@ -129,7 +130,7 @@ class LivePlayerActivity : ComponentActivity() {
         // Settings → Playback details, as the video player follows it.
         val showDetails = data.settings.settings.map { it.showPlaybackDetails }.distinctUntilChanged()
         setContent {
-            PhoneTheme {
+            PhoneTheme(Appearance.palette.dark) {
                 // Asked as it is drawn: the window moves to the phone's screen, and is phone-sized again, as the car goes.
                 CarSized(onCarScreen()) {
                     // Watch on…: the channel goes to the device, and the app's shell says so as this closes.

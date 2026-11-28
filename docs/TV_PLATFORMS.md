@@ -501,6 +501,55 @@ apps.
   files, so a wrong one fails the type check; English stands in for a word
   missing elsewhere, and the tests check every language has every word.
 
+### Appearance
+
+The TV draws in one of Pley's nine themes, with one of six accents or the
+theme's own ([THEMES.md](THEMES.md)), the light themes included.
+
+- **Settings → Appearance** shows the theme and the accent, in rows with
+  Lucide's palette and droplet; either row opens the picker, laid out as
+  on every TV app and on one screen: the themes five to a row, each a
+  small Pley in its colors over its name and caption, then the accents,
+  Default first. The theme in use has the accent's border and a tick, the
+  accent in use the accent's fill; Up and Down between the two land on
+  them. OK picks, and every color changes at once.
+- **Kept for each profile on this TV**, never on the server: by the
+  server's address and the user's id (`pley.theme.<server>.<user id>`,
+  `pley.accent.<server>.<user id>`), as user ids repeat from one server to
+  the next. A profile's pages draw its pick, and a profile that has none
+  here sees Midnight in its own accent; a switch of profile switches the
+  theme as soon as the server says who is watching. A start as the profile
+  the TV was left on draws its pick from the first frame. An id the TV
+  doesn't know counts as none.
+- **Outside a profile** (Choose your server, the sign-in code, "Who's
+  watching?" and its PIN, and a start before the profile is known), the
+  TV draws Midnight in its own accent whatever was picked; the profile's
+  pick comes back with its pages, Back out of "Who's watching?" too.
+  `packages/tv/test/fixtures/appearance.json` pins these rules for both
+  Samsung apps.
+- **The colors** come from `packages/themes/themes.json`, bundled into
+  the app: `ui/themes.ts` gives each of the app's colors its token and
+  writes them as one stylesheet, written again on a pick, so nothing is
+  looked up while the remote moves. `test/ui/themes.test.ts` holds every
+  theme under every accent to the file, and fails on a color in the
+  stylesheets that isn't the theme's (black and white over pictures and
+  video aside).
+- **A profile's avatar** (the rail's, Settings', "Who's watching?") is its
+  picture, or a circle in its own color with its initial, the same under
+  every theme ([Profile colors](THEMES.md#profile-colors)).
+  `ui/kit/avatar.tsx` draws each of them, and `test/ui/avatar.test.tsx`
+  holds it to `packages/tv/test/fixtures/avatar.json`.
+- **The players stay dark:** while a player is on top, the app takes the
+  light theme's dark twin, with the same accent, toasts and dialogs over
+  it too.
+- **Backdrops:** Sunshine's rainbow runs down the open rail. The others
+  (Twilight's sunset, Moonlight's moon, Nightshade's light) aren't drawn:
+  the pages fade their pictures, and hide the rows sliding under the rail,
+  with the page's own color, so a backdrop behind them would show only in
+  pieces. The page is the theme's plain background.
+- Sunshine's rounder corners and rounded type are the web's: the TV draws
+  the same shapes and Roboto in every theme.
+
 ## Building and testing
 
 ### Commands
@@ -548,6 +597,7 @@ its packages into the SDK by hand and it runs on WHPX.
 | `i18n/` | The words in English, French, Spanish and Chinese, `t()` and `Trans`, plural forms, the language shown, dates and numbers in it |
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
+| `ui/themes.ts`, `ui/theme.css` | The themes and accents from `packages/themes/themes.json`, as the app's colors; the styles that draw in them |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |
 | `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, sleep timer, reports, music, the remote and casts |
 | `live/` | Live TV: categories, the guide's pages, a channel on the TV's player |
@@ -749,7 +799,8 @@ watch history page; playlists (their covers, a playlist's page with
 moving and removing entries, Rename and Delete, Add to playlist, New
 playlist and saving a library's filters as a smart playlist); Settings
 (its categories and their rows, the side panels of choices, the web
-page's address and QR code, signing out); Diagnostics (the TV's facts and
+page's address and QR code, signing out, and Appearance's themes and accents,
+[Appearance](#appearance)); Diagnostics (the TV's facts and
 what it tells the server it plays); Live TV's page (the categories and
 their search, the guide and the channels' tiles, a program's details
 and favorites) and its live player (changing channel, number keys, what's
@@ -990,6 +1041,47 @@ rules, which resx has no form for (Chinese has only `other`), and no
 satellite assemblies to package. A word a language lacks shows in English.
 The Core's tests hold every language to English's keys, its own plural
 forms and the same values, French and Spanish to their punctuation.
+
+### Appearance
+
+Settings → Appearance shows the theme and the accent this TV draws in
+([THEMES.md](THEMES.md)); its Theme and Accent rows open the picker, with
+focus on the theme or the accent shown. The nine themes come first, five
+to a row, each a small Pley in its colors with its name and caption, then
+Default (the theme's own) and the six accents, each with its swatch in the
+theme shown. The pick shown has the accent's edge and a check. OK shows a
+pick at once: every page is drawn again where it was, in the new colors,
+the picker with focus on what was picked, and Settings under it back on
+the row that opened it. The pages are made again rather than recolored:
+NUI keeps each view's colors as it is made, and every view following the
+theme would cost each of them as it draws. The pick is kept on the TV
+for each profile (pley.theme.<server>.<id>, pley.accent.<server>.<id>
+in its preferences) and never sent to the server: inside a profile, its
+own shows, Midnight in its own accent where it picked none on this TV,
+and switching profile switches to its pick at once. Outside a profile
+(Choose your server, signing in, Who's watching? with its PIN and
+approval) the app is in Midnight in its own accent, and the profile's
+pick comes back with its pages. A start with the profile saved draws its
+first page in its pick; one that doesn't know who is watching yet starts
+in Midnight. An id the app doesn't know shows as Midnight, or the theme's
+own accent.
+
+The colors come from packages/themes/themes.json, built into the Core
+library as it is (src/Pley.Tv.Core/Ui/Themes.cs); the app's colors by
+what they are for (PleyPalette, which the screens read through
+PleyColors) are each a token of it, or a token at a set strength for a
+wash, made once per pick. ThemeTests holds every one to the file in
+every theme under every accent. In a light theme the players, their
+panels and what they draw over the video take the theme's dark twin's
+colors, with the same accent. The logo on the sign-in screens is drawn in
+the theme's colors: the app writes it as an SVG file with them into its
+cache, one file per set of colors, as NUI draws a vector from a file.
+
+The themes' backdrops (Twilight's sunset, Moonlight's moon, Nightshade's
+light, Sunshine's bubbles and rainbow sidebar) aren't drawn: the pages are
+the theme's plain page color. The pages fade their pictures into that
+color with gradients drawn over them (NUI has no mask for a picture), so a
+glow behind them would show its edges where a picture ends.
 
 ### How it is built
 

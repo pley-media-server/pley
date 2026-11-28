@@ -27,6 +27,8 @@
         <field id="playerCommand" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/LivePlayerScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
@@ -47,20 +49,20 @@
              over a channel without pictures (radio). -->
         <Group id="card" visible="false">
             <Rectangle width="1920" height="1080" color="0x000000FF" />
-            <Rectangle translation="[780, 280]" width="360" height="180" color="0x262B35FF" />
+            <Rectangle translation="[780, 280]" width="360" height="180" color="0x191D24FF" />
             <Label id="cardInitials" translation="[780, 280]" width="360" height="180" horizAlign="center" vertAlign="center" wrap="true" maxLines="2" color="0xA1A9B6FF">
                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="36" />
             </Label>
             <Poster id="cardLogo" translation="[808, 300]" width="304" height="140" loadWidth="304" loadHeight="140" loadDisplayMode="scaleToFit" />
             <BusySpinner id="tuning" translation="[928, 492]" />
-            <Label id="cardTitle" translation="[160, 580]" width="1600" horizAlign="center" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="cardTitle" translation="[160, 580]" width="1600" horizAlign="center" color="0xE9EBEFFF" font="font:LargeBoldSystemFont" />
             <Label id="cardLine" translation="[160, 646]" width="1600" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         </Group>
         <!-- What's on, when asked for (OK or Right, or the Options key as
              it changes the favorite, whose star shows here). -->
         <Group id="banner" visible="false">
-            <Rectangle translation="[0, 680]" width="1920" height="400" color="0x16191EE6" />
-            <Rectangle translation="[96, 752]" width="240" height="120" color="0x2E3440FF" />
+            <Rectangle translation="[0, 680]" width="1920" height="400" color="0x0B0D10E6" />
+            <Rectangle translation="[96, 752]" width="240" height="120" color="0x222731FF" />
             <Label id="bannerInitials" translation="[96, 752]" width="240" height="120" horizAlign="center" vertAlign="center" wrap="true" maxLines="2" color="0xA1A9B6FF">
                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
             </Label>
@@ -68,52 +70,52 @@
             <Label id="bannerChannel" translation="[384, 744]" width="1100" color="0xA1A9B6FF">
                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="30" />
             </Label>
-            <Label id="bannerTitle" translation="[384, 782]" width="1100" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="bannerTitle" translation="[384, 782]" width="1100" color="0xE9EBEFFF" font="font:LargeBoldSystemFont" />
             <Label id="bannerMeta" translation="[384, 844]" width="1100" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-            <Rectangle id="bannerTrack" translation="[384, 886]" width="1100" height="6" color="0x2E3440FF" />
+            <Rectangle id="bannerTrack" translation="[384, 886]" width="1100" height="6" color="0x222731FF" />
             <Rectangle id="bannerFill" translation="[384, 886]" width="0" height="6" color="0x38BDF8FF" />
-            <Label id="bannerNext" translation="[384, 908]" width="1100" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <Label id="bannerNext" translation="[384, 908]" width="1100" color="0x7E8795FF" font="font:SmallestSystemFont" />
             <!-- How the channel plays, once the server has said: before
                  the Live chip, as on Android TV (the screen places it). -->
             <MethodBadge id="method" visible="false" />
             <!-- The Live chip: live is all there is. -->
-            <Rectangle translation="[1648, 750]" width="176" height="52" color="0xEB6B70FF" />
-            <Label id="liveMark" translation="[1648, 750]" width="176" height="52" horizAlign="center" vertAlign="center" color="0xEBEBEBFF">
+            <Rectangle id="liveChip" translation="[1648, 750]" width="176" height="52" color="0xED6C6DFF" />
+            <Label id="liveMark" translation="[1648, 750]" width="176" height="52" horizAlign="center" vertAlign="center" color="0xE9EBEFFF">
                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="30" />
             </Label>
             <Label id="star" translation="[1648, 816]" width="176" horizAlign="center" color="0x38BDF8FF">
                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
             </Label>
             <!-- Two lines: the channels and the favorite, then the details. -->
-            <Label id="bannerHint" translation="[96, 952]" width="1728" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:TinySystemFont" />
+            <Label id="bannerHint" translation="[96, 952]" width="1728" wrap="true" maxLines="2" color="0x7E8795FF" font="font:TinySystemFont" />
         </Group>
         <!-- What went wrong, and what can be done. -->
         <Group id="notice" visible="false">
-            <Rectangle width="1920" height="1080" color="0x16191EF2" />
-            <Label id="noticeTitle" translation="[96, 340]" width="1728" wrap="true" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <Rectangle width="1920" height="1080" color="0x0B0D10F2" />
+            <Label id="noticeTitle" translation="[96, 340]" width="1728" wrap="true" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
             <Label id="noticeText" translation="[96, 430]" width="1500" wrap="true" maxLines="6" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-            <PillButtons id="noticeButtons" translation="[96, 700]" minWidth="400" />
+            <PillButtons id="noticeButtons" dark="true" translation="[96, 700]" minWidth="400" />
         </Group>
         <!-- The category's channels, at the left over the video. -->
         <Group id="list" visible="false">
-            <Rectangle width="800" height="1080" color="0x16191EF2" />
-            <Label id="listTitle" translation="[96, 56]" width="664" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <Label id="listRange" translation="[96, 120]" width="664" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <Rectangle width="800" height="1080" color="0x0B0D10F2" />
+            <Label id="listTitle" translation="[96, 56]" width="664" color="0xE9EBEFFF" font="font:LargeBoldSystemFont" />
+            <Label id="listRange" translation="[96, 120]" width="664" color="0x7E8795FF" font="font:SmallestSystemFont" />
             <QuickList id="channelList" translation="[72, 176]" itemComponentName="LiveChannelRow" itemSize="[704, 100]" itemSpacing="[0, 4]" numRows="7" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <!-- Left in the list: another category to list. -->
             <QuickList id="categoryList" translation="[72, 176]" itemComponentName="LiveRailItem" itemSize="[704, 56]" itemSpacing="[0, 4]" numRows="12" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
             <!-- Two lines: what the channels do, then the categories and search. -->
-            <Label id="listHint" translation="[96, 936]" width="664" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:TinySystemFont" />
+            <Label id="listHint" translation="[96, 936]" width="664" wrap="true" maxLines="2" color="0x7E8795FF" font="font:TinySystemFont" />
         </Group>
         <!-- Playback details (Replay), as the player's Info panel: 720 wide
              from the right edge, over the picture dimmed behind it. -->
         <Group id="details" visible="false">
-            <Rectangle id="detailsScrim" width="1920" height="1080" color="0x16191E80" />
+            <Rectangle id="detailsScrim" width="1920" height="1080" />
             <!-- It slides in from the right over 200 ms, as the player's. -->
             <Group id="detailsPanel">
-                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFA" />
-                <Label id="detailsTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xEBEBEBFF" />
-                <FactSheet id="detailsFacts" translation="[1256, 152]" width="608" height="780" labelWidth="200" />
+                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x12151AFA" />
+                <Label id="detailsTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xE9EBEFFF" />
+                <FactSheet id="detailsFacts" dark="true" translation="[1256, 152]" width="608" height="780" labelWidth="200" />
             </Group>
         </Group>
         <Animation id="detailsSlide" duration="0.2" easeFunction="outCubic">
@@ -121,8 +123,8 @@
             <FloatFieldInterpolator key="[0, 1]" keyValue="[0, 1]" fieldToInterp="detailsScrim.opacity" />
         </Animation>
         <Group id="toast" visible="false">
-            <Rectangle translation="[460, 72]" width="1000" height="96" color="0x16191EE6" />
-            <Label id="toastText" translation="[460, 72]" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+            <Rectangle translation="[460, 72]" width="1000" height="96" color="0x0B0D10E6" />
+            <Label id="toastText" translation="[460, 72]" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" font="font:SmallSystemFont" />
         </Group>
         <!-- The banner goes after a while; up and down wait for more
              presses before tuning; what's on moves on; a channel without

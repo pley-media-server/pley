@@ -1,0 +1,173 @@
+{
+  "about": "A profile's avatar on every app (docs/THEMES.md, \"Profile colors\"): its picture; without one, or when it fails, a circle in its avatar_color (#rgb or #rrggbb, any case); without a valid one, colors[h % 8], h the name's code points folded as h = (h * 31 + code point) mod 2^32 from 0. On it, the trimmed name's first code point in capitals ('?' for none), in whichever of ink.dark and ink.light has the higher WCAG contrast with the circle (dark on a tie).",
+  "colors": [
+    "#38bdf8",
+    "#a78bfa",
+    "#f472b6",
+    "#fb923c",
+    "#facc15",
+    "#4ade80",
+    "#2dd4bf",
+    "#f87171"
+  ],
+  "ink": {
+    "dark": "#0b0d10",
+    "light": "#ffffff"
+  },
+  "cases": [
+    {
+      "name": "Sam",
+      "avatar_color": "#123456",
+      "color": "#123456",
+      "initial": "S",
+      "ink": "#ffffff"
+    },
+    {
+      "name": "Anna",
+      "avatar_color": null,
+      "color": "#38bdf8",
+      "initial": "A",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Robin",
+      "avatar_color": null,
+      "color": "#f472b6",
+      "initial": "R",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Alex",
+      "avatar_color": null,
+      "color": "#2dd4bf",
+      "initial": "A",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Kai",
+      "avatar_color": null,
+      "color": "#fb923c",
+      "initial": "K",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Noor",
+      "avatar_color": null,
+      "color": "#facc15",
+      "initial": "N",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Zoë",
+      "avatar_color": null,
+      "color": "#2dd4bf",
+      "initial": "Z",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "élodie",
+      "avatar_color": null,
+      "color": "#facc15",
+      "initial": "É",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "李雷",
+      "avatar_color": null,
+      "color": "#a78bfa",
+      "initial": "李",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "😀 Kid",
+      "avatar_color": null,
+      "color": "#2dd4bf",
+      "initial": "😀",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "",
+      "avatar_color": null,
+      "color": "#38bdf8",
+      "initial": "?",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "   ",
+      "avatar_color": null,
+      "color": "#38bdf8",
+      "initial": "?",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "  bo ",
+      "avatar_color": null,
+      "color": "#fb923c",
+      "initial": "B",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Kid",
+      "avatar_color": "#FACC15",
+      "color": "#facc15",
+      "initial": "K",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Mia",
+      "avatar_color": "#ABC",
+      "color": "#aabbcc",
+      "initial": "M",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Leo",
+      "avatar_color": "blue",
+      "color": "#2dd4bf",
+      "initial": "L",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Max",
+      "avatar_color": "#12345",
+      "color": "#facc15",
+      "initial": "M",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Ivy",
+      "avatar_color": "#0b0d10",
+      "color": "#0b0d10",
+      "initial": "I",
+      "ink": "#ffffff"
+    },
+    {
+      "name": "Ada",
+      "avatar_color": "#e04040",
+      "color": "#e04040",
+      "initial": "A",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Ben",
+      "avatar_color": "#7c3aed",
+      "color": "#7c3aed",
+      "initial": "B",
+      "ink": "#ffffff"
+    },
+    {
+      "name": "Cy",
+      "avatar_color": "#808080",
+      "color": "#808080",
+      "initial": "C",
+      "ink": "#0b0d10"
+    },
+    {
+      "name": "Dee",
+      "avatar_color": "#ffffff",
+      "color": "#ffffff",
+      "initial": "D",
+      "ink": "#0b0d10"
+    }
+  ]
+}

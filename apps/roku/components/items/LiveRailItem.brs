@@ -1,4 +1,6 @@
 sub init()
+    ' The pages' colors, a player's once its content says it is in one.
+    m.c = uiColors()
     m.back = m.top.findNode("back")
     m.mark = m.top.findNode("mark")
     m.title = m.top.findNode("title")
@@ -14,6 +16,7 @@ end sub
 sub onContent()
     item = m.top.itemContent
     if item = invalid then return
+    m.c = uiItemColors(item)
     m.inner = item.inner = true
     m.current = item.current = true
     m.heading = item.heading = true
@@ -57,25 +60,25 @@ end sub
 
 sub onFocus()
     if m.heading
-        m.back.color = "0x16191E00"
-        m.title.color = "0x8B95A5FF"
+        m.back.color = themeAlpha(m.c.bg, "00")
+        m.title.color = m.c.subtle
         return
     end if
     focused = m.top.itemHasFocus and m.top.listHasFocus
     if focused
-        m.back.color = "0x38BDF8FF"
-        m.title.color = "0x16191EFF"
-        m.count.color = "0x16191EFF"
-        m.mark.color = "0x16191EFF"
+        m.back.color = m.c.accent
+        m.title.color = m.c.accentFg
+        m.count.color = m.c.accentFg
+        m.mark.color = m.c.accentFg
         return
     end if
     if m.current
-        m.back.color = "0x38BDF826"
-        m.title.color = "0x7DD3FCFF"
+        m.back.color = themeAlpha(m.c.accent, "26")
+        m.title.color = m.c.accentHover
     else
-        m.back.color = "0x16191E00"
-        m.title.color = "0xA1A9B6FF"
+        m.back.color = themeAlpha(m.c.bg, "00")
+        m.title.color = m.c.muted
     end if
-    m.count.color = "0x8B95A5FF"
-    m.mark.color = "0x8B95A5FF"
+    m.count.color = m.c.subtle
+    m.mark.color = m.c.subtle
 end sub

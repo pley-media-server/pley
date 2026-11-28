@@ -483,7 +483,7 @@ internal fun CountBadge(count: Int, alarm: Boolean, description: String, modifie
         Text(
             if (count > MAX_COUNT) "$MAX_COUNT+" else count.toString(),
             style = MaterialTheme.typography.labelSmall,
-            color = if (alarm) PleyColors.Bg else PleyColors.OnAccent,
+            color = if (alarm) PleyColors.DangerFg else PleyColors.OnAccent,
         )
     }
 }

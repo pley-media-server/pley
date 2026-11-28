@@ -89,7 +89,7 @@ export function AddToCollectionModal({ item, onClose }: { item: ItemSummary | nu
                     type="button"
                     disabled={busy || member}
                     onClick={() => onAdd(c)}
-                    className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors enabled:hover:bg-white/5 disabled:opacity-60"
+                    className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors enabled:hover:bg-fg/5 disabled:opacity-60"
                   >
                     <Artwork candidates={[c.poster_url]} width={36} alt="" title="" mark="play" className="aspect-[2/3] w-9 shrink-0 rounded" />
                     <span className="min-w-0 flex-1">

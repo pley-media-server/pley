@@ -8,13 +8,26 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Themes and accents in Settings → Appearance, as on the web, kept for each
+  profile on this TV.
+
 ### Changed
 
+- The profile's avatar on the rail, in Settings and in "Who's watching?" is
+  its picture, or its initial on its own color, the same color as on the
+  other apps, whatever the theme.
 - Up Next's card shows the next title's name without its picture, so it
   covers less of the credits.
 - Skip Intro and Skip Credits show on their own for 8 seconds, then only
   with the player's controls, so they no longer sit over the whole intro
   or credits and hold the remote's OK.
+
+### Fixed
+
+- Home chosen on the rail after the language changed comes in the new
+  language.
 
 ## [0.1.15] - 2026-11-27
 

@@ -1,4 +1,5 @@
 sub init()
+    m.c = uiColors()
     m.top.focusable = true
     m.page = m.top.findNode("page")
     m.track = m.top.findNode("track")
@@ -24,6 +25,8 @@ end sub
 ' line at its top; another sheet, or lines set after fromTop, is read
 ' from the top.
 sub onLines()
+    ' In a player's colors there (dark).
+    m.c = uiColorsOf(m.top.dark)
     lines = m.top.lines
     shape = ""
     keys = []
@@ -93,10 +96,10 @@ end function
 function makeNode(line as object) as object
     width = m.top.width
     valueX = m.top.labelWidth
-    if line.kind = "note" then return { kind: "note", label: addLabel(line.text, "body", "0xA1A9B6FF", 0, width, 4), value: invalid }
-    if line.kind = "fact" then return { kind: "fact", label: addLabel(line.text, "body", "0xA1A9B6FF", 0, valueX - 24, 2), value: addLabel(line.value, "body", "0xEBEBEBFF", valueX, width - valueX, 3) }
-    if line.kind = "version" then return { kind: "version", label: addLabel(line.text, "section", "0x7DD3FCFF", 0, width, 2), value: invalid }
-    return { kind: line.kind, label: addLabel(line.text, "title", "0xEBEBEBFF", 0, width, 2), value: invalid }
+    if line.kind = "note" then return { kind: "note", label: addLabel(line.text, "body", m.c.muted, 0, width, 4), value: invalid }
+    if line.kind = "fact" then return { kind: "fact", label: addLabel(line.text, "body", m.c.muted, 0, valueX - 24, 2), value: addLabel(line.value, "body", m.c.fg, valueX, width - valueX, 3) }
+    if line.kind = "version" then return { kind: "version", label: addLabel(line.text, "section", m.c.accentHover, 0, width, 2), value: invalid }
+    return { kind: line.kind, label: addLabel(line.text, "title", m.c.fg, 0, width, 2), value: invalid }
 end function
 
 sub dropNode(node as object)

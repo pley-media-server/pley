@@ -17,11 +17,13 @@
         <field id="chosen" type="integer" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/LetterColumn.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <!-- Behind the letter in focus, or the grid's while the focus is
              elsewhere. -->
-        <Rectangle id="mark" width="40" height="30" color="0x2E3440FF" />
+        <Rectangle id="mark" width="40" height="30" color="0x222731FF" />
     </children>
 </component>

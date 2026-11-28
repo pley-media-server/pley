@@ -494,7 +494,7 @@ impl Screen for LiveTvScreen {
         // The title row.
         let title_y = HEADER_TOP + (HEADER_H - theme::PAGE_TITLE.line_height) / 2.0;
         let title = t!("livetv.title");
-        ui.text(Point::new(theme::GUTTER, title_y), title, &theme::PAGE_TITLE, &TextOpts::line(400.0), theme::FG);
+        ui.text(Point::new(theme::GUTTER, title_y), title, &theme::PAGE_TITLE, &TextOpts::line(400.0), theme::fg());
         let tabs = ui.id("tabs");
         let tab_id = |v: View| tabs.with(v.key());
         if allowed {
@@ -814,8 +814,8 @@ fn notice(ui: &mut Ui, text: &str) {
     let layout = ui.layout(text, &theme::BODY, &TextOpts::wrap(600.0, 2));
     let (w, h) = (layout.size.w + 40.0, layout.size.h + 24.0);
     let rect = Rect::new((theme::CANVAS_W - w) / 2.0, theme::CANVAS_H - 32.0 - h, w, h);
-    ui.fill(rect, theme::SURFACE3, radius::CONTROL);
-    ui.draw_text(Point::new(rect.x + 20.0, rect.y + 12.0), layout, theme::FG);
+    ui.fill(rect, theme::surface3(), radius::CONTROL);
+    ui.draw_text(Point::new(rect.x + 20.0, rect.y + 12.0), layout, theme::fg());
 }
 
 #[cfg(test)]

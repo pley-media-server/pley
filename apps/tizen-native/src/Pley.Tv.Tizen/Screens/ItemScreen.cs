@@ -681,7 +681,7 @@ sealed class ItemScreen : ShellPage
         }
     }
 
-    static readonly Color Faded = new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.85f);
+    static Color Faded => PleyColors.Alpha(PleyColors.Fg, 0.85f);
 }
 
 /// <summary>

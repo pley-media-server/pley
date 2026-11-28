@@ -23,6 +23,8 @@
         <field id="playerCommand" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/PlayerScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
@@ -65,7 +67,7 @@
              banner). -->
         <Group id="banner" visible="false">
             <Poster width="1920" height="240" uri="pkg:/images/ui/band-top.png" />
-            <Label id="bannerTitle" translation="[96, 54]" width="1500" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="bannerTitle" translation="[96, 54]" width="1500" maxLines="1" color="0xE9EBEFFF" />
             <Label id="bannerLine" translation="[96, 106]" width="1500" maxLines="1" color="0xA1A9B6FF" />
         </Group>
         <!-- Up Next, as the Android TV player's card: 600 wide, its right
@@ -73,35 +75,35 @@
              title, then Play now and Cancel. No still: the card stays small
              over the credits. -->
         <Group id="upNext" translation="[1224, 660]" visible="false">
-            <Poster width="600" height="318" uri="pkg:/images/ui/r12.9.png" blendColor="0x262B35F5" />
+            <Poster width="600" height="318" uri="pkg:/images/ui/r12.9.png" blendColor="0x191D24F5" />
             <Label id="upNextTitle" translation="[32, 32]" width="536" maxLines="1" color="0x38BDF8FF" />
-            <Label id="nextTitle" translation="[32, 70]" width="536" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="nextTitle" translation="[32, 70]" width="536" maxLines="1" color="0xE9EBEFFF" />
             <Label id="nextLine" translation="[32, 118]" width="536" maxLines="1" color="0xA1A9B6FF" />
             <Label id="countdown" translation="[32, 158]" width="536" maxLines="1" color="0xA1A9B6FF" />
-            <PillButtons id="nextButtons" layoutDirection="horiz" itemSpacings="[24]" translation="[32, 214]" minWidth="256" maxWidth="256" buttonHeight="72" />
+            <PillButtons id="nextButtons" dark="true" layoutDirection="horiz" itemSpacings="[24]" translation="[32, 214]" minWidth="256" maxWidth="256" buttonHeight="72" />
         </Group>
         <!-- At the top, clear of the subtitles it moves. -->
         <Group id="sync" translation="[560, 72]" visible="false">
-            <Poster width="800" height="236" uri="pkg:/images/ui/r12.9.png" blendColor="0x262B35F5" />
+            <Poster width="800" height="236" uri="pkg:/images/ui/r12.9.png" blendColor="0x191D24F5" />
             <Label id="syncTitle" translation="[48, 40]" width="380" color="0x38BDF8FF" />
-            <Label id="syncValue" translation="[48, 84]" width="340" color="0xEBEBEBFF" />
+            <Label id="syncValue" translation="[48, 84]" width="340" color="0xE9EBEFFF" />
             <Label id="syncHint" translation="[48, 150]" width="360" wrap="true" maxLines="2" color="0xA1A9B6FF" />
-            <PillButtons id="syncButtons" translation="[440, 48]" minWidth="312" />
+            <PillButtons id="syncButtons" dark="true" translation="[440, 48]" minWidth="312" />
         </Group>
         <!-- The side panel the controls' buttons open, as the Android TV
              player's: 720 wide from the right edge, square as menus are,
              over the picture dimmed behind it. Its choices (the current one
              checked), or the playback's details as text. -->
         <Group id="menu" visible="false">
-            <Rectangle id="menuScrim" width="1920" height="1080" color="0x16191E80" />
+            <Rectangle id="menuScrim" width="1920" height="1080" />
             <!-- It slides in from the right over 200 ms, as Android TV's. -->
             <Group id="menuPanel">
-                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFA" />
-                <Label id="menuTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xEBEBEBFF" />
+                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x12151AFA" />
+                <Label id="menuTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xE9EBEFFF" />
                 <QuickList id="menuList" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
-                <Label id="menuText" translation="[1256, 152]" width="608" wrap="true" maxLines="20" lineSpacing="8" color="0xEBEBEBFF" visible="false" />
+                <Label id="menuText" translation="[1256, 152]" width="608" wrap="true" maxLines="20" lineSpacing="8" color="0xE9EBEFFF" visible="false" />
                 <!-- The playback's details: each row's label and value. -->
-                <FactSheet id="menuFacts" translation="[1256, 152]" width="608" height="780" labelWidth="200" visible="false" />
+                <FactSheet id="menuFacts" dark="true" translation="[1256, 152]" width="608" height="780" labelWidth="200" visible="false" />
                 <Label id="menuHint" translation="[1256, 936]" width="608" wrap="true" maxLines="2" color="0xA1A9B6FF" />
             </Group>
         </Group>
@@ -113,26 +115,26 @@
              Android TV player says it: what happened, why, Try again where it
              may help, and Back. -->
         <Group id="notice" visible="false">
-            <Rectangle width="1920" height="1080" color="0x16191EFF" />
-            <Label id="noticeTitle" translation="[240, 360]" width="1440" horizAlign="center" wrap="true" maxLines="2" color="0xEBEBEBFF" />
+            <Rectangle width="1920" height="1080" color="0x0B0D10FF" />
+            <Label id="noticeTitle" translation="[240, 360]" width="1440" horizAlign="center" wrap="true" maxLines="2" color="0xE9EBEFFF" />
             <Label id="noticeText" translation="[240, 450]" width="1440" horizAlign="center" wrap="true" maxLines="6" color="0xA1A9B6FF" />
-            <PillButtons id="noticeButtons" layoutDirection="horiz" itemSpacings="[24]" translation="[0, 700]" minWidth="320" buttonHeight="72" />
+            <PillButtons id="noticeButtons" dark="true" layoutDirection="horiz" itemSpacings="[24]" translation="[0, 700]" minWidth="320" buttonHeight="72" />
         </Group>
         <!-- The sleep timer's last 30 s, at the bottom left on surface3, the
              moon before its count: Keep watching adds the same time again. -->
         <Group id="sleepNotice" translation="[96, 890]" visible="false">
-            <Poster id="sleepBack" width="840" height="88" uri="pkg:/images/ui/r12.9.png" blendColor="0x2E3440FF" />
+            <Poster id="sleepBack" width="840" height="88" uri="pkg:/images/ui/r12.9.png" blendColor="0x222731FF" />
             <Poster translation="[40, 24]" width="40" height="40" uri="pkg:/images/ui/icon-moon-40.png" blendColor="0xA1A9B6FF" />
-            <Label id="sleepText" translation="[100, 0]" width="360" height="88" vertAlign="center" color="0xEBEBEBFF" />
-            <PillButtons id="sleepButtons" translation="[480, 8]" minWidth="320" buttonHeight="72" />
+            <Label id="sleepText" translation="[100, 0]" width="360" height="88" vertAlign="center" color="0xE9EBEFFF" />
+            <PillButtons id="sleepButtons" dark="true" translation="[480, 8]" minWidth="320" buttonHeight="72" />
         </Group>
         <!-- Brief notices at the top right on surface3, as the Android TV
              player's toasts: Automatic saying it went down, and what the
              user's remote did ("Paused", "+30 s"). Under the clock while the
              controls show. -->
         <Group id="toast" visible="false">
-            <Poster id="toastBack" height="76" uri="pkg:/images/ui/r12.9.png" blendColor="0x2E3440FF" />
-            <Label id="toastText" translation="[40, 0]" height="76" vertAlign="center" wrap="true" maxLines="3" color="0xEBEBEBFF" />
+            <Poster id="toastBack" height="76" uri="pkg:/images/ui/r12.9.png" blendColor="0x222731FF" />
+            <Label id="toastText" translation="[40, 0]" height="76" vertAlign="center" wrap="true" maxLines="3" color="0xE9EBEFFF" />
         </Group>
         <Timer id="countdownTimer" duration="1" repeat="true" />
         <!-- Skip's 8 s on its own (Player.brs's playerSkipAloneMs). -->

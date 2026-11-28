@@ -21,14 +21,17 @@
 //!   key scrolls and a tile's focus glide evenly from move to move ([`Motion::GLIDE`], on every
 //!   tier); only a running animation asks for another frame.
 //! - **Theme**: every color, type style, spacing, radius, scrim and focus treatment of the
-//!   design, the canvas's fixed lines and the device tiers ([`theme`]).
+//!   design, the canvas's fixed lines and the device tiers ([`theme`]); and a profile's avatar
+//!   colors, which no theme changes ([`avatar`]).
 //!
 //! [`testing`] runs frames headless with scripted input, for this crate, the kit and the screens.
 
+pub mod avatar;
 mod focus;
 mod id;
 mod input;
 mod motion;
+mod palette;
 pub mod testing;
 pub mod theme;
 mod ui;

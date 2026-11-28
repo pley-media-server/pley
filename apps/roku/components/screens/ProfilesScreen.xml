@@ -20,8 +20,9 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Auth.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Avatar.brs" />
     <children>
-        <Label id="title" translation="[0, 200]" width="1920" horizAlign="center" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[0, 200]" width="1920" horizAlign="center" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
         <QuickGrid id="profiles" translation="[0, 400]" itemComponentName="ProfileTile" numRows="1" numColumns="6" itemSize="[244, 354]" itemSpacing="[24, 0]" drawFocusFeedback="false" />
         <Label id="message" translation="[360, 780]" width="1200" wrap="true" maxLines="3" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <PillButtons id="buttons" translation="[660, 900]" minWidth="600" visible="false" />

@@ -1,6 +1,7 @@
 {
   "auth": {
     "cantReachServer": "No se puede conectar con el servidor de Pley",
+    "cantReachHint": "Comprueba que el servidor esté encendido y que este dispositivo esté en su red.",
     "adminsOnly": "Solo para administradores",
     "adminsOnlyHint": "Necesitas una cuenta de administrador para gestionar este servidor."
   },
@@ -187,6 +188,12 @@
   },
   "account": {
     "title": "Cuenta",
+    "nav": {
+      "profile": "Perfil y seguridad",
+      "appearance": "Apariencia",
+      "language": "Idioma",
+      "history": "Historial"
+    },
     "profile": {
       "nameSaved": "Nombre guardado",
       "notAPicture": "Elige una imagen (JPEG, PNG, WebP o GIF).",
@@ -202,8 +209,46 @@
       "memberSince": "@{{username}} · miembro desde el {{date}}",
       "displayName": "Nombre visible",
       "color": "Color",
-      "colorNamed": "Color {{color}}",
-      "colorFallback": "Se muestra cuando tu foto no se puede mostrar."
+      "colorNamed": "Color {{color}}"
+    },
+    "theme": {
+      "title": "Tema",
+      "hint": "Cómo se ve Pley para ti en este dispositivo. Cada perfil guarda el suyo.",
+      "names": {
+        "midnight": "Medianoche",
+        "midday": "Mediodía",
+        "starlight": "Luz de estrellas",
+        "twilight": "Crepúsculo",
+        "moonlight": "Luz de luna",
+        "nightshade": "Belladona",
+        "greenlight": "Luz verde",
+        "sunshine": "Sol",
+        "blacklight": "Luz negra"
+      },
+      "about": {
+        "midnight": "Luces fuera, palomitas dentro",
+        "midday": "Medianoche, pero de brunch",
+        "starlight": "Champán sin resaca",
+        "twilight": "Atardecer sin quemaduras",
+        "moonlight": "Modo esmoquin",
+        "nightshade": "Al acecho entre helechos",
+        "greenlight": "Tocar césped sin salir",
+        "sunshine": "Aprobado por la merienda",
+        "blacklight": "Cero colores, cero dramas"
+      },
+      "accent": {
+        "title": "Acento",
+        "hint": "Se aplica a botones, enlaces y otros elementos destacados.",
+        "own": "Predeterminado",
+        "names": {
+          "sky": "Cielo",
+          "violet": "Violeta",
+          "miami": "Miami",
+          "gold": "Oro",
+          "mint": "Menta",
+          "amber": "Ámbar"
+        }
+      }
     },
     "playback": {
       "title": "Audio y subtítulos",

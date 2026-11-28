@@ -100,7 +100,7 @@ export function Modal({ open, onClose, title, children, footer, size = "md", loc
       )}
     >
       <div
-        className="absolute inset-0 animate-fade-in bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 animate-fade-in bg-shade/70 backdrop-blur-sm"
         onClick={() => {
           if (!locked) onClose();
         }}
@@ -112,7 +112,7 @@ export function Modal({ open, onClose, title, children, footer, size = "md", loc
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          "relative flex max-h-[92vh] w-full animate-pop-in flex-col overflow-hidden rounded-t-xl border border-border bg-surface shadow-2xl shadow-black/60 outline-none sm:rounded-xl",
+          "relative flex max-h-[92vh] w-full animate-pop-in flex-col overflow-hidden rounded-t-xl border border-border bg-surface shadow-2xl shadow-shade/60 outline-none sm:rounded-xl",
           align === "top" && "sm:max-h-[88vh]",
           size === "sm" && "sm:max-w-sm",
           size === "md" && "sm:max-w-lg",

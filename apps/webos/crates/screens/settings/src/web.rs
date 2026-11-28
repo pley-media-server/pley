@@ -82,18 +82,18 @@ impl WebDialog {
         let card = Rect::new((theme::CANVAS_W - w) / 2.0, (theme::CANVAS_H - h) / 2.0, w, h);
         let qr = self.qr.as_mut();
         ui.opacity(p, |ui| {
-            ui.fill(card, theme::SURFACE2, radius::DIALOG);
+            ui.fill(card, theme::surface2(), radius::DIALOG);
             if live {
                 ui.clickable(id.with("card"), card);
             }
             let x = card.x + PAD;
             let mut y = card.y + PAD + (inner_h - column_h) / 2.0;
             let (th, bh, ah) = (title_l.size.h, body_l.size.h, address_l.size.h);
-            ui.draw_text(Point::new(x, y), title_l, theme::FG);
+            ui.draw_text(Point::new(x, y), title_l, theme::fg());
             y += th + GAP;
-            ui.draw_text(Point::new(x, y), body_l, theme::MUTED);
+            ui.draw_text(Point::new(x, y), body_l, theme::muted());
             y += bh + GAP;
-            ui.draw_text(Point::new(x, y), address_l, theme::ACCENT_BRIGHT);
+            ui.draw_text(Point::new(x, y), address_l, theme::accent_bright());
             y += ah + GAP + 8.0 + GAP;
             let at = Point::new(x, y);
             let button = |ui: &mut Ui| {

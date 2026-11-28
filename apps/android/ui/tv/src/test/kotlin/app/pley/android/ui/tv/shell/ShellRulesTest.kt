@@ -1,6 +1,5 @@
 package app.pley.android.ui.tv.shell
 
-import androidx.compose.ui.graphics.Color
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.model.DiscoverList
 import app.pley.android.model.Library
@@ -205,12 +204,5 @@ class ShellRulesTest {
         assertEquals("settings", railCurrent(PleyKey.Settings, items))
         assertEquals(PROFILE_ITEM, railCurrent(PleyKey.Profiles(), items))
         assertNull(railCurrent(PleyKey.Servers, items))
-    }
-
-    @Test
-    fun profileColoursParseAsTheWebWritesThem() {
-        assertEquals(Color(0xFFE07A5F), RailProfile.parseColor("#e07a5f"))
-        assertNull(RailProfile.parseColor("teal"))
-        assertEquals("A", RailProfile("anna").initial)
     }
 }

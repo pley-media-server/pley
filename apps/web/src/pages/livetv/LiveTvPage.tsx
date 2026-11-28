@@ -231,7 +231,7 @@ export function LiveTvPage() {
                   type="button"
                   onClick={() => setSearch("")}
                   aria-label={t("common:actions.clear")}
-                  className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-subtle hover:bg-white/10 hover:text-fg"
+                  className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-subtle hover:bg-fg/10 hover:text-fg"
                 >
                   <X className="size-3.5" />
                 </button>

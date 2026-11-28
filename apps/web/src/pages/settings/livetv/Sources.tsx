@@ -234,7 +234,7 @@ function Stat({ label, value, note, meter }: { label: string; value: string; not
       <dt className="text-xs text-subtle">{label}</dt>
       <dd className="font-semibold tabular-nums">{value}</dd>
       {meter !== undefined ? (
-        <div className="mt-1 h-1 w-full max-w-24 overflow-hidden rounded-full bg-white/10">
+        <div className="mt-1 h-1 w-full max-w-24 overflow-hidden rounded-full bg-fg/10">
           <div className={cn("h-full rounded-full", meter >= 1 ? "bg-danger" : "bg-accent")} style={{ width: `${Math.min(1, meter) * 100}%` }} />
         </div>
       ) : null}
@@ -285,7 +285,7 @@ function TunerRow({ tuner, stopping, onStop }: { tuner: TunerStatus; stopping: b
   const { t } = useTranslation("livetv");
   return (
     <li className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-      <span className={cn("size-2 shrink-0 rounded-full", tuner.error ? "bg-danger" : tuner.connected ? "bg-success animate-pulse" : "bg-white/30")} />
+      <span className={cn("size-2 shrink-0 rounded-full", tuner.error ? "bg-danger" : tuner.connected ? "bg-success animate-pulse" : "bg-fg/30")} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <span className="truncate font-medium">{tuner.channel_name}</span>

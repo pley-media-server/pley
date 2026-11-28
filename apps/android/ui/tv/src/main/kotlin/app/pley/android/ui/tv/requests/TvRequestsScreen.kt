@@ -533,7 +533,7 @@ private fun RequestCard(
                 scaleX = s
                 scaleY = s
             }
-            .focusRing(8.dp) { focused }
+            .focusRing(8.dp, PleyColors.AccentBright) { focused }
             .background(if (focused) PleyColors.Surface3 else PleyColors.Surface, PleyShape.Control)
             .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = said }

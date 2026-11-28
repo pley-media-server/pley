@@ -19,6 +19,9 @@
 ' it, the focus on its row.
 
 sub init()
+    m.c = uiColors()
+    ' The page dimmed behind the panel, in the theme's shade.
+    m.top.findNode("dim").color = themeShade(m.c, 0.5)
     m.titleLabel = m.top.findNode("title")
     m.message = m.top.findNode("message")
     m.categories = m.top.findNode("categories")
@@ -39,8 +42,11 @@ sub init()
     m.lastFocus = m.categories
     m.dialog = invalid
     ' The categories, top to bottom, and the one whose rows show.
-    m.categoryKeys = ["profile", "playback", "server", "diagnostics", "about", "signOut"]
+    m.categoryKeys = ["profile", "playback", "appearance", "server", "diagnostics", "about", "signOut"]
     m.category = "profile"
+    ' Made again (a theme picked in Appearance), it opens on the category
+    ' it was left on (its params' category), once.
+    m.placed = false
     ' The profile signed in as GET /api/auth/me has it, invalid until it
     ' answered.
     m.me = invalid
@@ -106,7 +112,7 @@ sub relabel()
 end sub
 
 sub showCategories()
-    icons = { profile: "user-round", playback: "play", server: "server", diagnostics: "activity", about: "info", signOut: "log-out" }
+    icons = { profile: "user-round", playback: "play", appearance: "palette", server: "server", diagnostics: "activity", about: "info", signOut: "log-out" }
     items = []
     for each key in m.categoryKeys
         label = t("settings.rows.signOut")
@@ -130,6 +136,7 @@ end sub
 
 sub onActive()
     if not m.top.active then return
+    if not m.placed then placeCategory()
     showPane()
     if m.panel.visible
         m.choices.setFocus(true)
@@ -168,21 +175,34 @@ sub onMe(event as object)
     end if
 end sub
 
-' Profile's head: the profile's picture, or its initial on its color, its
-' name, and the server's address (or that it can't be reached).
+' Profile's head: the profile's picture, or its initial on its color
+' (Avatar.brs), its name, and the server's address (or that it can't be
+' reached).
 sub showHeader()
     session = m.global.session
     m.addressLabel.text = urlDisplayAddress(session.server)
     if m.profileUnreachable then m.addressLabel.text = t("settings.unreachable")
-    if m.me = invalid
-        m.nameLabel.text = "…"
-        return
+    if m.me <> invalid
+        m.nameLabel.text = httpSentence(m.me.name)
+        avatar = avatarOf(m.me)
+        picture = m.me.avatar_url
+    else
+        ' Until the server answers, or when it can't be reached, the
+        ' profile as the app signed in heard it (the rail's), so the circle
+        ' is never the theme's.
+        avatar = session.profileAvatar
+        if avatar = invalid or avatar.initial = invalid
+            m.nameLabel.text = "…"
+            return
+        end if
+        m.nameLabel.text = session.profileName
+        picture = avatar.picture
     end if
-    name = httpSentence(m.me.name)
-    m.nameLabel.text = name
-    m.initial.text = UCase(Left(name, 1))
-    m.face.blendColor = profColor(m.me.avatar_color)
-    m.picture.uri = urlImage(session.server, m.me.avatar_url, 96)
+    m.initial.text = avatar.initial
+    m.initial.font = uiFontFor(avatar.initial, "bold", 44)
+    m.initial.color = avatar.ink
+    m.face.blendColor = avatar.color
+    m.picture.uri = urlImage(session.server, picture, 96)
 end sub
 
 ' The profile as the server has it (GET /api/auth/me, or the answer to a
@@ -277,6 +297,11 @@ sub fillPane(category as string)
         autoplay.trailing = "switch"
         autoplay.checked = playerAutoplay(playbackSection())
         rows.Push(autoplay)
+    else if category = "appearance"
+        ' This Roku's, for the profile: no server needed. Each opens the
+        ' Appearance page, the accent's on the accents.
+        rows.Push(settingRow("theme", t("settings.appearance.theme"), themeShownName(), "palette"))
+        rows.Push(settingRow("accent", t("settings.appearance.accent.title"), accentShownName(), "droplet"))
     else if category = "server"
         server = settingRow("server", session.serverName, urlDisplayAddress(session.server) + " · " + t("settings.serverValue"), "server")
         server.trailing = ""
@@ -350,6 +375,12 @@ sub onRow(event as object)
     end if
     if chosen = "history"
         uiNavigate({ to: "history" })
+        return
+    end if
+    if chosen = "theme" or chosen = "accent"
+        ' Made again in a theme picked there, this screen comes back here.
+        m.top.params = { category: "appearance", row: at }
+        uiNavigate({ to: "appearance", params: { focus: chosen } })
         return
     end if
     if chosen = "startAs"
@@ -632,6 +663,36 @@ sub onLanguageSaved(event as object)
     end if
     if not uiFailed(answer) then sayText(answer.message)
 end sub
+
+' The category and row the screen was made on (its params'), the row in
+' focus.
+sub placeCategory()
+    m.placed = true
+    params = m.top.params
+    if params = invalid or params.category = invalid then return
+    for i = 0 to m.categoryKeys.Count() - 1
+        if m.categoryKeys[i] = params.category
+            m.categories.jumpToItem = i
+            m.category = params.category
+            selectPane()
+            showPane()
+            if params.row <> invalid and params.row > 0 then m.rows.jumpToItem = params.row
+            m.lastFocus = m.rows
+            holdCategory(true)
+        end if
+    end for
+end sub
+
+' The theme shown, as Appearance names it.
+function themeShownName() as string
+    return t("settings.appearance.names." + m.global.theme)
+end function
+
+' The accent shown, as Appearance names it: Default for the theme's own.
+function accentShownName() as string
+    if m.global.accent = "" then return t("settings.appearance.accent.own")
+    return t("settings.appearance.accent.names." + m.global.accent)
+end function
 
 ' Where the defaults are changed instead: the web app's account page.
 function webAddress() as string

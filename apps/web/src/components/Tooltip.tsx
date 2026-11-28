@@ -168,7 +168,7 @@ export function useTooltip(
               aria-hidden
               data-open={open || undefined}
               className={cn(
-                "pointer-events-none fixed left-0 top-0 z-[70] whitespace-nowrap rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-fg shadow-lg shadow-black/40 transition-[opacity,translate] duration-150 ease-out motion-reduce:transition-none",
+                "pointer-events-none fixed left-0 top-0 z-[70] whitespace-nowrap rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-fg shadow-lg shadow-shade/40 transition-[opacity,translate] duration-150 ease-out motion-reduce:transition-none",
                 side === "right" ? "starting:-translate-x-1" : "starting:-translate-y-1",
                 "starting:opacity-0",
                 open ? "opacity-100" : side === "right" ? "-translate-x-1 opacity-0" : "-translate-y-1 opacity-0",

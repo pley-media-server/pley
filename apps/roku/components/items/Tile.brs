@@ -1,4 +1,6 @@
 sub init()
+    m.c = uiColors()
+    uiRecolor(m.top, m.c)
     m.art = m.top.findNode("art")
     m.grow = m.top.findNode("grow")
     m.wellWidth = m.top.findNode("wellWidth")
@@ -85,8 +87,9 @@ sub onContent()
     words = item.hasField("kind") and (item.kind = "more" or item.kind = "retry" or item.kind = "note" or item.kind = "further" or item.kind = "askMore")
     if words then m.title.text = ""
     m.subtitle.text = item.subtitle
-    m.subtitle.color = "0xA1A9B6FF"
-    if item.hasField("subtitleColor") then m.subtitle.color = item.subtitleColor
+    m.subtitle.color = m.c.muted
+    ' Colors from lib/ come in Midnight's, the theme's here.
+    if item.hasField("subtitleColor") then m.subtitle.color = uiThemed(item.subtitleColor, m.c)
     ' A Live TV channel without its logo shows its name in the well, as the
     ' other apps do, and no mark; a person without a photo, their initials
     ' in the circle, their name being under it already.
@@ -106,7 +109,11 @@ sub onContent()
     m.badge.text = badge
     m.badge.visible = badge <> ""
     m.badgeBack.visible = badge <> ""
-    if badge <> "" and item.hasField("badgeColor") then m.badgeBack.blendColor = item.badgeColor
+    if badge <> "" and item.hasField("badgeColor")
+        fill = uiThemed(item.badgeColor, m.c)
+        m.badgeBack.blendColor = fill
+        m.badge.color = themeWordsOn(m.c, fill)
+    end if
     qualities = []
     if item.hasField("qualityBadges") and item.qualityBadges <> invalid then qualities = item.qualityBadges
     for i = 0 to m.qualities.Count() - 1
@@ -315,11 +322,11 @@ sub onFocus()
     if focused
         m.ring.opacity = 1
         m.title.font = m.boldFont
-        m.fallback.color = "0xEBEBEBFF"
+        m.fallback.color = m.c.fg
     else
         m.ring.opacity = 0
         m.title.font = m.captionFont
-        m.fallback.color = "0xA1A9B6FF"
+        m.fallback.color = m.c.muted
     end if
 end sub
 

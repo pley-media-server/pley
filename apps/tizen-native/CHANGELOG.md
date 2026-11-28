@@ -8,8 +8,16 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The themes and accents, picked under Settings → Appearance and kept for each
+  profile on this TV.
+
 ### Changed
 
+- The profile's avatar at the top of the rail shows its picture, as
+  Settings and Who's watching? do, and every avatar keeps the profile's
+  color under any theme.
 - Up Next's card shows the next title's name without its picture, so it
   covers less of the credits. Its countdown is in Play now: "Play now (7)"
   with a sweep that fills the button.

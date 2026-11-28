@@ -17,7 +17,7 @@ export function PlaylistArt({
   const cover = art[0];
   const Icon = playlist.kind === "audio" ? ListMusic : ListVideo;
   return (
-    <div className={cn("relative aspect-square overflow-hidden rounded-md bg-surface-2 ring-1 ring-white/5", className)}>
+    <div className={cn("relative aspect-square overflow-hidden rounded-md bg-surface-2 ring-1 ring-fg/5", className)}>
       {art.length >= 4 ? (
         <div className="grid size-full grid-cols-2 grid-rows-2">
           {art.slice(0, 4).map((url) => (

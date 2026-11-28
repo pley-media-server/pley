@@ -471,9 +471,9 @@ private fun LiveBadge() {
             .testTag(LIVE_PLAYER_LIVE),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(6.dp).background(Color.White, PleyShape.Circle))
+        Box(Modifier.size(6.dp).background(PleyColors.DangerFg, PleyShape.Circle))
         Spacer(Modifier.width(6.dp))
-        Text(stringResource(R.string.live_player_live).uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.White)
+        Text(stringResource(R.string.live_player_live).uppercase(), style = MaterialTheme.typography.labelSmall, color = PleyColors.DangerFg)
     }
 }
 
@@ -718,6 +718,7 @@ private fun ChannelPanel(
     now: Long,
     onTune: (LiveChannel, LiveCategory) -> Unit,
 ) {
+    val palette = PleyColors.palette
     val shown by vm.listCategory.collectAsStateWithLifecycle()
     val listed by vm.listed.collectAsStateWithLifecycle()
     val query by vm.listQuery.collectAsStateWithLifecycle()
@@ -729,7 +730,7 @@ private fun ChannelPanel(
             .fillMaxHeight()
             .width(340.dp)
             .background(PleyColors.Surface)
-            .drawBehind { drawLine(PleyColors.Surface4, Offset(0f, 0f), Offset(0f, size.height), 1.dp.toPx()) }
+            .drawBehind { drawLine(palette.border, Offset(0f, 0f), Offset(0f, size.height), 1.dp.toPx()) }
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .testTag(LIVE_PLAYER_PANEL),
     ) {

@@ -155,6 +155,47 @@ quality the server converts to keeps its name in every language ("8 Mbps
 language shown does ("23,976 i/s" in French); Diagnostics writes frame
 rates as the decoder gives them, the same in every language.
 
+### Appearance
+
+Pley's nine themes and six accents ([THEMES.md](THEMES.md)) are in
+Settings: on phones the Appearance group's Theme row, which says the
+theme and accent shown ("Midday · Miami"); on TVs the Appearance section
+after Subtitles and display, whose Theme and Accent rows each say what is
+shown. Each opens Appearance: the themes, each a small preview of Pley in
+its colors with its name and caption, then the accents, Default (the
+theme's own) first, each a swatch in the color it would give the page. A
+phone shows two themes to a row held upright and three on a wider screen.
+A TV shows them five to a row, the whole page on one screen as on every
+Pley TV app, with each section's hint beside its name; focus starts on
+the theme in use, or on the accent in use from the Accent row, and Up and
+Down between the themes and the accents land on what is in use. The theme
+in use is outlined and checked, and the accent in use filled. A pick
+shows at once on every screen open, the players' too.
+
+The pick is kept for each profile on this phone or TV, in the app's own
+preferences, by its server and user id (one device can sign in to several
+servers, where ids repeat); nothing goes to the server. A profile with no
+pick on the device, or one this app doesn't know, shows Midnight in its
+own accent. Outside a profile (choosing a server, signing in, "Who's
+watching?" and its PIN), the app is Midnight in its own accent whatever
+was picked, and the profile's pick comes back once the app is inside it
+again; switching profile shows the new profile's pick at once. So that a
+start inside a profile is in its pick from the first frame, the device
+also keeps the palette to start in: the signed-in profile's pick while
+the app is inside it, Midnight once it is outside one or signed out.
+
+Colors come only from `packages/themes/themes.json`, which
+`PleyPaletteTest` holds every theme and accent to. In a light theme the
+players and Live TV's player, and all they draw over the picture, take
+the theme's dark twin in the same accent. The logo is in the theme's
+colors. Twilight's sunset, Moonlight's moon, Nightshade's light and
+Sunshine's bubbles are one small picture the window's background
+stretches, so neither scrolling nor focus draws them again, and the TV's
+open rail has Sunshine's rainbow; a phone's tab rail and bar don't. On a
+light theme a TV's backdrops are fainter, as the web's are. The system
+draws the window before the app starts in Midnight's color, so a light
+theme comes in after it.
+
 ### Phones and tablets
 
 - **Pictures**, here and on TVs: a title without one, or whose picture

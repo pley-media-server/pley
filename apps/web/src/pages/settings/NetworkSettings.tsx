@@ -212,7 +212,7 @@ function Choice({ id, checked, disabled, onChange, children }: { id: string; che
   return (
     <label
       htmlFor={id}
-      className={cn("flex items-start gap-3 rounded px-2 py-2 text-sm", disabled ? "opacity-60" : "cursor-pointer hover:bg-white/5")}
+      className={cn("flex items-start gap-3 rounded px-2 py-2 text-sm", disabled ? "opacity-60" : "cursor-pointer hover:bg-fg/5")}
     >
       <input id={id} type="checkbox" checked={checked} disabled={disabled} onChange={onChange} className="peer sr-only" />
       <span

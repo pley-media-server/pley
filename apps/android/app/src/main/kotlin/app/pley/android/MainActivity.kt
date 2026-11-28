@@ -51,7 +51,8 @@ class MainActivity : ComponentActivity() {
         splash.setKeepOnScreenCondition {
             !startup.isCompleted && SystemClock.uptimeMillis() - shownAt < SPLASH_LIMIT_MS
         }
-        // pley is dark whatever the system's theme: light icons on both bars.
+        // Pley starts in Midnight whatever the system's theme: light icons on both bars, until
+        // ThemedWindow draws them for the theme shown (dark icons over a light one).
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),

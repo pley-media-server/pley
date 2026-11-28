@@ -110,7 +110,7 @@ export function PersonPage() {
   return (
     <div className="animate-fade-in space-y-10 px-4 py-8 sm:px-8">
       <header className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-end sm:gap-7 sm:text-left">
-        <PersonPhoto name={name} url={photo_url} size={176} eager className="w-36 shrink-0 shadow-2xl shadow-black/50 sm:w-44" />
+        <PersonPhoto name={name} url={photo_url} size={176} eager className="w-36 shrink-0 shadow-2xl shadow-shade/50 sm:w-44" />
         <div className="min-w-0 pb-1">
           <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">{name}</h1>
           <p className="mt-1.5 text-sm text-muted">{t("person.inLibraries", { counts: counts.filter(Boolean).join(" · ") })}</p>

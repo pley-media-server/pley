@@ -229,7 +229,7 @@ export function InvitesSettings() {
           description={t("invites.emptyDescription")}
         />
       ) : (
-        <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-border bg-surface">
+        <ul className="divide-y divide-fg/[0.05] overflow-hidden rounded-lg border border-border bg-surface">
           {invites.data.map((invite) => {
             const st = status(invite);
             const age = ageBadge(systems.data, invite.max_age_system, invite.max_age);

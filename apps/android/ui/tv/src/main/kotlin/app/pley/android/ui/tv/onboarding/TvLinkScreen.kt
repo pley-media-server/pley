@@ -156,7 +156,7 @@ internal fun TvLinkContent(
     LaunchedEffect(needsNewCode, windowFocused) {
         if (needsNewCode) runCatching { newCode.requestFocus() } else runCatching { back.requestFocus() }
     }
-    Box(Modifier.fillMaxSize().brandGlow().testTag(LINK_TAG)) {
+    Box(Modifier.fillMaxSize().brandGlow(PleyColors.BrandDeep).testTag(LINK_TAG)) {
         if (status is LinkStatus.SignedIn) {
             SignedIn(status.name)
         } else {

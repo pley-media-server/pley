@@ -903,6 +903,7 @@ sub apiAskProfile()
     m.networkKept = {}
     m.session.profileId = 0
     m.session.profileName = ""
+    m.session.profileAvatar = {}
     ' Another profile, maybe with another language: the one shown stays
     ' until it is heard.
     m.session.accountHeard = false
@@ -924,6 +925,10 @@ sub apiKnowProfile(job as object, answer as object)
     data = httpObject(answer.data)
     if data = invalid then return
     m.session.profileId = httpNumber(data.id, 0)
+    ' Its avatar before its name, which the rail is drawn again on.
+    avatar = avatarOf(data)
+    avatar.picture = httpString(data.avatar_url)
+    m.session.profileAvatar = avatar
     m.session.profileName = httpSentence(data.name)
     m.session.accountLanguage = httpString(data.language)
     m.session.accountHeard = true

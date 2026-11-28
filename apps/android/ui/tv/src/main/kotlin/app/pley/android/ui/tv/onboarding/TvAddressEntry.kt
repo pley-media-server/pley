@@ -55,7 +55,7 @@ internal fun TvAddressEntry(
     Box(
         Modifier
             .fillMaxSize()
-            .brandGlow()
+            .brandGlow(PleyColors.BrandDeep)
             .digitKeys(
                 onDigit = { d -> field.type(d.toString()) },
                 onDelete = { field.deleteLast() },

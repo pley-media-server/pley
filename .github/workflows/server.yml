@@ -13,6 +13,8 @@ on:
       - packages/transcoder-api/**
       - apps/web/**
       - packages/placeholder/**
+      - packages/themes/**
+      - packages/tv/test/fixtures/avatar.json
       - Cargo.toml
       - Cargo.lock
       - rustfmt.toml
@@ -49,6 +51,8 @@ on:
       - packages/transcoder-api/**
       - apps/web/**
       - packages/placeholder/**
+      - packages/themes/**
+      - packages/tv/test/fixtures/avatar.json
       - Cargo.toml
       - Cargo.lock
       - rustfmt.toml

@@ -20,8 +20,13 @@
         <field id="minWidth" type="float" onChange="onButtons" />
         <field id="maxWidth" type="float" onChange="onButtons" />
         <field id="buttonHeight" type="float" value="72" onChange="onButtons" />
+        <!-- In a player: drawn in the player's colors, a light theme's
+             twin's. -->
+        <field id="dark" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/shared/PillButtons.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
 </component>

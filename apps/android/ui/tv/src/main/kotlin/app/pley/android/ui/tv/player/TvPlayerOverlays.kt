@@ -394,6 +394,7 @@ private val BiasCentreRightThird = androidx.compose.ui.BiasAlignment(2f / 3f, 0f
  */
 @Composable
 internal fun BoxScope.TvBufferingRing(waiting: Boolean, reconnecting: Boolean, handoff: Boolean = false) {
+    val palette = PleyColors.palette
     var show by remember { mutableStateOf(false) }
     LaunchedEffect(waiting, handoff) {
         show = false
@@ -416,8 +417,8 @@ internal fun BoxScope.TvBufferingRing(waiting: Boolean, reconnecting: Boolean, h
                 val w = 2.dp.toPx()
                 val inset = w / 2f
                 val arcSize = Size(size.width - w, size.height - w)
-                drawArc(PleyColors.Fg, 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(w))
-                drawArc(PleyColors.Accent, angle - 90f, 90f, false, Offset(inset, inset), arcSize, style = Stroke(w, cap = StrokeCap.Round))
+                drawArc(palette.fg, 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(w))
+                drawArc(palette.accent, angle - 90f, 90f, false, Offset(inset, inset), arcSize, style = Stroke(w, cap = StrokeCap.Round))
             },
     )
     if (reconnecting) {

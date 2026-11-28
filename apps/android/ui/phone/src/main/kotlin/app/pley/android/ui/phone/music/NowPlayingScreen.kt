@@ -392,6 +392,7 @@ private fun BoxScope.CoverArt(art: ArtworkImage?, title: String, book: Boolean, 
  */
 @Composable
 private fun Backdrop(cover: ShownCover, title: String) {
+    val palette = PleyColors.palette
     Box(
         Modifier
             .fillMaxWidth()
@@ -399,7 +400,7 @@ private fun Backdrop(cover: ShownCover, title: String) {
             .graphicsLayer { alpha = BACKDROP_ALPHA }
             .drawWithContent {
                 drawContent()
-                drawRect(Brush.verticalGradient(0.3f to Color.Transparent, 1f to PleyColors.Bg))
+                drawRect(Brush.verticalGradient(0.3f to Color.Transparent, 1f to palette.bg))
             },
     ) {
         val image = cover.image
@@ -478,6 +479,7 @@ private fun StatusLine(now: NowPlaying, keepRoom: Boolean = true) {
  */
 @Composable
 private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel, inline: Boolean = false) {
+    val palette = PleyColors.palette
     val car = LocalCarScreen.current
     val playingTrack = now.itemId to now.index
     val reading = rememberMusicPosition(model::position, now.playing, key = trackKey(now))
@@ -552,13 +554,13 @@ private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel, inline: Boolea
             val h = trackHeight.toPx()
             val y = size.height / 2f
             val r = CornerRadius(h / 2f, h / 2f)
-            drawRoundRect(PleyColors.Fg.copy(alpha = 0.25f), Offset(0f, y - h / 2f), Size(size.width, h), r)
-            drawRoundRect(PleyColors.Fg.copy(alpha = 0.45f), Offset(0f, y - h / 2f), Size(size.width * buffered, h), r)
+            drawRoundRect(palette.fg.copy(alpha = 0.25f), Offset(0f, y - h / 2f), Size(size.width, h), r)
+            drawRoundRect(palette.fg.copy(alpha = 0.45f), Offset(0f, y - h / 2f), Size(size.width * buffered, h), r)
             // Under the finger while dragged, else where the thumb has glided to.
             val at = dragging ?: thumbAt.value
-            drawRoundRect(if (enabled) PleyColors.Accent else PleyColors.Disabled, Offset(0f, y - h / 2f), Size(size.width * at, h), r)
+            drawRoundRect(if (enabled) palette.accent else palette.disabled, Offset(0f, y - h / 2f), Size(size.width * at, h), r)
             val thumb = lerp(thumbSize, thumbDragged, grown.value).toPx() / 2f
-            drawCircle(if (enabled) PleyColors.Accent else PleyColors.Disabled, thumb, Offset((size.width * at).coerceIn(thumb, size.width - thumb), y))
+            drawCircle(if (enabled) palette.accent else palette.disabled, thumb, Offset((size.width * at).coerceIn(thumb, size.width - thumb), y))
         }
     val elapsed = formatClockMs(shownMs)
     val left = "−" + formatClockMs((duration - shownMs).coerceAtLeast(0))

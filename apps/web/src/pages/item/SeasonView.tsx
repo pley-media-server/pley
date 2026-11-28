@@ -22,9 +22,9 @@ function EpisodeRow({ ep }: { ep: ChildItem }) {
   const play = usePlayItem();
   const progress = ep.user_state.watched ? 0 : progressFraction(ep);
   return (
-    <div className="group flex gap-4 rounded-lg p-2 transition-colors hover:bg-white/[0.035] sm:gap-5">
+    <div className="group flex gap-4 rounded-lg p-2 transition-colors hover:bg-fg/[0.035] sm:gap-5">
       <div className="relative w-36 shrink-0 sm:w-56">
-        <Link to={itemUrl(ep.id)} className="block overflow-hidden rounded-md ring-1 ring-white/5" aria-label={ep.title}>
+        <Link to={itemUrl(ep.id)} className="block overflow-hidden rounded-md ring-1 ring-fg/5" aria-label={ep.title}>
           <Artwork candidates={thumbCandidates(ep)} width={224} alt="" title={ep.title} mark={markGlyph(ep.kind)} className="aspect-video w-full" />
           {progress > 0 ? (
             <div className="absolute inset-x-0 bottom-0 h-1 bg-black/60">

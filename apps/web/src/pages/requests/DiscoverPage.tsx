@@ -47,7 +47,7 @@ function listOf(value: string | null): DiscoverList | null {
 function GridHeading({ back, backLabel, children }: { back: string; backLabel: string; children: ReactNode }) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      <Link to={back} aria-label={backLabel} className="-ml-1.5 rounded-full p-1 text-muted transition-colors hover:bg-white/10 hover:text-fg">
+      <Link to={back} aria-label={backLabel} className="-ml-1.5 rounded-full p-1 text-muted transition-colors hover:bg-fg/10 hover:text-fg">
         <ChevronLeft className="size-5" />
       </Link>
       {children}
@@ -149,7 +149,7 @@ function Hero({ summary }: { summary: RequestSummary }) {
   const to = titleUrl(first.kind, first.tmdb_id);
   return (
     <section aria-label={t("discover.trendingNow")} className="px-4 sm:px-8">
-      <div className="relative isolate overflow-hidden rounded-xl bg-surface-2 ring-1 ring-white/5">
+      <div className="relative isolate overflow-hidden rounded-xl bg-surface-2 ring-1 ring-fg/5">
         {/* Placed by a box of its own: the picture's is positioned already (relative). */}
         <div className="absolute inset-0 -z-10">
           <Artwork
@@ -158,12 +158,10 @@ function Hero({ summary }: { summary: RequestSummary }) {
             alt=""
             title={first.title}
             eager
-            className="size-full"
+            className="size-full backdrop-fade"
             imgClassName="object-cover object-[center_25%]"
           />
         </div>
-        <div className="absolute inset-0 -z-10 bg-linear-to-t from-bg via-bg/60 to-transparent" />
-        <div className="absolute inset-0 -z-10 bg-linear-to-r from-bg/90 via-bg/40 to-transparent" />
         <div className="flex min-h-[340px] flex-col justify-end gap-3 p-5 sm:min-h-[420px] sm:p-8 lg:min-h-[480px] lg:max-w-[60%]">
           <p className="text-xs font-semibold uppercase tracking-wider text-accent">{t("discover.lists.trending")}</p>
           <h2 className="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-4xl">
@@ -197,7 +195,7 @@ function RequestPoster({ request, width, manage }: { request: MediaRequest; widt
       <Link
         to={to}
         aria-label={`${request.title}, ${stageWords(request, manage).label}`}
-        className="relative block overflow-hidden rounded-md bg-surface-2 outline-none ring-1 ring-white/5 transition duration-200 hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
+        className="relative block overflow-hidden rounded-md bg-surface-2 outline-none ring-1 ring-fg/5 transition duration-200 hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
       >
         <Artwork
           candidates={request.poster_url ? [request.poster_url] : []}
@@ -256,7 +254,7 @@ function RequestsLink({ summary }: { summary: RequestSummary }) {
           <span
             className={cn(
               "min-w-5 rounded-full px-1.5 text-center text-[11px] font-bold leading-5",
-              badge.danger ? "bg-danger text-white" : "bg-accent text-accent-fg",
+              badge.danger ? "bg-danger text-danger-fg" : "bg-accent text-accent-fg",
             )}
           >
             {badge.count > 99 ? "99+" : badge.count} <span className="sr-only">{t("discover.waiting", { count: badge.count })}</span>

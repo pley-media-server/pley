@@ -12,6 +12,8 @@ describes how they are made.
 
 - Settings › Playback › Player can play everything on AVPlay instead of
   choosing a player for each file.
+- Themes and accents, under Settings → Appearance, kept for each profile
+  on the TV.
 - A library's Collections are grouped by category, and can be narrowed
   to one category; a collection's page shows its category.
 - A row's See all opens the collection it shows, and a Home row of
@@ -43,6 +45,8 @@ describes how they are made.
 
 ### Changed
 
+- The avatar at the top of the rail shows the profile's picture, or its
+  own color, under every theme.
 - Up Next's card shows the next title's name without its picture, so it
   covers less of the credits. Its countdown is in Play now: "Play now (7)"
   with a sweep that fills the button.

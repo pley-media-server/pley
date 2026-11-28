@@ -25,12 +25,12 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />
     <children>
         <Poster id="backdrop" width="1920" height="1080" loadWidth="320" loadHeight="320" loadDisplayMode="scaleToZoom" opacity="0.12" />
-        <Rectangle translation="[192, 64]" width="420" height="420" color="0x262B35FF" />
+        <Rectangle translation="[192, 64]" width="420" height="420" color="0x191D24FF" />
         <Poster id="cover" translation="[192, 64]" width="420" height="420" loadWidth="420" loadHeight="420" loadDisplayMode="scaleToZoom" />
         <!-- The title, the line under it and the buttons, one under the other
              whatever the title takes (one line or two). -->
         <LayoutGroup translation="[192, 508]" layoutDirection="vert" itemSpacings="[12, 40]">
-            <Label id="title" width="460" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="title" width="460" wrap="true" maxLines="2" color="0xE9EBEFFF" font="font:LargeBoldSystemFont" />
             <Label id="line" width="460" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
             <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
         </LayoutGroup>

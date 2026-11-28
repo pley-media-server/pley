@@ -383,7 +383,7 @@ private val BarItemHeight = 48.dp
 /** The badge's colors for [method], the session's name for how it plays, or for [type] where the details know it. */
 @Composable
 @ReadOnlyComposable
-internal fun methodColors(type: PlaybackMethod?): BadgeColors = PlayerLook.badgeColors(type)
+internal fun methodColors(type: PlaybackMethod?): BadgeColors = PlayerLook.badgeColors(type, PleyColors.palette)
 
 /** "Direct play", "Direct stream" or "Transcoding" in its color; it opens Playback details. */
 @Composable

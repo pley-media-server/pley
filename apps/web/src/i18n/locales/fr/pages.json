@@ -1,6 +1,7 @@
 {
   "auth": {
     "cantReachServer": "Impossible de joindre le serveur Pley",
+    "cantReachHint": "Vérifiez que le serveur est allumé et que cet appareil est sur son réseau.",
     "adminsOnly": "Réservé aux administrateurs",
     "adminsOnlyHint": "Il faut un compte administrateur pour gérer ce serveur."
   },
@@ -187,6 +188,12 @@
   },
   "account": {
     "title": "Compte",
+    "nav": {
+      "profile": "Profil et sécurité",
+      "appearance": "Apparence",
+      "language": "Langue",
+      "history": "Historique"
+    },
     "profile": {
       "nameSaved": "Nom enregistré",
       "notAPicture": "Choisissez une image (JPEG, PNG, WebP ou GIF).",
@@ -202,8 +209,46 @@
       "memberSince": "@{{username}} · membre depuis le {{date}}",
       "displayName": "Nom affiché",
       "color": "Couleur",
-      "colorNamed": "Couleur {{color}}",
-      "colorFallback": "Affichée quand votre photo ne peut pas l’être."
+      "colorNamed": "Couleur {{color}}"
+    },
+    "theme": {
+      "title": "Thème",
+      "hint": "L'apparence de Pley pour vous sur cet appareil. Chaque profil garde la sienne.",
+      "names": {
+        "midnight": "Minuit",
+        "midday": "Midi",
+        "starlight": "Clair d'étoiles",
+        "twilight": "Crépuscule",
+        "moonlight": "Clair de lune",
+        "nightshade": "Belladone",
+        "greenlight": "Feu vert",
+        "sunshine": "Soleil",
+        "blacklight": "Lumière noire"
+      },
+      "about": {
+        "midnight": "Lumière éteinte, pop-corn prêt",
+        "midday": "Minuit, version brunch",
+        "starlight": "Champagne, sans gueule de bois",
+        "twilight": "Coucher de soleil, sans coup de soleil",
+        "moonlight": "Mode smoking",
+        "nightshade": "Tapi dans les fougères",
+        "greenlight": "Toucher l'herbe sans sortir",
+        "sunshine": "Validé à l'heure du goûter",
+        "blacklight": "Aucune couleur, aucun regret"
+      },
+      "accent": {
+        "title": "Accent",
+        "hint": "S'applique aux boutons, aux liens et aux autres éléments mis en avant.",
+        "own": "Par défaut",
+        "names": {
+          "sky": "Ciel",
+          "violet": "Violet",
+          "miami": "Miami",
+          "gold": "Or",
+          "mint": "Menthe",
+          "amber": "Ambre"
+        }
+      }
     },
     "playback": {
       "title": "Audio et sous-titres",

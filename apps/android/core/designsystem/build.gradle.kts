@@ -15,6 +15,7 @@ dependencies {
     api(libs.androidx.compose.foundation)
     api(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.core.ktx)
     api(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.tracing.ktx)

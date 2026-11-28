@@ -45,11 +45,9 @@ export function Backdrop({ item }: { item: ItemSummary }) {
         alt=""
         title={item.grandparent_title ?? item.parent_title ?? item.title}
         eager
-        className="size-full opacity-70"
+        className="size-full backdrop-fade"
         imgClassName="object-cover object-[center_20%]"
       />
-      <div className="absolute inset-0 bg-linear-to-t from-bg via-bg/75 to-bg/10" />
-      <div className="absolute inset-0 bg-linear-to-r from-bg/95 via-bg/50 to-transparent" />
     </div>
   );
 }
@@ -76,7 +74,7 @@ export function ItemArt({
       eager
       className={cn(
         ASPECT_CLASS[aspect],
-        "w-full shadow-2xl shadow-black/60 ring-1 ring-white/10",
+        "w-full shadow-2xl shadow-shade/60 ring-1 ring-fg/10",
         item.kind === "artist" ? "rounded-full" : "rounded-lg",
         className,
       )}
@@ -127,7 +125,7 @@ export function RatingBadge({ rating }: { rating: number | null }) {
 
 export function ContentRating({ value }: { value: string | null }) {
   if (!value) return null;
-  return <span className="rounded border border-white/25 px-1.5 py-px text-[11px] font-semibold text-fg/90">{value}</span>;
+  return <span className="rounded border border-fg/25 px-1.5 py-px text-[11px] font-semibold text-fg/90">{value}</span>;
 }
 
 export function Genres({ genres }: { genres: string[] }) {
@@ -135,7 +133,7 @@ export function Genres({ genres }: { genres: string[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {genres.map((g) => (
-        <span key={g} className="rounded-full bg-white/[0.07] px-2.5 py-0.5 text-xs text-fg/85">
+        <span key={g} className="rounded-full bg-fg/[0.07] px-2.5 py-0.5 text-xs text-fg/85">
           {g}
         </span>
       ))}

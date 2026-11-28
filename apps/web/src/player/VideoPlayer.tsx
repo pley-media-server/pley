@@ -12,7 +12,6 @@ import {
   Minimize,
   Pause,
   Play,
-  ServerOff,
   SkipForward,
   TriangleAlert,
   Volume1,
@@ -37,6 +36,7 @@ import type {
 } from "@/api/types";
 import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { useAuth } from "@/auth";
+import { OfflineMark } from "@/components/Offline";
 import { Slider } from "@/components/Slider";
 import { useToast } from "@/components/Toast";
 import { canPlayNativeHls, videoCaps } from "@/lib/caps";
@@ -1990,6 +1990,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   return (
     <div
       ref={containerRef}
+      data-dark
       className={cn("fixed inset-0 z-50 select-none overflow-hidden bg-black text-white", !showControls && "cursor-none")}
       onPointerMove={(e) => {
         if (e.pointerType === "mouse") poke();
@@ -2073,7 +2074,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
         </div>
       ) : error ? (
         <div role="alert" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/85 p-6 text-center">
-          {unreachable ? <ServerOff className="size-12 text-accent" /> : <TriangleAlert className="size-12 text-accent" />}
+          {unreachable ? <OfflineMark className="mb-3 size-14" /> : <TriangleAlert className="size-12 text-accent" />}
           <div className="max-w-lg">
             <div className="text-lg font-semibold">{unreachable ? t("video.unreachable") : t("video.errorTitle")}</div>
             <p className="mt-1 text-sm text-white/70">{error}</p>

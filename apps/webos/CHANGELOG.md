@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Settings → Appearance picks a theme and an accent, as on the web, kept for
+  each profile on this TV.
+
 ### Changed
 
 - Up Next's card shows the next title's name without its picture, so it
@@ -16,6 +21,12 @@ describes how they are made.
 - Skip Intro and Skip Credits show on their own for 8 seconds, then only
   with the player's controls, so they don't sit over the whole intro or
   credits and hold the remote's OK.
+
+### Fixed
+
+- The avatar at the top of the side menu is in the profile's own color, as
+  on "Who's watching?" and the web, in every theme, instead of a gray circle
+  for a profile without a six-digit color.
 
 ## [0.1.16] - 2026-11-27
 

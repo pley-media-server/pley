@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 /*
- * Theme tokens. Rebrand by overriding these custom properties
- * (e.g. `:root { --color-accent: #7c5cff; }`).
+ * Colors: Midnight's, Pley's own. Each theme sets them again below, and the
+ * page draws only in them: a wash over a surface is the text color at a few
+ * percent (`bg-fg/5`), and white and black are kept for what sits on a
+ * picture or a video.
  */
 @theme {
   /* Light blue brand accent. */
@@ -10,8 +12,9 @@
   --color-accent-hover: #7dd3fc;
   --color-accent-fg: #03131f;
 
-  /* Logo: the front poster's gradient (light to accent), the middle and back posters, the tile. */
+  /* Logo: the front poster's gradient (light to brand), the middle and back posters, the tile. */
   --color-brand-light: #bae6fd;
+  --color-brand: #38bdf8;
   --color-brand-deep: #0284c7;
   --color-brand-far: #0c4a6e;
   --color-brand-tile: #0a1622;
@@ -25,13 +28,18 @@
 
   --color-fg: #e9ebef;
   --color-muted: #a1a9b6;
-  --color-subtle: #6c7584;
+  --color-subtle: #7e8795;
 
   --color-success: #3fb27f;
-  --color-danger: #e5484d;
+  --color-danger: #ed6c6d;
+  /* Words on a danger fill. */
+  --color-danger-fg: #0b0d10;
   --color-info: #4c9aff;
   /* Waiting for someone (a request for a decision). */
   --color-warning: #f0a83c;
+  /* Shadows and the dim behind a dialog: black on the dark themes, a softer
+     shade of the theme's own ink on the light ones. */
+  --color-shade: #000000;
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
@@ -40,6 +48,8 @@
   --animate-fade-in: fade-in 180ms ease-out;
   --animate-pop-in: pop-in 160ms ease-out;
   --animate-shimmer: shimmer 1.4s linear infinite;
+  /* The glow around Pley's mark while the server can't be reached (components/Offline). */
+  --animate-breathe: breathe 2.8s ease-in-out infinite;
   /* The home banner: its words rising in, its turn running out. */
   --animate-hero-rise: hero-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-hero-turn: hero-turn linear forwards;
@@ -81,6 +91,17 @@
       transform: none;
     }
   }
+  @keyframes breathe {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scale(0.92);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.06);
+    }
+  }
   @keyframes shimmer {
     from {
       background-position: -400px 0;
@@ -89,6 +110,488 @@
       background-position: 400px 0;
     }
   }
+}
+
+/*
+ * The themes (src/theme), on <html data-theme> and on anything drawn in a
+ * theme of its own, as Account → Theme's previews are. Midnight repeats
+ * @theme's colors for those, and is the page's until a theme is set. In
+ * the light themes the players stay dark ([data-dark]), in their dark
+ * twin's colors: Midday's and Sunshine's in Midnight's, Starlight's in
+ * Moonlight's, Greenlight's in Nightshade's. A light frame would glare
+ * around the picture.
+ */
+:root,
+[data-theme="midnight"],
+[data-theme="midday"] [data-dark],
+[data-theme="sunshine"] [data-dark] {
+  color-scheme: dark;
+  --backdrop-opacity: 0.65;
+  --glow: none;
+  --sidebar: none;
+  --color-accent: var(--accent-dark, #38bdf8);
+  --color-accent-hover: var(--accent-dark-hover, #7dd3fc);
+  --color-accent-fg: var(--accent-dark-fg, #03131f);
+  --color-brand-light: var(--accent-dark-logo-light, #bae6fd);
+  --color-brand: var(--accent-dark-logo, #38bdf8);
+  --color-brand-deep: var(--accent-dark-logo-deep, #0284c7);
+  --color-brand-far: var(--accent-dark-logo-far, #0c4a6e);
+  --color-brand-tile: #0a1622;
+  --color-bg: #0b0d10;
+  --color-surface: #12151a;
+  --color-surface-2: #191d24;
+  --color-surface-3: #222731;
+  --color-border: #2a303b;
+  --color-border-strong: #3a4250;
+  --color-fg: #e9ebef;
+  --color-muted: #a1a9b6;
+  --color-subtle: #7e8795;
+  --color-success: var(--success-dark, #3fb27f);
+  --color-danger: #ed6c6d;
+  --color-danger-fg: #0b0d10;
+  --color-info: #4c9aff;
+  --color-warning: var(--warning-dark, #f0a83c);
+  --color-shade: #000000;
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a1a9b6' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* Midnight in daylight: soft gray and sky blue. */
+[data-theme="midday"] {
+  color-scheme: light;
+  --backdrop-opacity: 0.45;
+  --glow: none;
+  --sidebar: none;
+  --color-accent: var(--accent-light, #03669c);
+  --color-accent-hover: var(--accent-light-hover, #075985);
+  --color-accent-fg: var(--accent-light-fg, #ffffff);
+  --color-brand-light: var(--accent-light-logo-light, #38bdf8);
+  --color-brand: var(--accent-light-logo, #0369a1);
+  --color-brand-deep: var(--accent-light-logo-deep, #3d9fd8);
+  --color-brand-far: var(--accent-light-logo-far, #9ac9ed);
+  --color-brand-tile: #ddeefa;
+  --color-bg: #f3f5f8;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef1f5;
+  --color-surface-3: #e3e7ed;
+  --color-border: #d5dae2;
+  --color-border-strong: #bcc4cf;
+  --color-fg: #12161c;
+  --color-muted: #4a5361;
+  --color-subtle: #5d6675;
+  --color-success: var(--success-light, #126e46);
+  --color-danger: #b42d36;
+  --color-danger-fg: #ffffff;
+  --color-info: #1e5dc0;
+  --color-warning: var(--warning-light, #855700);
+  --color-shade: rgb(16 26 44 / 0.42);
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234a5361' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* Soft champagne, light. */
+[data-theme="starlight"] {
+  color-scheme: light;
+  --backdrop-opacity: 0.45;
+  --glow: none;
+  --sidebar: none;
+  --color-accent: var(--accent-light, #835613);
+  --color-accent-hover: var(--accent-light-hover, #774e11);
+  --color-accent-fg: var(--accent-light-fg, #fffaf2);
+  --color-brand-light: var(--accent-light-logo-light, #d6a548);
+  --color-brand: var(--accent-light-logo, #8a5a12);
+  --color-brand-deep: var(--accent-light-logo-deep, #c0904a);
+  --color-brand-far: var(--accent-light-logo-far, #dcc08a);
+  --color-brand-tile: #efe3c8;
+  --color-bg: #f6f0e5;
+  --color-surface: #fdfaf4;
+  --color-surface-2: #f1e9db;
+  --color-surface-3: #e8dfcd;
+  --color-border: #ddd2bd;
+  --color-border-strong: #c6b79c;
+  --color-fg: #2a2318;
+  --color-muted: #5c5141;
+  --color-subtle: #685d4a;
+  --color-success: var(--success-light, #206c45);
+  --color-danger: #ac2f28;
+  --color-danger-fg: #ffffff;
+  --color-info: #2b5daf;
+  --color-warning: var(--warning-light, #8a5200);
+  --color-shade: rgb(66 44 12 / 0.38);
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%235c5141' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* A sunset: deep purple, pink and orange, the sun's last light along the foot of the page. */
+[data-theme="twilight"] {
+  color-scheme: dark;
+  --backdrop-opacity: 0.65;
+  --glow:
+    linear-gradient(to bottom, transparent 35%, rgb(190 60 130 / 0.08) 72%, rgb(255 122 72 / 0.12)),
+    radial-gradient(110% 55% at 50% 118%, rgb(255 138 76 / 0.26), transparent 65%),
+    radial-gradient(60% 50% at 96% 106%, rgb(244 114 182 / 0.26), transparent 70%),
+    radial-gradient(55% 45% at 4% 110%, rgb(168 85 247 / 0.24), transparent 70%);
+  --sidebar: none;
+  --color-accent: var(--accent-dark, #ff79b0);
+  --color-accent-hover: var(--accent-dark-hover, #ffa0c8);
+  --color-accent-fg: var(--accent-dark-fg, #2a0619);
+  --color-brand-light: var(--accent-dark-logo-light, #ffd3a6);
+  --color-brand: var(--accent-dark-logo, #ff79b0);
+  --color-brand-deep: var(--accent-dark-logo-deep, #c2448f);
+  --color-brand-far: var(--accent-dark-logo-far, #6e2c7a);
+  --color-brand-tile: #1f1233;
+  --color-bg: #140e22;
+  --color-surface: #1c142e;
+  --color-surface-2: #261b3c;
+  --color-surface-3: #31244b;
+  --color-border: #3a2b55;
+  --color-border-strong: #4f3b72;
+  --color-fg: #f8eef6;
+  --color-muted: #c9b8d1;
+  --color-subtle: #9a88ab;
+  --color-success: var(--success-dark, #4cc38a);
+  --color-danger: #f0727e;
+  --color-danger-fg: #140e22;
+  --color-info: #7aa7ff;
+  --color-warning: var(--warning-dark, #ffa24c);
+  --color-shade: #000000;
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23c9b8d1' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* Carbon, champagne and gold, a faint moon at the top right. */
+[data-theme="moonlight"],
+[data-theme="starlight"] [data-dark] {
+  color-scheme: dark;
+  --backdrop-opacity: 0.65;
+  --glow: radial-gradient(55% 40% at 92% -6%, rgb(245 214 140 / 0.07), transparent 70%);
+  --sidebar: none;
+  --color-accent: var(--accent-dark, #f5c542);
+  --color-accent-hover: var(--accent-dark-hover, #f9d97c);
+  --color-accent-fg: var(--accent-dark-fg, #1c1604);
+  --color-brand-light: var(--accent-dark-logo-light, #fff3c9);
+  --color-brand: var(--accent-dark-logo, #f5c542);
+  --color-brand-deep: var(--accent-dark-logo-deep, #b48d2b);
+  --color-brand-far: var(--accent-dark-logo-far, #66532a);
+  --color-brand-tile: #18191b;
+  --color-bg: #0c0d0e;
+  --color-surface: #141517;
+  --color-surface-2: #1c1e20;
+  --color-surface-3: #25272a;
+  --color-border: #2e3033;
+  --color-border-strong: #404347;
+  --color-fg: #f3ead9;
+  --color-muted: #bdb6a8;
+  --color-subtle: #8e8a82;
+  --color-success: var(--success-dark, #5bc28c);
+  --color-danger: #e8726d;
+  --color-danger-fg: #0c0d0e;
+  --color-info: #6fa8ff;
+  --color-warning: var(--warning-dark, #f59a45);
+  --color-shade: #000000;
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23bdb6a8' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* Dark, with a subtle green. */
+[data-theme="nightshade"],
+[data-theme="greenlight"] [data-dark] {
+  color-scheme: dark;
+  --backdrop-opacity: 0.65;
+  --glow: radial-gradient(70% 45% at 88% -8%, rgb(95 211 154 / 0.07), transparent 70%);
+  --sidebar: none;
+  --color-accent: var(--accent-dark, #5fd39a);
+  --color-accent-hover: var(--accent-dark-hover, #8fe3b8);
+  --color-accent-fg: var(--accent-dark-fg, #03140a);
+  --color-brand-light: var(--accent-dark-logo-light, #c9f6dc);
+  --color-brand: var(--accent-dark-logo, #5fd39a);
+  --color-brand-deep: var(--accent-dark-logo-deep, #2f9a68);
+  --color-brand-far: var(--accent-dark-logo-far, #1d5a3e);
+  --color-brand-tile: #0f1a14;
+  --color-bg: #0a0f0c;
+  --color-surface: #111814;
+  --color-surface-2: #18211c;
+  --color-surface-3: #212c25;
+  --color-border: #29352e;
+  --color-border-strong: #3a4a41;
+  --color-fg: #e7efe9;
+  --color-muted: #a2b3a8;
+  --color-subtle: #798c81;
+  --color-success: var(--success-dark, #3cc2a6);
+  --color-danger: #e8726d;
+  --color-danger-fg: #0a0f0c;
+  --color-info: #6aa6ff;
+  --color-warning: var(--warning-dark, #f0a83c);
+  --color-shade: #000000;
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a2b3a8' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* Nightshade in daylight: soft sage and deep green. */
+[data-theme="greenlight"] {
+  color-scheme: light;
+  --backdrop-opacity: 0.45;
+  --glow: none;
+  --sidebar: none;
+  --color-accent: var(--accent-light, #1a6e45);
+  --color-accent-hover: var(--accent-light-hover, #16623e);
+  --color-accent-fg: var(--accent-light-fg, #ffffff);
+  --color-brand-light: var(--accent-light-logo-light, #5fd39a);
+  --color-brand: var(--accent-light-logo, #1a7048);
+  --color-brand-deep: var(--accent-light-logo-deep, #4fae80);
+  --color-brand-far: var(--accent-light-logo-far, #98cdb0);
+  --color-brand-tile: #dbefe2;
+  --color-bg: #f1f6f2;
+  --color-surface: #fbfdfb;
+  --color-surface-2: #e8f0ea;
+  --color-surface-3: #dce7df;
+  --color-border: #cddbd1;
+  --color-border-strong: #b2c4b7;
+  --color-fg: #122017;
+  --color-muted: #45564a;
+  --color-subtle: #58695d;
+  --color-success: var(--success-light, #0d6a60);
+  --color-danger: #b02c35;
+  --color-danger-fg: #ffffff;
+  --color-info: #1e5dc0;
+  --color-warning: var(--warning-light, #855700);
+  --color-shade: rgb(14 44 26 / 0.38);
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2345564a' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/*
+ * For children: sunny cream with bubbles of colored light, a sidebar in a
+ * soft rainbow, sky and lilac where you type and press, a bright violet,
+ * deep grape words and a toy-box logo. Its shapes are rounder (below).
+ */
+[data-theme="sunshine"] {
+  color-scheme: light;
+  --backdrop-opacity: 0.45;
+  --glow:
+    radial-gradient(circle at 34% 10%, rgb(255 99 146 / 0.24), transparent 20%),
+    radial-gradient(circle at 96% 8%, rgb(56 182 255 / 0.28), transparent 22%),
+    radial-gradient(circle at 90% 92%, rgb(255 196 0 / 0.32), transparent 24%),
+    radial-gradient(circle at 42% 96%, rgb(74 214 140 / 0.26), transparent 22%),
+    radial-gradient(circle at 68% 48%, rgb(150 100 255 / 0.12), transparent 22%);
+  --sidebar: linear-gradient(
+    to bottom,
+    rgb(255 99 146 / 0.22),
+    rgb(255 158 64 / 0.22) 20%,
+    rgb(255 214 0 / 0.24) 40%,
+    rgb(74 214 140 / 0.22) 60%,
+    rgb(56 182 255 / 0.22) 80%,
+    rgb(150 100 255 / 0.22)
+  );
+  --color-accent: var(--accent-light, #5a2ff0);
+  --color-accent-hover: var(--accent-light-hover, #4a1fd6);
+  --color-accent-fg: var(--accent-light-fg, #ffffff);
+  --color-brand-light: #ffd84a;
+  --color-brand: #ff8a1f;
+  --color-brand-deep: #ff5fa2;
+  --color-brand-far: #3fc1ff;
+  --color-brand-tile: #3b2a7a;
+  --color-bg: #fff7e0;
+  --color-surface: #ffffff;
+  --color-surface-2: #e8f4ff;
+  --color-surface-3: #efe7ff;
+  --color-border: #ddd3f6;
+  --color-border-strong: #c3b4f0;
+  --color-fg: #24124f;
+  --color-muted: #4f437c;
+  --color-subtle: #62578f;
+  --color-success: var(--success-light, #0c713d);
+  --color-danger: #b81e3f;
+  --color-danger-fg: #ffffff;
+  --color-info: #135ec2;
+  --color-warning: var(--warning-light, #a14700);
+  --color-shade: rgb(58 30 100 / 0.34);
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234f437c' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* Black and white only: white words and a white accent on black, the states told apart by their gray, and by their words and icons as everywhere. */
+[data-theme="blacklight"] {
+  color-scheme: dark;
+  --backdrop-opacity: 0.65;
+  --glow: none;
+  --sidebar: none;
+  --color-accent: var(--accent-dark, #ffffff);
+  --color-accent-hover: var(--accent-dark-hover, #d6d6d6);
+  --color-accent-fg: var(--accent-dark-fg, #000000);
+  --color-brand-light: var(--accent-dark-logo-light, #ffffff);
+  --color-brand: var(--accent-dark-logo, #bdbdbd);
+  --color-brand-deep: var(--accent-dark-logo-deep, #8a8a8a);
+  --color-brand-far: var(--accent-dark-logo-far, #4d4d4d);
+  --color-brand-tile: #141414;
+  --color-bg: #000000;
+  --color-surface: #0d0d0d;
+  --color-surface-2: #171717;
+  --color-surface-3: #222222;
+  --color-border: #2e2e2e;
+  --color-border-strong: #4a4a4a;
+  --color-fg: #ffffff;
+  --color-muted: #b5b5b5;
+  --color-subtle: #8e8e8e;
+  --color-success: #e0e0e0;
+  --color-danger: #8f8f8f;
+  --color-danger-fg: #000000;
+  --color-info: #c4c4c4;
+  --color-warning: #a6a6a6;
+  --color-shade: #000000;
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23b5b5b5' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/*
+ * Accents (src/theme): one picked over any theme, on <html data-accent>, or
+ * none for the theme's own. Each gives the dark themes a
+ * bright color with dark words on it and the light themes a deep one with
+ * light words; the themes read them through --accent-dark and
+ * --accent-light, their own as the fallback, so the players ([data-dark])
+ * and the picker's previews take the right one. Each also colors the logo,
+ * all but its tile, as the theme it comes from does: Sky as Midnight and
+ * Midday, Miami as Twilight, Gold as Moonlight and Starlight, Mint as
+ * Nightshade and Greenlight. Sunshine keeps its toy-box logo, and Blacklight
+ * keeps its gray states. An accent a
+ * theme's state color would be mistaken for moves that state, as
+ * Nightshade's success leans teal (docs/THEMES.md, "Accents").
+ */
+[data-accent="sky"] {
+  --accent-dark: #38bdf8;
+  --accent-dark-hover: #7dd3fc;
+  --accent-dark-fg: #03131f;
+  --accent-dark-logo-light: #bae6fd;
+  --accent-dark-logo: #38bdf8;
+  --accent-dark-logo-deep: #0284c7;
+  --accent-dark-logo-far: #0c4a6e;
+  --accent-light: #025d8f;
+  --accent-light-hover: #034e78;
+  --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #38bdf8;
+  --accent-light-logo: #0369a1;
+  --accent-light-logo-deep: #3d9fd8;
+  --accent-light-logo-far: #9ac9ed;
+}
+
+[data-accent="violet"] {
+  --accent-dark: #b39afd;
+  --accent-dark-hover: #cdbffe;
+  --accent-dark-fg: #160b33;
+  --accent-dark-logo-light: #e2d9ff;
+  --accent-dark-logo: #b39afd;
+  --accent-dark-logo-deep: #7b5ce6;
+  --accent-dark-logo-far: #43307f;
+  --accent-light: #5a2ff0;
+  --accent-light-hover: #4a1fd6;
+  --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #b39afd;
+  --accent-light-logo: #5a2ff0;
+  --accent-light-logo-deep: #8b6cf6;
+  --accent-light-logo-far: #c6b6f8;
+}
+
+[data-accent="miami"] {
+  --accent-dark: #ff79b0;
+  --accent-dark-hover: #ffa0c8;
+  --accent-dark-fg: #2a0619;
+  --accent-dark-logo-light: #ffd3a6;
+  --accent-dark-logo: #ff79b0;
+  --accent-dark-logo-deep: #c2448f;
+  --accent-dark-logo-far: #6e2c7a;
+  --accent-light: #a61e6a;
+  --accent-light-hover: #901a5c;
+  --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #ff79b0;
+  --accent-light-logo: #a61e6a;
+  --accent-light-logo-deep: #db5b9b;
+  --accent-light-logo-far: #eeb4cf;
+}
+
+/* Gold would read as a warning: warnings turn orange beside it. */
+[data-accent="gold"] {
+  --accent-dark: #f5c542;
+  --accent-dark-hover: #f9d97c;
+  --accent-dark-fg: #1c1604;
+  --accent-dark-logo-light: #fff3c9;
+  --accent-dark-logo: #f5c542;
+  --accent-dark-logo-deep: #b48d2b;
+  --accent-dark-logo-far: #66532a;
+  --accent-light: #835613;
+  --accent-light-hover: #774e11;
+  --accent-light-fg: #fffaf2;
+  --accent-light-logo-light: #d6a548;
+  --accent-light-logo: #8a5a12;
+  --accent-light-logo-deep: #c0904a;
+  --accent-light-logo-far: #dcc08a;
+  --warning-dark: #ff8f5a;
+  --warning-light: #9a3f17;
+}
+
+/* Mint would read as success: success leans teal beside it, as in Nightshade. */
+[data-accent="mint"] {
+  --accent-dark: #5fd39a;
+  --accent-dark-hover: #8fe3b8;
+  --accent-dark-fg: #03140a;
+  --accent-dark-logo-light: #c9f6dc;
+  --accent-dark-logo: #5fd39a;
+  --accent-dark-logo-deep: #2f9a68;
+  --accent-dark-logo-far: #1d5a3e;
+  --accent-light: #18663f;
+  --accent-light-hover: #145a37;
+  --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #5fd39a;
+  --accent-light-logo: #1a7048;
+  --accent-light-logo-deep: #4fae80;
+  --accent-light-logo-far: #98cdb0;
+  --success-dark: #3cc2a6;
+  --success-light: #0d6a60;
+}
+
+/* Amber would read as a warning: warnings turn yellow beside it. */
+[data-accent="amber"] {
+  --accent-dark: #ff6f3c;
+  --accent-dark-hover: #ff956c;
+  --accent-dark-fg: #1f0702;
+  --accent-dark-logo-light: #ffcbb0;
+  --accent-dark-logo: #ff6f3c;
+  --accent-dark-logo-deep: #c4461a;
+  --accent-dark-logo-far: #6b2612;
+  --accent-light: #a03d00;
+  --accent-light-hover: #8b3500;
+  --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #ff6f3c;
+  --accent-light-logo: #a03d00;
+  --accent-light-logo-deep: #de5a2c;
+  --accent-light-logo-far: #efae92;
+  --warning-dark: #e8c23a;
+  --warning-light: #6f5a00;
+}
+
+
+/* The theme's own, inside a page with another accent (the picker's swatch). */
+[data-accent="own"] {
+  --accent-dark: initial;
+  --accent-dark-hover: initial;
+  --accent-dark-fg: initial;
+  --accent-dark-logo-light: initial;
+  --accent-dark-logo: initial;
+  --accent-dark-logo-deep: initial;
+  --accent-dark-logo-far: initial;
+  --accent-light: initial;
+  --accent-light-hover: initial;
+  --accent-light-fg: initial;
+  --accent-light-logo-light: initial;
+  --accent-light-logo: initial;
+  --accent-light-logo-deep: initial;
+  --accent-light-logo-far: initial;
+  --success-dark: initial;
+  --success-light: initial;
+  --warning-dark: initial;
+  --warning-light: initial;
+}
+
+/* Sunshine's page is rounder all over, in a rounded type where the device has one (ui-rounded on Apple's). */
+:root[data-theme="sunshine"] {
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
+  --font-sans:
+    ui-rounded, "SF Pro Rounded", "Nunito", "Varela Round", "Segoe UI", system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji";
 }
 
 @layer base {
@@ -106,6 +609,22 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  /* A theme's backdrop (Twilight's sunset, Moonlight's moon), behind everything, still as the page scrolls. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--glow, none);
+  }
+  /* While the theme changes (src/theme), every color changes at once: nothing eases from the old one. */
+  .theme-changing,
+  .theme-changing *,
+  .theme-changing *::before,
+  .theme-changing *::after {
+    transition: none !important;
   }
   ::selection {
     background-color: color-mix(in oklab, var(--color-accent) 40%, transparent);
@@ -131,7 +650,8 @@
    */
   select:not([multiple]) {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a1a9b6' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    /* In the theme's muted color (--caret). */
+    background-image: var(--caret);
     background-repeat: no-repeat;
     background-position: right 0.625rem center;
     background-size: 1rem;
@@ -163,6 +683,74 @@
   .animate-fade-in {
     animation: none;
   }
+}
+
+/*
+ * Pictures behind a page's words (the home banner, a title's backdrop)
+ * fade out themselves, at their foot and toward the words, rather than
+ * under the page's color laid over them: the page shows through, its
+ * theme's backdrop too (Twilight's sunset, Moonlight's moon), with no
+ * edge where the picture ends. The steps ease the fade, so no band shows.
+ */
+@utility banner-fade {
+  /* Phones: the words in the middle, over the foot. */
+  mask-image: linear-gradient(
+    to top,
+    transparent 8%,
+    rgb(0 0 0 / 0.14) 18%,
+    rgb(0 0 0 / 0.36) 36%,
+    rgb(0 0 0 / 0.68) 54%,
+    rgb(0 0 0 / 0.92) 68%,
+    #000 78%
+  );
+}
+@utility banner-fade-wide {
+  /* Wider: the words at the bottom left. */
+  mask-image:
+    linear-gradient(
+      to top,
+      transparent 6%,
+      rgb(0 0 0 / 0.22) 14%,
+      rgb(0 0 0 / 0.55) 28%,
+      rgb(0 0 0 / 0.85) 40%,
+      rgb(0 0 0 / 0.97) 50%,
+      #000 56%
+    ),
+    linear-gradient(
+      to right,
+      rgb(0 0 0 / 0.08),
+      rgb(0 0 0 / 0.18) 14%,
+      rgb(0 0 0 / 0.4) 32%,
+      rgb(0 0 0 / 0.78) 50%,
+      rgb(0 0 0 / 0.95) 64%,
+      #000 74%
+    );
+  mask-composite: intersect;
+}
+@utility backdrop-fade {
+  /* Behind a title's page: softer under its words, full toward the top
+     right, and at the theme's strength (--backdrop-opacity: a little
+     fainter on the light themes, where a dark picture would turn gray). */
+  opacity: var(--backdrop-opacity, 0.65);
+  mask-image:
+    linear-gradient(
+      to top,
+      transparent,
+      rgb(0 0 0 / 0.1) 18%,
+      rgb(0 0 0 / 0.28) 42%,
+      rgb(0 0 0 / 0.55) 66%,
+      rgb(0 0 0 / 0.95) 90%,
+      #000
+    ),
+    linear-gradient(
+      to right,
+      rgb(0 0 0 / 0.06),
+      rgb(0 0 0 / 0.22) 25%,
+      rgb(0 0 0 / 0.5) 50%,
+      rgb(0 0 0 / 0.85) 75%,
+      #000
+    );
+  mask-composite: intersect;
 }
 
 @utility scrollbar-none {

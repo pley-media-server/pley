@@ -53,7 +53,7 @@ function Ring({ fraction }: { fraction: number | null }) {
   const around = 2 * Math.PI * r;
   return (
     <svg viewBox="0 0 18 18" className={cn("size-[18px] -rotate-90", fraction == null && "animate-spin")} aria-hidden>
-      <circle cx="9" cy="9" r={r} fill="none" strokeWidth="2" className="stroke-white/15" />
+      <circle cx="9" cy="9" r={r} fill="none" strokeWidth="2" className="stroke-fg/15" />
       <circle
         cx="9"
         cy="9"
@@ -132,7 +132,7 @@ export function AppDownloads() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={percent ? `${label}, ${percent}` : label}
-        className="flex h-9 items-center gap-2 rounded-full px-3 text-muted transition-colors hover:bg-white/5 hover:text-fg"
+        className="flex h-9 items-center gap-2 rounded-full px-3 text-muted transition-colors hover:bg-fg/5 hover:text-fg"
       >
         <Ring fraction={fraction} />
         <span className="hidden max-w-48 truncate text-xs font-medium md:inline">{label}</span>
@@ -141,12 +141,12 @@ export function AppDownloads() {
       {open ? (
         <div
           aria-label={t("appDownloads.panel")}
-          className="absolute right-0 top-full z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] animate-pop-in space-y-3 rounded-lg border border-border bg-surface-2 px-4 py-3 shadow-xl shadow-black/50"
+          className="absolute right-0 top-full z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] animate-pop-in space-y-3 rounded-lg border border-border bg-surface-2 px-4 py-3 shadow-xl shadow-shade/50"
         >
           {active.map((d) => (
             <div key={d.id} className="space-y-1.5">
               <div className="truncate text-sm font-medium text-fg">{d.name}</div>
-              <div className="h-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-1 overflow-hidden rounded-full bg-fg/10">
                 <div
                   className={cn(
                     "h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none",

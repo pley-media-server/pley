@@ -10,6 +10,7 @@ on:
       - apps/roku/**
       - packages/tv/test/fixtures/**
       - packages/placeholder/**
+      - packages/themes/**
       - package.json
       - .github/workflows/roku.yml
       - "!**/CHANGELOG.md"
@@ -18,6 +19,7 @@ on:
       - apps/roku/**
       - packages/tv/test/fixtures/**
       - packages/placeholder/**
+      - packages/themes/**
       - package.json
       - .github/workflows/roku.yml
       - "!**/CHANGELOG.md"

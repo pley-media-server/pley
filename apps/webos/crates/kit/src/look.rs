@@ -211,16 +211,19 @@ mod tests {
 
     #[test]
     fn mixing_from_transparent_keeps_the_colour() {
-        let m = mix(Color::TRANSPARENT, theme::ACCENT, 0.5);
-        assert_eq!((m.r, m.g, m.b), (theme::ACCENT.r, theme::ACCENT.g, theme::ACCENT.b));
+        let m = mix(Color::TRANSPARENT, theme::accent(), 0.5);
+        assert_eq!((m.r, m.g, m.b), (theme::accent().r, theme::accent().g, theme::accent().b));
         assert_eq!(m.a, 128);
-        assert_eq!(mix(theme::SURFACE3, theme::ACCENT, 1.0), theme::ACCENT);
-        assert_eq!(mix(theme::SURFACE3, theme::ACCENT, 0.0), theme::SURFACE3);
+        assert_eq!(mix(theme::surface3(), theme::accent(), 1.0), theme::accent());
+        assert_eq!(mix(theme::surface3(), theme::accent(), 0.0), theme::surface3());
     }
 
     #[test]
     fn rest_shade_is_the_look_at_rest() {
-        let s = Shade::rest(&theme::focus::PILL);
-        assert_eq!((s.fill, s.content, s.edge, s.scale), (theme::PILL_REST, theme::FG, Some(theme::CONTROL), 1.0));
+        let s = Shade::rest(&theme::focus::pill());
+        assert_eq!(
+            (s.fill, s.content, s.edge, s.scale),
+            (theme::pill_rest(), theme::fg(), Some(theme::control()), 1.0)
+        );
     }
 }

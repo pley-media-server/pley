@@ -45,7 +45,7 @@ function Choice({
   return (
     <label
       htmlFor={id}
-      className={cn("flex items-start gap-3 rounded px-2 py-2 text-sm", disabled ? "opacity-60" : "cursor-pointer hover:bg-white/5")}
+      className={cn("flex items-start gap-3 rounded px-2 py-2 text-sm", disabled ? "opacity-60" : "cursor-pointer hover:bg-fg/5")}
     >
       <input id={id} type="checkbox" checked={checked} disabled={disabled} onChange={onChange} className="peer sr-only" />
       <span
@@ -214,7 +214,7 @@ export function CompatibilityTokensCard() {
       ) : list.length === 0 ? (
         <p className="text-sm text-subtle">{t("tokens.none")}</p>
       ) : (
-        <ul className="divide-y divide-white/[0.05] rounded-md border border-border">
+        <ul className="divide-y divide-fg/[0.05] rounded-md border border-border">
           {list.map((token) => {
             const allows = [tokenScopesLabel(token.scopes), allowedFromLabel(token.allowed_from)].filter(Boolean).join(" · ");
             return (

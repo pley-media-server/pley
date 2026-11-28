@@ -1,6 +1,7 @@
 package app.pley.android.designsystem.text
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -45,11 +46,13 @@ fun WholeWordsText(
     shrinks: Boolean = true,
 ) {
     val measurer = rememberTextMeasurer()
-    val laid = remember { arrayOfNulls<TextLayoutResult>(1) }
+    // Read as it draws, so that a new color alone (a theme picked) draws again: measured anew, the text keeps its size,
+    // which draws nothing again by itself.
+    val laid = remember { mutableStateOf<TextLayoutResult?>(null) }
     Layout(
         modifier = modifier
             .semantics { this.text = AnnotatedString(text) }
-            .drawBehind { laid[0]?.let { drawText(it) } },
+            .drawBehind { laid.value?.let { drawText(it) } },
     ) { _, constraints ->
         val fitted = if (shrinks) fitted(measurer, text, style, constraints.maxWidth, this) else style
         val result = measurer.measure(
@@ -59,7 +62,7 @@ fun WholeWordsText(
             maxLines = maxLines,
             constraints = Constraints(maxWidth = constraints.maxWidth),
         )
-        laid[0] = result
+        laid.value = result
         layout(
             result.size.width.coerceIn(constraints.minWidth, constraints.maxWidth),
             result.size.height.coerceIn(constraints.minHeight, constraints.maxHeight),

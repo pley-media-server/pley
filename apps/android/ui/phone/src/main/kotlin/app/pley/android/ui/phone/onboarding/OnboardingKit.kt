@@ -45,13 +45,13 @@ internal fun PleyWordmark(modifier: Modifier = Modifier) {
 }
 
 /**
- * The sign-in screens' background: [brandDeep][PleyColors.BrandDeep]
+ * The sign-in screens' background: [deep] (the theme's [brandDeep][PleyColors.BrandDeep])
  * glowing from the top-right corner over [bg][PleyColors.Bg] (design spec
  * §4.7). One gradient, drawn once.
  */
-internal fun Modifier.brandCorner(): Modifier = drawWithCache {
+internal fun Modifier.brandCorner(deep: Color): Modifier = drawWithCache {
     val brush = Brush.radialGradient(
-        0f to PleyColors.BrandDeep.copy(alpha = 0.22f),
+        0f to deep.copy(alpha = 0.22f),
         1f to Color.Transparent,
         center = Offset(size.width, 0f),
         radius = maxOf(size.width, 1f) * 1.1f,

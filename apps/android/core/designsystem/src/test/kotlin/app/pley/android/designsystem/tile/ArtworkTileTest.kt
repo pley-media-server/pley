@@ -47,6 +47,7 @@ import app.pley.android.designsystem.image.TitleKey
 import app.pley.android.designsystem.image.TitleLayouts
 import app.pley.android.designsystem.image.artworkPlaceholder
 import app.pley.android.designsystem.image.shownArtwork
+import app.pley.android.designsystem.theme.PleyPalette
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.UserState
@@ -193,7 +194,7 @@ class ArtworkTileTest {
         }
         compose.waitForIdle()
         // No title's gradient while it comes back: the well, as under the picture.
-        assertNear(PleyColors.Surface2, pixel("tile", 14, 14))
+        assertNear(PleyPalette.Default.surface2, pixel("tile", 14, 14))
         assertEquals(0, textLines(compose.onNodeWithTag("tile").captureToImage().toPixelMap()))
     }
 
@@ -402,7 +403,7 @@ class ArtworkTileTest {
             }
         }
         compose.waitForIdle()
-        assertNear(PleyColors.Surface2, pixel("clear", 110, 165))
+        assertNear(PleyPalette.Default.surface2, pixel("clear", 110, 165))
         assertNear(Color(red), pixel("opaque", 110, 165))
     }
 

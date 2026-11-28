@@ -9,6 +9,8 @@ on:
     paths:
       - apps/android/**
       - packages/placeholder/**
+      - packages/themes/**
+      - packages/tv/test/fixtures/avatar.json
       - scripts/check-android.ps1
       - .github/workflows/android.yml
       - "!**/CHANGELOG.md"
@@ -16,6 +18,8 @@ on:
     paths:
       - apps/android/**
       - packages/placeholder/**
+      - packages/themes/**
+      - packages/tv/test/fixtures/avatar.json
       - scripts/check-android.ps1
       - .github/workflows/android.yml
       - "!**/CHANGELOG.md"

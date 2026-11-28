@@ -279,7 +279,7 @@ function Chips({ items, active, empty }: { items: string[]; active?: string | nu
           key={e}
           className={cn(
             "rounded-full px-2 py-0.5 font-mono text-[11px]",
-            e === active ? "bg-accent/15 text-accent ring-1 ring-accent/40" : "bg-white/[0.07] text-fg/80",
+            e === active ? "bg-accent/15 text-accent ring-1 ring-accent/40" : "bg-fg/[0.07] text-fg/80",
           )}
         >
           {e}
@@ -369,7 +369,7 @@ function JobsTable({ jobs }: { jobs: TranscoderJob[] }) {
             <th className="w-40 px-3 py-2 font-semibold">{t("dashboard.jobs.segments")}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/[0.05] bg-surface">
+        <tbody className="divide-y divide-fg/[0.05] bg-surface">
           {jobs.map((j) => {
             const i = j.info;
             return (

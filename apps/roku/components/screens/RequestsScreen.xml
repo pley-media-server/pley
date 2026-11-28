@@ -17,6 +17,8 @@
         <field id="requestsChanged" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/RequestsScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -30,7 +32,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <children>
-        <Label id="heading" translation="[192, 54]" width="1000" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="heading" translation="[192, 54]" width="1000" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
         <!-- How many there are; for an administrator whose sign-in can't
              approve, how to make it. -->
         <Label id="count" translation="[1024, 74]" width="800" horizAlign="right" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
@@ -42,18 +44,18 @@
         <ChipRow id="side" translation="[1600, 132]" pad="44" visible="false" />
         <QuickList id="list" translation="[192, 244]" itemComponentName="RequestRow" itemSize="[1632, 176]" itemSpacing="[0, 12]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[192, 480]" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
-        <Label id="hint" translation="[192, 1000]" width="1632" color="0x8B95A5FF" visible="false" font="font:SmallestSystemFont" />
+        <Label id="hint" translation="[192, 1000]" width="1632" color="0x7E8795FF" visible="false" font="font:SmallestSystemFont" />
         <!-- Why the requests can't be shown, and what to do about it. -->
         <LayoutGroup id="problem" translation="[192, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">
-            <Label id="problemTitle" width="1400" wrap="true" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="problemTitle" width="1400" wrap="true" color="0xE9EBEFFF" font="font:LargeBoldSystemFont" />
             <Label id="problemText" width="1400" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
             <PillButtons id="problemButtons" minWidth="420" />
         </LayoutGroup>
         <!-- The filters, each opening its choices, over the right half. -->
         <Group id="panel" visible="false">
-            <Rectangle width="1920" height="1080" color="0x16191E80" />
-            <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFF" />
-            <Label id="panelTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xEBEBEBFF" />
+            <Rectangle id="dim" width="1920" height="1080" />
+            <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x12151AFF" />
+            <Label id="panelTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xE9EBEFFF" />
             <QuickList id="choices" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <QuickList id="menu" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
         </Group>

@@ -150,7 +150,7 @@ internal fun ProgramProgress(program: LiveProgram, now: Long, modifier: Modifier
 internal fun ProgramBadge(text: String, live: Boolean, modifier: Modifier = Modifier) {
     BasicText(
         text.uppercase(),
-        style = PleyType.Tv.Badge.copy(color = if (live) PleyColors.Bg else PleyColors.AccentBright),
+        style = PleyType.Tv.Badge.copy(color = if (live) PleyColors.DangerFg else PleyColors.AccentBright),
         maxLines = 1,
         modifier = modifier
             .clip(PleyShape.Badge)

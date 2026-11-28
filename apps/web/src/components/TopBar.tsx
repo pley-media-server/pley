@@ -127,7 +127,7 @@ function ScanIndicator() {
       <span className="hidden max-w-48 truncate text-xs font-medium md:inline">{label}</span>
     </>
   );
-  const cls = "flex h-9 items-center gap-2 rounded-full px-3 text-muted transition-colors hover:bg-white/5 hover:text-fg";
+  const cls = "flex h-9 items-center gap-2 rounded-full px-3 text-muted transition-colors hover:bg-fg/5 hover:text-fg";
   return user.is_admin ? (
     <Link to="/settings/dashboard" title={title} className={cls} aria-label={label}>
       {content}
@@ -254,7 +254,7 @@ function MenuButton({ onMenu }: { onMenu: () => void }) {
           aria-hidden
           className={cn(
             "absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4",
-            danger ? "bg-danger text-white" : "bg-accent text-accent-fg",
+            danger ? "bg-danger text-danger-fg" : "bg-accent text-accent-fg",
           )}
         >
           {count > 9 ? "9+" : count}
@@ -282,7 +282,7 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
     // Over a page's banner (the home screen's), the bar is clear until the page scrolls.
     <header
       data-top={top || undefined}
-      className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-white/[0.04] bg-bg/85 px-3 backdrop-blur-md transition-[background-color,border-color,backdrop-filter] duration-300 sm:gap-3 sm:px-6 lg:px-8 group-has-[[data-hero]]/shell:data-top:border-transparent group-has-[[data-hero]]/shell:data-top:bg-transparent group-has-[[data-hero]]/shell:data-top:backdrop-blur-none"
+      className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-fg/[0.04] bg-bg/85 px-3 backdrop-blur-md transition-[background-color,border-color,backdrop-filter] duration-300 sm:gap-3 sm:px-6 lg:px-8 group-has-[[data-hero]]/shell:data-top:border-transparent group-has-[[data-hero]]/shell:data-top:bg-transparent group-has-[[data-hero]]/shell:data-top:backdrop-blur-none"
     >
       <MenuButton onMenu={onMenu} />
       <SearchBox className="min-w-0 max-w-xl flex-1" />

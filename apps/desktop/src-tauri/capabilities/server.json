@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "server",
+  "description": "The server's pages: they may tell the app the theme they show, and nothing else. The command checks that the server shown asks.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://*:*", "https://*:*"]
+  },
+  "permissions": ["allow-theme-picked"]
+}

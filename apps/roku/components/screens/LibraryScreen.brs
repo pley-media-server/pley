@@ -9,6 +9,9 @@
 ' again.
 
 sub init()
+    m.c = uiColors()
+    ' The page dimmed behind the panel, in the theme's shade.
+    m.top.findNode("dim").color = themeShade(m.c, 0.5)
     m.title = m.top.findNode("title")
     m.countLabel = m.top.findNode("count")
     m.tabs = m.top.findNode("tabs")

@@ -73,7 +73,7 @@ function NavItem({
           cn(
             "group relative flex h-8 items-center gap-2.5 rounded-md text-sm font-medium transition-colors duration-150",
             narrow ? "justify-center" : "px-3",
-            isActive ? "bg-white/[0.07] text-fg" : "text-muted hover:bg-white/[0.04] hover:text-fg",
+            isActive ? "bg-fg/[0.07] text-fg" : "text-muted hover:bg-fg/[0.04] hover:text-fg",
           )
         }
       >
@@ -209,7 +209,7 @@ function SidebarContent({
                   {...addTip.trigger}
                   to="/settings/libraries?add=1"
                   className={cn(
-                    "flex h-8 items-center gap-2.5 rounded-md text-sm text-muted transition-colors hover:bg-white/[0.04] hover:text-fg",
+                    "flex h-8 items-center gap-2.5 rounded-md text-sm text-muted transition-colors hover:bg-fg/[0.04] hover:text-fg",
                     collapsed ? "justify-center" : "px-3",
                   )}
                 >
@@ -294,7 +294,7 @@ function RequestsNav() {
               <span
                 className={cn(
                   "min-w-5 rounded-full px-1.5 text-center text-[11px] font-bold leading-5",
-                  danger ? "bg-danger text-white" : "bg-accent text-accent-fg",
+                  danger ? "bg-danger text-danger-fg" : "bg-accent text-accent-fg",
                 )}
               >
                 {count > 99 ? "99+" : count} <span className="sr-only">{t("sidebar.waiting")}</span>
@@ -355,7 +355,7 @@ export function Sidebar({
     <>
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-surface transition-[width] duration-200 motion-reduce:transition-none lg:block",
+          "fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-surface bg-(image:--sidebar) transition-[width] duration-200 motion-reduce:transition-none lg:block",
           collapsed ? "w-16" : "w-60",
         )}
       >
@@ -363,13 +363,13 @@ export function Sidebar({
       </aside>
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 animate-fade-in bg-black/60" onClick={onClose} />
+          <div className="absolute inset-0 animate-fade-in bg-shade/60" onClick={onClose} />
           <aside
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
             aria-label={t("sidebar.menu")}
-            className="absolute inset-y-0 left-0 w-72 max-w-[85vw] animate-pop-in border-r border-border bg-surface shadow-2xl"
+            className="absolute inset-y-0 left-0 w-72 max-w-[85vw] animate-pop-in border-r border-border bg-surface bg-(image:--sidebar) shadow-2xl"
           >
             <SidebarContent onClose={onClose} />
           </aside>

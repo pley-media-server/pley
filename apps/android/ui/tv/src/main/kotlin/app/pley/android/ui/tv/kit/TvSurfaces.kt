@@ -122,6 +122,9 @@ fun TvBackdrop(
     modifier: Modifier = Modifier,
     scrim: BackdropScrim = BackdropScrim.Hero,
 ) {
+    val bg = PleyColors.Bg
+    // Fainter on a light theme, where a dark picture would turn the page gray (the web's --backdrop-opacity).
+    val strength = if (PleyColors.palette.light) LIGHT_BACKDROP else 1f
     val tier = LocalTvTier.current
     val cap = ArtworkImage.backdropCap(tier)
     val wanted = remember(image, title, cap) { Backdrop(image?.cappedAt(cap), title) }
@@ -144,8 +147,11 @@ fun TvBackdrop(
                     Modifier
                         .fillMaxSize()
                         .drawnOnceIn(slot)
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                        .backdropScrims(scrim),
+                        .graphicsLayer {
+                            alpha = strength
+                            compositingStrategy = CompositingStrategy.Offscreen
+                        }
+                        .backdropScrims(scrim, bg),
                 )
             }
         }
@@ -157,10 +163,10 @@ fun TvBackdrop(
                         .fillMaxSize()
                         .drawnOnceIn(slot)
                         .graphicsLayer {
-                            alpha = slots.upperAlpha.value
+                            alpha = slots.upperAlpha.value * strength
                             compositingStrategy = CompositingStrategy.Offscreen
                         }
-                        .backdropScrims(scrim),
+                        .backdropScrims(scrim, bg),
                 )
             }
         }
@@ -217,6 +223,9 @@ private class BackdropSlot(val backdrop: Backdrop, swapped: Boolean) {
         withTimeoutOrNull(PictureWaitMs) { snapshotFlow { load.settled }.first { it } }
     }
 }
+
+/** A backdrop's strength on a light theme: the web's 0.6 there to its 0.85 on a dark one. */
+private const val LIGHT_BACKDROP = 0.7f
 
 /** How long a backdrop waits for its picture before it swaps in anyway. */
 private const val PictureWaitMs = 1_000L
@@ -329,17 +338,19 @@ private val SubjectAlignment = BiasAlignment(0.4f, -0.6f)
  * gentle fall to 20 % at the screen's edge (960), so no edge shows; from
  * the top, as [scrim] says.
  */
-private fun Modifier.backdropScrims(scrim: BackdropScrim): Modifier = drawWithCache {
+private fun Modifier.backdropScrims(scrim: BackdropScrim, bg: Color): Modifier = drawWithCache {
     // Stretched pictures, not gradient shaders (GradientBitmaps): over the whole
     // screen a shader cost about 13 ms a frame each on a TV's GPU.
     val leftEnd = minOf(960.dp.toPx(), size.width)
     val from = scrim.from.toPx()
     val to = scrim.to.toPx()
+    val left = leftScrim(bg)
+    val bottom = bottomScrim(bg)
     onDrawWithContent {
         drawContent()
-        drawStretched(LeftScrim, Offset.Zero, Size(leftEnd, size.height))
-        drawStretched(BottomScrim, Offset(0f, from), Size(size.width, to - from))
-        if (to < size.height) drawRect(PleyColors.Bg, topLeft = Offset(0f, to), size = Size(size.width, size.height - to))
+        drawStretched(left, Offset.Zero, Size(leftEnd, size.height))
+        drawStretched(bottom, Offset(0f, from), Size(size.width, to - from))
+        if (to < size.height) drawRect(bg, topLeft = Offset(0f, to), size = Size(size.width, size.height - to))
     }
 }
 
@@ -347,20 +358,18 @@ private fun Modifier.backdropScrims(scrim: BackdropScrim): Modifier = drawWithCa
  * From the left, over 960 dp: bg at 100 % (x = 0), 90 % (300), 80 % at the
  * text's end (520), then a long, gentle fall to a light 20 % at 960.
  */
-private val LeftScrim by lazy {
-    GradientBitmaps.horizontal(
-        0f to PleyColors.Bg,
-        300f / 960f to PleyColors.Bg.copy(alpha = 0.9f),
-        520f / 960f to PleyColors.Bg.copy(alpha = 0.8f),
-        620f / 960f to PleyColors.Bg.copy(alpha = 0.68f),
-        720f / 960f to PleyColors.Bg.copy(alpha = 0.53f),
-        820f / 960f to PleyColors.Bg.copy(alpha = 0.38f),
-        1f to PleyColors.Bg.copy(alpha = 0.2f),
-    )
-}
+private fun leftScrim(bg: Color) = GradientBitmaps.horizontal(
+    0f to bg,
+    300f / 960f to bg.copy(alpha = 0.9f),
+    520f / 960f to bg.copy(alpha = 0.8f),
+    620f / 960f to bg.copy(alpha = 0.68f),
+    720f / 960f to bg.copy(alpha = 0.53f),
+    820f / 960f to bg.copy(alpha = 0.38f),
+    1f to bg.copy(alpha = 0.2f),
+)
 
 /** From the top of its band: bg at 0 % to 100 %. */
-private val BottomScrim by lazy { GradientBitmaps.vertical(0f to Color.Transparent, 1f to PleyColors.Bg) }
+private fun bottomScrim(bg: Color) = GradientBitmaps.vertical(0f to Color.Transparent, 1f to bg)
 
 /**
  * A side panel (design spec §2.7; Subtitles, Audio, Quality, Info): 360 dp
@@ -411,7 +420,7 @@ fun TvSidePanel(
                 Column(
                     Modifier
                         .fillMaxSize()
-                        .topHairline()
+                        .topHairline(PleyColors.Surface4)
                         .padding(start = 24.dp, end = TvSafeArea.Horizontal, top = TvSafeArea.Vertical, bottom = TvSafeArea.Vertical),
                     content = content,
                 )
@@ -441,12 +450,12 @@ private fun MutableSet<Int>.heldFromBefore(event: KeyEvent): Boolean {
     }
 }
 
-/** Level 2's 1 dp [surface4][PleyColors.Surface4] line along the top. */
-private fun Modifier.topHairline(): Modifier = drawWithCache {
+/** Level 2's 1 dp [surface4][PleyColors.Surface4] ([line]) line along the top. */
+private fun Modifier.topHairline(line: Color): Modifier = drawWithCache {
     val h = PleyElevation.Level2Hairline.toPx()
     onDrawWithContent {
         drawContent()
-        drawRect(PleyColors.Surface4, size = androidx.compose.ui.geometry.Size(size.width, h))
+        drawRect(line, size = androidx.compose.ui.geometry.Size(size.width, h))
     }
 }
 

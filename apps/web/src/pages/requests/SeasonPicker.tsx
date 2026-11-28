@@ -86,7 +86,7 @@ export function SeasonPicker({
             alt=""
             title={title.title}
             mark="shows"
-            className="aspect-[2/3] w-16 shrink-0 rounded-md ring-1 ring-white/10"
+            className="aspect-[2/3] w-16 shrink-0 rounded-md ring-1 ring-fg/10"
           />
           <div className="min-w-0 space-y-1">
             <div className="font-semibold leading-snug">{title.title}</div>

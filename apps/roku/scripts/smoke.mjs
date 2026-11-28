@@ -17,7 +17,8 @@
 // See all), Discover (a movie asked for, a show's seasons picked), the
 // managers' Requests (Approve, then Yours), a ready-to-watch notice on
 // Home whose movie's audio and subtitles are picked on its page, Settings
-// (its Language chosen for the account, Home asked for again in it), the
+// (a theme and an accent picked in Appearance, the walk going on in them;
+// its Language chosen for the account, Home asked for again in it), the
 // server gone and Try again, then signing out and in again on a server
 // too old for QR codes, requests, two-step sign-in and collections'
 // categories (a library's collections a grid there). Then it starts
@@ -225,7 +226,7 @@ function sleepButtonLong() {
 // The A to Z's mark on a letter (LibraryScreen.xml's column from 1764, 212,
 // 30 pixels a letter), left of the letter: the accent while the letters have
 // the focus, else the lighter ground behind the letter of the title the
-// grid's focus is on.
+// grid's focus is on (surface-3, Midnight's here: the walk is in it then).
 function letterMarked(index, focused) {
   if (!frame) return false;
   const x = Math.round(1767 * (frame.width / 1920));
@@ -233,7 +234,7 @@ function letterMarked(index, focused) {
   const at = (y * frame.width + x) * 4;
   const [r, g, b] = [frame.data[at], frame.data[at + 1], frame.data[at + 2]];
   if (focused) return r < 120 && g > 150 && b > 200;
-  return Math.abs(r - 0x2e) < 8 && Math.abs(g - 0x34) < 8 && Math.abs(b - 0x40) < 8;
+  return Math.abs(r - 0x22) < 8 && Math.abs(g - 0x27) < 8 && Math.abs(b - 0x31) < 8;
 }
 
 async function drawnWithin(ms, test) {
@@ -1320,10 +1321,10 @@ async function walk() {
   await settle();
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
-  // The categories at the left (Profile, Playback, Server, Diagnostics,
-  // About, Sign out), OK going into one's rows at the right. Diagnostics'
-  // first row opens its page; About's second, the licenses.
-  await press("down", 3);
+  // The categories at the left (Profile, Playback, Appearance, Server,
+  // Diagnostics, About, Sign out), OK going into one's rows at the right.
+  // Diagnostics' first row opens its page; About's second, the licenses.
+  await press("down", 4);
   await press("select"); // Diagnostics' rows
   await press("select"); // Open diagnostics
   pages.diagnostics = await drawnWithin(3000, pageTextDrawn);
@@ -1339,10 +1340,33 @@ async function walk() {
   shoot("licences");
   await press("back");
   await settle();
+  // Appearance, its row's page: Twilight, then Gold, the last accent but
+  // one, shown at once and kept on the Roku for the profile; Back to
+  // Settings, made again in them on Appearance's row. The rest of the walk
+  // goes on in them.
+  await press("left");
+  await press("up", 3);
+  await press("select"); // Appearance's rows, on Theme
+  await press("select"); // its page, on Midnight, the theme in use
+  await sleep(500);
+  await press("right", 2);
+  await press("select"); // Twilight
+  await settle();
+  await press("down", 2); // the accents, on Default, the one in use
+  await press("right", 6);
+  await press("left");
+  await press("left");
+  await press("select"); // Gold
+  await settle();
+  // The page draws itself again in Gold.
+  await sleep(800);
+  shoot("appearance");
+  await press("back");
+  await settle();
   // Playback's Quality: Automatic checked, then 8 Mbps 1080p chosen, kept
   // on the Roku.
   await press("left");
-  await press("up", 3);
+  await press("up");
   await press("select"); // Playback's rows
   await press("select"); // Quality
   await sleep(500);
@@ -1621,6 +1645,14 @@ const checks = [
     JSON.stringify(fixture.languagesRefused) === '["fr"]' && language.refusedHome && language.afterRefused === "en",
   ],
   ["kept 8 Mbps 1080p chosen in Settings", registry !== null && /playback.quality","8m"/.test(JSON.stringify([...registry]))],
+  [
+    // The pick shown last is Midnight by then: the walk ends on another
+    // server's profile, which picked none.
+    "kept Twilight and Gold picked in Appearance for the server's profile",
+    registry !== null &&
+      /appearance\.theme http[^"]* 1","twilight"/.test(JSON.stringify([...registry])) &&
+      /appearance\.accent http[^"]* 1","gold"/.test(JSON.stringify([...registry])),
+  ],
   ["kept Anna as the profile to always start as", registry !== null && /startAs\.http[^"]*","1"/.test(JSON.stringify([...registry]))],
   ["showed subtitle sync", sync.label],
   ["showed Diagnostics and the open-source licenses from Settings", pages.diagnostics && pages.licences],

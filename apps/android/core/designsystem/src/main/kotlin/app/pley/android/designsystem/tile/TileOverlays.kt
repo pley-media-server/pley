@@ -29,12 +29,13 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.image.ArtworkLoad
 import app.pley.android.designsystem.image.ArtworkTrace
+import app.pley.android.designsystem.theme.PleyPalette
 import app.pley.android.designsystem.text.LocalMinTextSize
 import app.pley.android.designsystem.text.atLeast
 
 /** Draws [model]'s overlays over the art, and counts the tile's first frame for the image budget. */
-internal fun Modifier.tileOverlays(model: ArtworkTileModel, kind: TileKind, style: TileStyle, load: ArtworkLoad): Modifier =
-    this then TileOverlaysElement(model.progress, model.watched, model.unwatched, model.badges, kind, style, load)
+internal fun Modifier.tileOverlays(model: ArtworkTileModel, kind: TileKind, style: TileStyle, load: ArtworkLoad, palette: PleyPalette): Modifier =
+    this then TileOverlaysElement(model.progress, model.watched, model.unwatched, model.badges, kind, style, load, palette)
 
 private data class TileOverlaysElement(
     val progress: Float,
@@ -44,6 +45,7 @@ private data class TileOverlaysElement(
     val kind: TileKind,
     val style: TileStyle,
     val load: ArtworkLoad,
+    val palette: PleyPalette,
 ) : ModifierNodeElement<TileOverlaysNode>() {
     override fun create() = TileOverlaysNode(this)
 
@@ -70,8 +72,8 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
     override val shouldAutoInvalidate: Boolean get() = false
 
     fun update(next: TileOverlaysElement) {
-        if (next.badges != spec.badges || next.style != spec.style) badgeLayouts = null
-        if (next.unwatched != spec.unwatched || next.style != spec.style) countLayout = null
+        if (next.badges != spec.badges || next.style != spec.style || next.palette !== spec.palette) badgeLayouts = null
+        if (next.unwatched != spec.unwatched || next.style != spec.style || next.palette !== spec.palette) countLayout = null
         if (next.load !== spec.load) counted = false
         spec = next
         invalidateDraw()
@@ -89,7 +91,7 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
             val half = 0.5.dp.toPx()
             val radius = s.style.cornerRadius.toPx() - half
             drawRoundRect(
-                color = PleyColors.TileHairline,
+                color = s.palette.tileHairline,
                 topLeft = Offset(half, half),
                 size = Size(size.width - 2 * half, size.height - 2 * half),
                 cornerRadius = CornerRadius(radius, radius),
@@ -103,7 +105,7 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
             val top = size.height - barHeight
             val corner = if (s.kind.round) CornerRadius(size.minDimension / 2f) else CornerRadius(s.style.cornerRadius.toPx())
             clipRect(top = top) { drawRoundRect(PleyColors.ProgressTrackOnArt, cornerRadius = corner) }
-            clipRect(top = top, right = size.width * s.progress.coerceIn(0f, 1f)) { drawRoundRect(PleyColors.Accent, cornerRadius = corner) }
+            clipRect(top = top, right = size.width * s.progress.coerceIn(0f, 1f)) { drawRoundRect(s.palette.accent, cornerRadius = corner) }
         }
         when {
             s.unwatched > 0 -> drawCount(s, inset)
@@ -116,7 +118,7 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
         val d = s.style.tickSize.toPx()
         val left = size.width - inset - d
         val r = PleyShape.BadgeRadius.toPx()
-        drawRoundRect(PleyColors.OnArt, Offset(left, inset), Size(d, d), CornerRadius(r, r))
+        drawRoundRect(s.palette.onArt, Offset(left, inset), Size(d, d), CornerRadius(r, r))
         val glyph = s.style.tickGlyph.toPx()
         if (tick == null || tickSize != glyph) {
             // Lucide's check, "M20 6 9 17l-5-5", on its 24 grid.
@@ -129,7 +131,7 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
             tickSize = glyph
         }
         translate(left + (d - glyph) / 2f, inset + (d - glyph) / 2f) {
-            drawPath(tick!!, PleyColors.Accent, style = Stroke(3f * glyph / 24f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            drawPath(tick!!, s.palette.accent, style = Stroke(3f * glyph / 24f, cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
     }
 
@@ -140,10 +142,10 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
         val w = maxOf(h + 2.dp.toPx(), text.size.width + 2 * 6.dp.toPx())
         val left = size.width - inset - w
         val r = PleyShape.BadgeRadius.toPx()
-        drawRoundRect(PleyColors.Accent, Offset(left, inset), Size(w, h), CornerRadius(r, r))
+        drawRoundRect(s.palette.accent, Offset(left, inset), Size(w, h), CornerRadius(r, r))
         drawText(
             text,
-            color = PleyColors.OnAccent,
+            color = s.palette.accentFg,
             topLeft = Offset(left + (w - text.size.width) / 2f, inset + (h - text.size.height) / 2f),
         )
     }
@@ -159,8 +161,8 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
         for (text in layouts) {
             val w = text.size.width + 2 * pad
             if (x + w > size.width - inset) break
-            drawRoundRect(PleyColors.OnArt, Offset(x, top), Size(w, h), CornerRadius(radius, radius))
-            drawText(text, color = PleyColors.Fg, topLeft = Offset(x + pad, top + (h - text.size.height) / 2f))
+            drawRoundRect(s.palette.onArt, Offset(x, top), Size(w, h), CornerRadius(radius, radius))
+            drawText(text, color = s.palette.fg, topLeft = Offset(x + pad, top + (h - text.size.height) / 2f))
             x += w + gap
         }
     }

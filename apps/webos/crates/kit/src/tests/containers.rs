@@ -367,13 +367,13 @@ fn a_switch_row_turns_its_thumb_and_takes_the_accent_when_focused() {
     // Focused: an Accent fill, the track OnAccent at 30 % with an OnAccent thumb at its left.
     let track =
         Rect::new(376.0 + 536.0 - 20.0 - 40.0, 80.0 + (f32::max(44.0, 20.0 + 17.0 + 16.0) - 22.0) / 2.0, 40.0, 22.0);
-    assert!(super::fills_of(&f.list, theme::ON_ACCENT.alpha(0.3)).contains(&track));
+    assert!(super::fills_of(&f.list, theme::on_accent().alpha(0.3)).contains(&track));
     h.step(Step::Press(Key::Ok), &mut screen);
     let f = settle(&mut h, &mut screen);
     assert!(on.get());
-    assert!(super::fills_of(&f.list, theme::ON_ACCENT).contains(&track));
+    assert!(super::fills_of(&f.list, theme::on_accent()).contains(&track));
     let thumb = Rect::new(track.right() - 3.0 - 16.0, track.y + 3.0, 16.0, 16.0);
-    assert!(super::fills_of(&f.list, theme::ACCENT).contains(&thumb));
+    assert!(super::fills_of(&f.list, theme::accent()).contains(&thumb));
 }
 
 #[test]
@@ -459,7 +459,7 @@ fn hold(h: &mut Harness, key: Key, screen: &mut dyn FnMut(&mut Ui)) -> Vec<pley_
 
 /// The focus rings a frame draws.
 fn rings(list: &pley_base::DisplayList) -> Vec<Rect> {
-    let ring = theme::focus::RING_COLOR;
+    let ring = theme::focus::ring_color();
     super::strokes(list)
         .into_iter()
         .filter(|s| s.1.a > 0 && (s.1.r, s.1.g, s.1.b) == (ring.r, ring.g, ring.b))
@@ -639,10 +639,10 @@ fn a_drives_line_has_its_icon_tile_its_bar_and_says_its_words() {
     };
     let mut h = Harness::new();
     let frame = h.idle(&mut screen);
-    let tiles = super::fills_of(&frame.list, theme::SURFACE2);
+    let tiles = super::fills_of(&frame.list, theme::surface2());
     assert_eq!(tiles, [Rect::new(108.0, 100.0 + (rect.h - 36.0) / 2.0, 36.0, 36.0)]);
     let bars = super::fills_of(&frame.list, theme::PROGRESS_TRACK_ON_ART);
     assert_eq!(bars.len(), 1);
     assert_eq!((bars[0].x, bars[0].w, bars[0].h), (108.0 + 36.0 + 14.0, 160.0, 3.0));
-    assert_eq!(super::fills_of(&frame.list, theme::ACCENT)[0].w, 80.0);
+    assert_eq!(super::fills_of(&frame.list, theme::accent())[0].w, 80.0);
 }

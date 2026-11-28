@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.LocaleList
 import androidx.test.core.app.ApplicationProvider
-import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.theme.PleyPalette
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.ui.phone.R
 import java.util.Locale
@@ -24,10 +24,10 @@ class PlayerWordsTest {
     @Test
     fun theMethodBadgeTakesItsColourFromTheWayItPlays() {
         // The way, not its words: the same in every language. A download plays as it is (direct).
-        assertEquals(PleyColors.Success, PlayerLook.badgeColors(PlaybackMethod.Direct).text)
-        assertEquals(PleyColors.Info, PlayerLook.badgeColors(PlaybackMethod.Remux).text)
-        assertEquals(PleyColors.Accent, PlayerLook.badgeColors(PlaybackMethod.Transcode).text)
-        assertEquals(PleyColors.Accent, PlayerLook.badgeColors(null).text)
+        assertEquals(PleyPalette.Default.success, PlayerLook.badgeColors(PlaybackMethod.Direct, PleyPalette.Default).text)
+        assertEquals(PleyPalette.Default.info, PlayerLook.badgeColors(PlaybackMethod.Remux, PleyPalette.Default).text)
+        assertEquals(PleyPalette.Default.accent, PlayerLook.badgeColors(PlaybackMethod.Transcode, PleyPalette.Default).text)
+        assertEquals(PleyPalette.Default.accent, PlayerLook.badgeColors(null, PleyPalette.Default).text)
     }
 
     @Test

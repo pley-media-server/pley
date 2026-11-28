@@ -17,7 +17,7 @@ pub const TITLE_AT: Point = Point::new(theme::GUTTER, theme::SAFE_Y);
 
 /// A page's title, one line cut with "…" at `width`.
 pub fn page_title(ui: &mut Ui, text: &str, width: f32) {
-    ui.text(TITLE_AT, text, &theme::PAGE_TITLE, &TextOpts::line(width), theme::FG);
+    ui.text(TITLE_AT, text, &theme::PAGE_TITLE, &TextOpts::line(width), theme::fg());
 }
 
 /// A failed load's title: `title`, or "Can't reach your server" when the server answered nothing
@@ -41,10 +41,10 @@ pub fn column_message(
     let width = theme::CANVAS_W - 2.0 * theme::GUTTER;
     let x = theme::GUTTER;
     let mut y = top;
-    y += ui.text(Point::new(x, y), title, &theme::SECTION, &TextOpts::wrap(width, 2), theme::FG).h;
+    y += ui.text(Point::new(x, y), title, &theme::SECTION, &TextOpts::wrap(width, 2), theme::fg()).h;
     if !body.is_empty() {
         y += 8.0;
-        y += ui.text(Point::new(x, y), body, &theme::BODY, &TextOpts::wrap(520.0, 0), theme::MUTED).h;
+        y += ui.text(Point::new(x, y), body, &theme::BODY, &TextOpts::wrap(520.0, 0), theme::muted()).h;
     }
     let label = action?;
     y += 8.0 + 16.0 + 8.0;
@@ -148,9 +148,9 @@ impl Line<'_> {
             Line::Title(t, s) => {
                 let w = rect.w - 16.0;
                 let mut y = rect.y + 8.0;
-                y += ui.text(Point::new(rect.x + 16.0, y), t, &theme::TITLE, &TextOpts::wrap(w, 2), theme::FG).h;
+                y += ui.text(Point::new(rect.x + 16.0, y), t, &theme::TITLE, &TextOpts::wrap(w, 2), theme::fg()).h;
                 if !s.is_empty() {
-                    ui.text(Point::new(rect.x + 16.0, y), s, &theme::CAPTION, &TextOpts::wrap(w, 2), theme::MUTED);
+                    ui.text(Point::new(rect.x + 16.0, y), s, &theme::CAPTION, &TextOpts::wrap(w, 2), theme::muted());
                 }
                 None
             }
@@ -205,7 +205,7 @@ pub fn titled_panel_lines(
     initial: Option<usize>,
 ) -> Option<usize> {
     let opts = TextOpts::wrap(area.w - 16.0, 2);
-    let h = 8.0 + ui.text(Point::new(area.x + 16.0, area.y + 8.0), title, &theme::TITLE, &opts, theme::FG).h + 12.0;
+    let h = 8.0 + ui.text(Point::new(area.x + 16.0, area.y + 8.0), title, &theme::TITLE, &opts, theme::fg()).h + 12.0;
     let list = Rect::new(area.x, area.y + h, area.w, (area.h - h).max(0.0));
     panel_lines(ui, id, list, state, lines, initial)
 }

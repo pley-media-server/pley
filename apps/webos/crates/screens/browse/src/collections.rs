@@ -495,11 +495,11 @@ impl CollectionScreen {
         let mut y = CONTENT_Y - lift;
         // What it is: the layers icon, "Collection", and its TMDB and Smart badges.
         let row_h = 18.0;
-        ui.icon(Rect::new(x, y, 18.0, 18.0), Icon::Layers, theme::MUTED);
+        ui.icon(Rect::new(x, y, 18.0, 18.0), Icon::Layers, theme::muted());
         let mut bx = x + 18.0 + 8.0;
         let label_y = y + (row_h - theme::LABEL.line_height) / 2.0;
         let label = t!("library.collections.label");
-        bx += ui.text(Point::new(bx, label_y), label, &theme::LABEL, &TextOpts::default(), theme::MUTED).w + 8.0;
+        bx += ui.text(Point::new(bx, label_y), label, &theme::LABEL, &TextOpts::default(), theme::muted()).w + 8.0;
         let badge_y = y + (row_h - pley_kit::badge::BADGE_HEIGHT) / 2.0;
         if detail.automatic {
             bx += Badge::new("TMDB", BadgeStyle::Outline).show(ui, Point::new(bx, badge_y)).w + 8.0;
@@ -512,12 +512,12 @@ impl CollectionScreen {
             Badge::new(&category.title, BadgeStyle::Outline).show(ui, Point::new(bx, badge_y));
         }
         y += row_h + 10.0;
-        y += ui.text(Point::new(x, y), &detail.title, &theme::HERO_TITLE, &TextOpts::wrap(TEXT_W, 2), theme::FG).h;
+        y += ui.text(Point::new(x, y), &detail.title, &theme::HERO_TITLE, &TextOpts::wrap(TEXT_W, 2), theme::fg()).h;
         y += 12.0;
-        y += ui.text(Point::new(x, y), &self.facts, &theme::LABEL, &TextOpts::line(TEXT_W), theme::MUTED).h;
+        y += ui.text(Point::new(x, y), &self.facts, &theme::LABEL, &TextOpts::line(TEXT_W), theme::muted()).h;
         if let Some(summary) = detail.summary.as_deref().filter(|s| !s.is_empty()) {
             y += 12.0;
-            ui.text(Point::new(x, y), summary, &theme::BODY_LARGE, &TextOpts::wrap(TEXT_W, 3), theme::SUMMARY);
+            ui.text(Point::new(x, y), summary, &theme::BODY_LARGE, &TextOpts::wrap(TEXT_W, 3), theme::summary());
         }
         let empty = detail.items.is_empty();
         let by = (if empty { BUTTONS_Y_EMPTY } else { BUTTONS_Y }) - lift;
@@ -573,7 +573,7 @@ impl CollectionScreen {
                     Point::new(x, by - theme::LABEL.line_height - 12.0)
                 };
                 let opts = TextOpts::line(right - at.x);
-                ui.text(at, text, &theme::LABEL, &opts, theme::DANGER_TEXT);
+                ui.text(at, text, &theme::LABEL, &opts, theme::danger());
                 ui.repaint_after(until - cx.now);
             } else {
                 self.said = None;
@@ -582,7 +582,7 @@ impl CollectionScreen {
         if empty {
             let ey = by + theme::BUTTON_HEIGHT + 36.0;
             let opts = TextOpts::wrap(TEXT_W, 2);
-            ui.text(Point::new(x, ey), t!("library.collections.empty"), &theme::BODY, &opts, theme::MUTED);
+            ui.text(Point::new(x, ey), t!("library.collections.empty"), &theme::BODY, &opts, theme::muted());
         }
     }
 }
@@ -688,7 +688,7 @@ impl Screen for CollectionScreen {
         Backdrop::new(BackdropScrim::Item).show(ui, ui.id("backdrop"), &mut self.backdrop, self.art.as_ref());
         if moved > 0.5 {
             let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
-            ui.fill(full, theme::BG.alpha(DIM * (moved / HERO_H).min(1.0)), 0.0);
+            ui.fill(full, theme::bg().alpha(DIM * (moved / HERO_H).min(1.0)), 0.0);
         }
         // Drawn even once off screen: Up from the grid's first row comes back to its buttons.
         self.hero(ui, cx, &shown, moved);

@@ -166,8 +166,8 @@ impl ChannelList {
         }
         self.sync_pages(cx);
         let x = theme::CANVAS_W - WIDTH * p;
-        ui.fill(Rect::new(x, 0.0, WIDTH + radius::DIALOG, theme::CANVAS_H), theme::SURFACE2, radius::DIALOG);
-        ui.fill(Rect::new(x + radius::DIALOG, 0.0, WIDTH - radius::DIALOG, 1.0), theme::SURFACE4, 0.0);
+        ui.fill(Rect::new(x, 0.0, WIDTH + radius::DIALOG, theme::CANVAS_H), theme::surface2(), radius::DIALOG);
+        ui.fill(Rect::new(x + radius::DIALOG, 0.0, WIDTH - radius::DIALOG, 1.0), theme::surface4(), 0.0);
         let area = Rect::new(
             x + SidePanel::PAD_START,
             theme::SAFE_Y,
@@ -230,9 +230,9 @@ impl ChannelList {
         }
         let lit = r.focused || r.pressed;
         if lit {
-            ui.fill(heading, if r.pressed { theme::ACCENT_BRIGHT } else { theme::ACCENT }, radius::CONTROL);
+            ui.fill(heading, if r.pressed { theme::accent_bright() } else { theme::accent() }, radius::CONTROL);
         }
-        let content = if lit { theme::ON_ACCENT } else { theme::FG };
+        let content = if lit { theme::on_accent() } else { theme::fg() };
         let mut hx = heading.x + 8.0;
         if self.picking {
             ui.icon(Rect::new(hx, heading.y + 7.0, 20.0, 20.0), Icon::ArrowLeft, content);
@@ -320,7 +320,7 @@ impl ChannelList {
                 t!("livetv.page.noMatch"),
                 &theme::LABEL,
                 &TextOpts::line(view.w - 16.0),
-                theme::SUBTLE,
+                theme::subtle(),
             );
         }
         let rows_id = id.with("rows");
@@ -356,7 +356,7 @@ impl ChannelList {
                 for i in d0..d1 {
                     let rect = Rect::new(view.x, view.y + i as f32 * PITCH - shown, view.w, ROW_H);
                     let Some(c) = pages.at(i as i64) else {
-                        ui.fill(rect, Color::WHITE.alpha(0.04), radius::CONTROL);
+                        ui.fill(rect, theme::fg().alpha(0.04), radius::CONTROL);
                         continue;
                     };
                     let r = channel_row(ui, cx, rows_id.with(i as u64), rect, c, &category, c.id == current, clock_now);
@@ -404,20 +404,20 @@ fn channel_row(
     }
     let lit = r.focused || r.pressed;
     let fill = if r.pressed {
-        theme::ACCENT_BRIGHT
+        theme::accent_bright()
     } else if r.focused {
-        theme::ACCENT
+        theme::accent()
     } else if current {
-        theme::SURFACE3
+        theme::surface3()
     } else {
         Color::TRANSPARENT
     };
     if fill.a > 0 {
         ui.fill(rect, fill, radius::CONTROL);
     }
-    let content = if lit { theme::ON_ACCENT } else { theme::FG };
+    let content = if lit { theme::on_accent() } else { theme::fg() };
     let tile = Rect::new(rect.x + 10.0, rect.y + (rect.h - 32.0) / 2.0, 52.0, 32.0);
-    channel_tile(ui, cx, tile, c, Well::PAGE.filled(Color::WHITE.alpha(0.08), radius::TILE));
+    channel_tile(ui, cx, tile, c, Well::page().filled(theme::fg().alpha(0.08), radius::TILE));
     let x = tile.right() + 12.0;
     let end = rect.right() - 10.0 - if c.favorite { 14.0 + 8.0 } else { 0.0 };
     let title = [c.number.clone().filter(|n| !n.is_empty()), Some(channel_name(c, Some(category)))]

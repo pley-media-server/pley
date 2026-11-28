@@ -158,7 +158,7 @@ impl<'a> Row<'a> {
         let mut out = RowResponse { height: self.height(), ..RowResponse::default() };
         if let Some(h) = self.header {
             let width = theme::CANVAS_W - self.x - theme::SAFE_X;
-            ui.text(Point::new(self.x, self.y), h, &theme::SECTION, &pley_base::TextOpts::line(width), theme::FG);
+            ui.text(Point::new(self.x, self.y), h, &theme::SECTION, &pley_base::TextOpts::line(width), theme::fg());
         }
         if len == 0 {
             state.drawn = (0, 0);

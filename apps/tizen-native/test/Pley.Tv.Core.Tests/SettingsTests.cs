@@ -75,6 +75,8 @@ sealed class FakeAccount : IMeSource, ISettingsSource
     public void LanguageRouteMissing() => KeepsLanguage = false;
 
     public void ChooseDeviceLanguage(string? language) => DeviceLanguage = language;
+
+    public ThemePick Theme { get; set; } = ThemePick.Default;
 }
 
 /// <summary>The Me page: the Android app's MeViewModelTest.</summary>
@@ -181,9 +183,28 @@ public class SettingsModelTests
     public void The_categories_are_androids_in_its_order()
     {
         Assert.Equal(
-            new[] { "Profile", "Playback", "Audio", "Subtitles and display", "Server", "Diagnostics", "About", "Sign out" },
+            new[] { "Profile", "Playback", "Audio", "Subtitles and display", "Appearance", "Server", "Diagnostics", "About", "Sign out" },
             SettingsModel.Categories.Select(SettingsText.CategoryLabel));
         Assert.Equal("log-out", SettingsText.CategoryIcon(SettingsCategory.SignOut));
+        Assert.Equal("palette", SettingsText.CategoryIcon(SettingsCategory.Appearance));
+    }
+
+    [Fact]
+    public void Appearance_says_the_theme_and_accent_shown_and_opens_the_picker_at_either()
+    {
+        var m = Model();
+        Assert.Equal(new[] { "row-theme", "row-accent" }, Keys(m.Items(SettingsCategory.Appearance)));
+        Assert.Equal("row-theme", m.FirstRow(SettingsCategory.Appearance));
+        Assert.Equal("Midnight", Row(m, SettingsCategory.Appearance, "row-theme").Value);
+        Assert.Equal("Default", Row(m, SettingsCategory.Appearance, "row-accent").Value);
+        Assert.Equal(new SettingAction.Open(new AppearancePage()), Row(m, SettingsCategory.Appearance, "row-theme").Action);
+        Assert.Equal(new SettingAction.Open(new AppearancePage(Accents: true)), Row(m, SettingsCategory.Appearance, "row-accent").Action);
+        // Lucide's palette and droplet, as every TV app has them (docs/THEMES.md).
+        Assert.Equal("palette", Row(m, SettingsCategory.Appearance, "row-theme").Icon);
+        Assert.Equal("droplet", Row(m, SettingsCategory.Appearance, "row-accent").Icon);
+        account.Theme = new ThemePick("greenlight", "amber");
+        Assert.Equal("Greenlight", Row(m, SettingsCategory.Appearance, "row-theme").Value);
+        Assert.Equal("Amber", Row(m, SettingsCategory.Appearance, "row-accent").Value);
     }
 
     [Fact]
@@ -208,7 +229,7 @@ public class SettingsModelTests
         // Without the play scope the defaults say so and open the web.
         m = Model(scope: "library");
         Assert.Equal("English · change on the web", Row(m, SettingsCategory.Profile, "row-audio").Value);
-        Assert.Equal(new SettingAction.Web("/account"), Row(m, SettingsCategory.Profile, "row-audio").Action);
+        Assert.Equal(new SettingAction.Web("/account?section=language"), Row(m, SettingsCategory.Profile, "row-audio").Action);
         Assert.Equal("row-audio", m.FirstRow(SettingsCategory.Profile));
     }
 
@@ -326,7 +347,7 @@ public class SettingsModelTests
         var m = Model(scope: "library");
         var row = Row(m, SettingsCategory.Profile, "row-language");
         Assert.Equal("Automatic (English) · change on the web", row.Value);
-        Assert.Equal(new SettingAction.Web("/account"), row.Action);
+        Assert.Equal(new SettingAction.Web("/account?section=language"), row.Action);
 
         m = Model();
         var told = new List<string>();
@@ -339,7 +360,7 @@ public class SettingsModelTests
         account.SaveFailure = new ApiException(403, "forbidden", "the play scope is needed");
         m.Choose(new SettingPick.Language(), 2);
         Assert.False(m.State.Value.Me.Language!.Editable);
-        Assert.Equal(new SettingAction.Web("/account"), Row(m, SettingsCategory.Profile, "row-language").Action);
+        Assert.Equal(new SettingAction.Web("/account?section=language"), Row(m, SettingsCategory.Profile, "row-language").Action);
     }
 
     [Fact]

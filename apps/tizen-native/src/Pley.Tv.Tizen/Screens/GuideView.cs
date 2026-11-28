@@ -526,7 +526,7 @@ sealed class GuideView : View
         if (c.Focused == focused) return;
         c.Focused = focused;
         var airing = c.Program.AiringAt(now);
-        c.Cell.BackgroundColor = focused ? PleyColors.Accent : airing ? LiveViews.PrimaryContainer : PleyColors.Surface2;
+        c.Cell.BackgroundColor = focused ? PleyColors.Accent : airing ? PleyColors.AccentTint : PleyColors.Surface2;
         c.Cell.Opacity = c.Program.Stop <= now && !focused ? GuideLayout.PastAlpha : 1f;
         if (airing && !focused)
         {

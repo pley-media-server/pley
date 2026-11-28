@@ -33,7 +33,7 @@ pub use cx::{AppCx, BackgroundSession, NavCommand, Requests, ToastRequest};
 pub use load::{Load, Resource};
 pub use notice::{NOTICE_IDLE, NOTICE_SHOWN, Notices};
 pub use overlay::{DIM_AFTER, DIM_ALPHA, ERROR_TOAST_SECONDS, TOAST_SECONDS};
-pub use rail::{MAX_LIBRARIES, Rail, RailEntries, RailEntry, avatar_color, current_entry, initial, rail_entries};
+pub use rail::{MAX_LIBRARIES, Rail, RailEntries, RailEntry, current_entry, rail_entries};
 pub use request_state::{
     NOTICES_KEPT, NewsKept, REQUEST_GATHER, RequestNotice, RequestState, SUMMARY_GATHER, SUMMARY_POLL, SummaryNews,
 };
@@ -42,7 +42,7 @@ pub use screen::{
     AppEvent, CastMusic, Chrome, Overlay, PlaceholderScreen, Registry, Screen, ScreenFactory, TileActionsFactory,
     placeholder_text,
 };
-pub use shell::{Entry, Shell};
+pub use shell::{Entry, Shell, page_palette};
 pub use state::{
     AppState, CurrentFetch, ITEM_TTL, LIBRARY_GATHER, OFFLINE_ASK, OFFLINE_NOTICE, REVALIDATE, STATE_GATHER, Scan,
     offline_text,

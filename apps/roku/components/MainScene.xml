@@ -62,11 +62,19 @@
              them: the rail's entries. -->
         <field id="railLibraries" type="array" />
         <field id="railLive" type="boolean" />
+        <!-- A theme and an accent picked on this Roku ({ theme, accent },
+             the accent "" for the theme's own; Appearance in Settings): the
+             scene keeps them in the registry and shows them. -->
+        <field id="themeChoice" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Themes.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/ThemeTable.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
@@ -83,16 +91,20 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Home.brs" />
     <children>
+        <!-- The theme's backdrop under the pages (lib/Themes.brs's
+             themeBackdrop), where it has one. -->
+        <Poster id="backdrop" width="1920" height="1080" visible="false" />
         <Group id="screens" />
-        <!-- The rail at the left of the browsing pages (Rail.xml). -->
-        <Rail id="rail" visible="false" />
-        <!-- Ready-to-watch news, at the bottom right over the pages. -->
-        <RequestNotice id="notice" translation="[1104, 702]" visible="false" />
+        <!-- The rail at the left of the browsing pages (Rail.xml) and
+             ready-to-watch news at the bottom right over the pages
+             (RequestNotice.xml) come here, made in the theme's colors
+             (MainScene.brs's makeRail, makeNotice). -->
+        <Group id="over" />
         <!-- "Playing from …" as a cast starts, over the screen on top, as
              the players' notices look (castSay places it). -->
         <Group id="castToast" visible="false">
-            <Rectangle width="1000" height="96" color="0x16191EE6" />
-            <Label id="castToastText" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+            <Rectangle id="castToastBack" width="1000" height="96" color="0x0B0D10E6" />
+            <Label id="castToastText" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" font="font:SmallSystemFont" />
         </Group>
         <Timer id="castToastTimer" duration="4" />
         <!-- While a notice waits: whether the remote has rested and the

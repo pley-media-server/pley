@@ -280,7 +280,7 @@ internal fun TvDriveLine(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            Modifier.size(36.dp).background(if (focused) Color.Black.copy(alpha = 0.18f) else PleyColors.Surface2, PleyShape.Field),
+            Modifier.size(36.dp).background(if (focused) PleyColors.OnAccent.copy(alpha = 0.18f) else PleyColors.Surface2, PleyShape.Field),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = null, size = 20.dp, tint = secondary)

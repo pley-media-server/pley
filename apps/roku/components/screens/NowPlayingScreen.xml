@@ -11,6 +11,8 @@
         <field id="active" type="boolean" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/NowPlayingScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
@@ -26,29 +28,29 @@
         <Poster id="backdrop" width="1920" height="1080" loadWidth="320" loadHeight="320" loadDisplayMode="scaleToZoom" opacity="0.12" />
         <!-- Laid out as Android TV's: the rail at the left, the cover beside
              it, and the rest in a column at its right. -->
-        <Rectangle id="coverFrame" translation="[192, 116]" width="600" height="600" color="0x262B35FF" />
+        <Rectangle id="coverFrame" translation="[192, 116]" width="600" height="600" color="0x191D24FF" />
         <Poster id="cover" translation="[192, 116]" width="600" height="600" loadWidth="600" loadHeight="600" loadDisplayMode="scaleToZoom" />
         <!-- The track's lines, each under the one before, so a title of
              one line or two leaves no gap. -->
         <LayoutGroup translation="[856, 116]" layoutDirection="vert" itemSpacings="[16, 8]">
-            <Label id="title" width="968" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <Label id="title" width="968" wrap="true" maxLines="2" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
             <!-- "Artist · Album". -->
             <Label id="line" width="968" color="0xA1A9B6FF" font="font:MediumSystemFont" />
             <!-- The sleep timer's countdown, or what went wrong with a track:
                  its line kept, so nothing moves when it shows. -->
-            <Label id="message" width="968" height="36" color="0xEB6B70FF" font="font:SmallestSystemFont" />
+            <Label id="message" width="968" height="36" color="0xED6C6DFF" font="font:SmallestSystemFont" />
         </LayoutGroup>
         <!-- Under the track's lines, however many its title takes (placed
              by placeControls): the scrubber, the buttons, Up next. -->
         <Group id="lower">
             <!-- The scrubber: Up from the buttons, then Left and Right move
                  10 s, as on Android TV. -->
-            <Poster id="scrubFocus" translation="[836, 310]" width="1008" height="48" uri="pkg:/images/button-footprint.9.png" visible="false" />
+            <Poster id="scrubFocus" translation="[836, 310]" width="1008" height="48" uri="pkg:/images/button-footprint.9.png" blendColor="0x222731FF" visible="false" />
             <Group id="scrubber" focusable="true" />
-            <Rectangle id="track" translation="[856, 330]" width="968" height="8" color="0x2E3440FF" />
+            <Rectangle id="track" translation="[856, 330]" width="968" height="8" color="0x222731FF" />
             <Rectangle id="fill" translation="[856, 330]" width="0" height="8" color="0x38BDF8FF" />
             <Label id="elapsed" translation="[856, 352]" width="240" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-            <Label id="queue" translation="[1096, 352]" width="488" horizAlign="center" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <Label id="queue" translation="[1096, 352]" width="488" horizAlign="center" color="0x7E8795FF" font="font:SmallestSystemFont" />
             <Label id="left" translation="[1584, 352]" width="240" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
             <!-- Shuffle, Previous, Play/Pause, Next, Stop and the sleep
                  timer: round icons named while focused, as Android TV's,

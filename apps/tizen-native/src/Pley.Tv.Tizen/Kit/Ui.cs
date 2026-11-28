@@ -1,3 +1,4 @@
+using Pley.Tv.Core.Ui;
 using Tizen.NUI;
 using Tizen.NUI.BaseComponents;
 
@@ -20,56 +21,169 @@ static class Ui
     public static int DpInt(float dp) => (int)System.Math.Round(dp * Scale);
 }
 
-/// <summary>Pley's colors (the Android app's PleyColors, design spec §1.1).</summary>
+/// <summary>
+/// Pley's colors (the Android app's PleyColors, design spec §1.1) in the theme and accent this TV
+/// shows (docs/THEMES.md): Core's <see cref="PleyPalette"/>, each a token of
+/// packages/themes/themes.json (ThemeTests), as NUI colors made once per pick. A pick draws the
+/// pages again (App's Redraw); while a player shows, the colors are its, a light theme's dark twin's.
+/// </summary>
 static class PleyColors
 {
-    public static readonly Color Bg = Hex(0x0B0D10);
-    /// <summary>The expanded rail, settings groups.</summary>
-    public static readonly Color Surface = Hex(0x12151A);
-    /// <summary>Tile wells, inputs, dialogs, panels, skeletons.</summary>
-    public static readonly Color Surface2 = Hex(0x191D24);
-    /// <summary>Unfocused buttons and chips, the current page in lists.</summary>
-    public static readonly Color Surface3 = Hex(0x222731);
-    /// <summary>Dividers, hairlines, the progress track.</summary>
-    public static readonly Color Surface4 = Hex(0x2A303B);
-    /// <summary>Decorative borders only.</summary>
-    public static readonly Color Outline = Hex(0x3A4250);
-    /// <summary>Edges of interactive things: input outlines, empty PIN dots, outlined pills.</summary>
-    public static readonly Color Control = Hex(0x6C7584);
-    /// <summary>Primary text and icons. Text is never pure white.</summary>
-    public static readonly Color Fg = Hex(0xE9EBEF);
-    public static readonly Color Muted = Hex(0xA1A9B6);
-    /// <summary>Tertiary text: dates, separators.</summary>
-    public static readonly Color Subtle = Hex(0x8B95A5);
-    public static readonly Color Disabled = Hex(0x6C7584);
-    /// <summary>TV focus fills; progress; checks.</summary>
-    public static readonly Color Accent = Hex(0x38BDF8);
-    /// <summary>The TV focus ring.</summary>
-    public static readonly Color AccentBright = Hex(0x7DD3FC);
-    /// <summary>Content on Accent and AccentBright.</summary>
-    public static readonly Color OnAccent = Hex(0x03131F);
-    public static readonly Color BrandLight = Hex(0xBAE6FD);
-    public static readonly Color BrandDeep = Hex(0x0284C7);
-    public static readonly Color BrandFar = Hex(0x0C4A6E);
-    public static readonly Color BrandTile = Hex(0x0A1622);
-    public static readonly Color Success = Hex(0x3FB27F);
-    public static readonly Color Danger = Hex(0xE5484D);
-    public static readonly Color DangerText = Hex(0xFF6B70);
-    /// <summary>Requests waiting for approval.</summary>
-    public static readonly Color Amber = Hex(0xF2B347);
-    /// <summary>Requests on their way: the tint behind their pill, a download's bar.</summary>
-    public static readonly Color Info = Hex(0x4C9AFF);
-    /// <summary>Badges, the watched tick and round buttons on art: Bg at 80 %.</summary>
-    public static readonly Color OnArt = Hex(0x0B0D10, 0.8f);
-    /// <summary>The progress track over art: black at 60 %.</summary>
-    public static readonly Color ProgressTrackOnArt = new Color(0, 0, 0, 0.6f);
-    /// <summary>The hairline inside a tile's well: white at 6 %.</summary>
-    public static readonly Color TileHairline = new Color(1, 1, 1, 0.06f);
-    /// <summary>Behind dialogs, sheets and panels: Bg at 60 %.</summary>
-    public static readonly Color Scrim = Hex(0x0B0D10, 0.6f);
+    static ThemeColors pages = ThemeColors.Of(PleyPalette.Of(ThemePick.Default));
+    static ThemeColors? player;
+    static ThemeColors now = pages;
 
-    static Color Hex(int rgb, float alpha = 1f) =>
-        new Color(((rgb >> 16) & 0xff) / 255f, ((rgb >> 8) & 0xff) / 255f, (rgb & 0xff) / 255f, alpha);
+    /// <summary>The colors drawn from now on: the pick's, for the pages.</summary>
+    public static void Use(ThemePick pick)
+    {
+        pages = ThemeColors.Of(PleyPalette.Of(pick));
+        player = null;
+        now = pages;
+    }
+
+    /// <summary>
+    /// A player, or anything over video, is being drawn (true) or has gone (false): its colors are
+    /// the pages' dark twin's in a light theme, so a light frame never glares around the picture.
+    /// </summary>
+    public static void OverVideo(bool on)
+    {
+        if (!on)
+        {
+            now = pages;
+            return;
+        }
+        var twin = pages.Palette.Player;
+        now = player ??= twin == pages.Palette ? pages : ThemeColors.Of(twin);
+    }
+
+    /// <summary>The colors drawn now, by token (the Appearance page's previews draw others').</summary>
+    public static ThemeColors Now => now;
+
+    public static Color Bg => now.Bg;
+    /// <summary>The expanded rail, settings groups.</summary>
+    public static Color Surface => now.Surface;
+    /// <summary>Tile wells, inputs, dialogs, panels, skeletons.</summary>
+    public static Color Surface2 => now.Surface2;
+    /// <summary>Unfocused buttons and chips, the current page in lists.</summary>
+    public static Color Surface3 => now.Surface3;
+    /// <summary>Dividers, hairlines, the progress track.</summary>
+    public static Color Surface4 => now.Surface4;
+    /// <summary>Decorative borders only.</summary>
+    public static Color Outline => now.Outline;
+    /// <summary>Edges of interactive things: input outlines, empty PIN dots, outlined pills.</summary>
+    public static Color Control => now.Control;
+    /// <summary>Primary text and icons.</summary>
+    public static Color Fg => now.Fg;
+    public static Color Muted => now.Muted;
+    /// <summary>Tertiary text: dates, separators.</summary>
+    public static Color Subtle => now.Subtle;
+    public static Color Disabled => now.Disabled;
+    /// <summary>TV focus fills; progress; checks.</summary>
+    public static Color Accent => now.Accent;
+    /// <summary>The TV focus ring.</summary>
+    public static Color AccentBright => now.AccentBright;
+    /// <summary>Content on Accent and AccentBright.</summary>
+    public static Color OnAccent => now.OnAccent;
+    /// <summary>The accent at 20 % over the page: a program airing in the guide, the New badge (the Android app's PrimaryContainer).</summary>
+    public static Color AccentTint => now.AccentTint;
+    public static Color BrandLight => now.BrandLight;
+    public static Color Brand => now.Brand;
+    public static Color BrandDeep => now.BrandDeep;
+    public static Color BrandFar => now.BrandFar;
+    public static Color BrandTile => now.BrandTile;
+    public static Color Success => now.Success;
+    /// <summary>Danger as a fill, whose words are <see cref="DangerFg"/>.</summary>
+    public static Color Danger => now.Danger;
+    /// <summary>Danger as words and icons.</summary>
+    public static Color DangerText => now.Danger;
+    /// <summary>Words on a Danger fill.</summary>
+    public static Color DangerFg => now.DangerFg;
+    /// <summary>Requests waiting for approval; words on it are Bg.</summary>
+    public static Color Warning => now.Warning;
+    /// <summary>Requests on their way: the tint behind their pill, a download's bar.</summary>
+    public static Color Info => now.Info;
+    /// <summary>Badges, the watched tick and round buttons on art: Bg at 80 %.</summary>
+    public static Color OnArt => now.OnArt;
+    /// <summary>The progress track over art: black at 60 %, as it sits on a picture.</summary>
+    public static readonly Color ProgressTrackOnArt = new Color(0, 0, 0, 0.6f);
+    /// <summary>The hairline inside a tile's well: Fg at 6 %.</summary>
+    public static Color TileHairline => now.TileHairline;
+    /// <summary>Behind dialogs, sheets and panels: the theme's shade at 60 %.</summary>
+    public static Color Scrim => now.Scrim;
+
+    /// <summary><paramref name="color"/> at <paramref name="alpha"/>: a wash of a theme's color.</summary>
+    public static Color Alpha(Color color, float alpha) => new Color(color.R, color.G, color.B, alpha);
+}
+
+/// <summary>A palette's colors as NUI's, made once: <see cref="PleyColors"/>' now, or a preview's on the Appearance page.</summary>
+sealed class ThemeColors
+{
+    ThemeColors(PleyPalette p)
+    {
+        Palette = p;
+        Bg = Of(p.Bg);
+        Surface = Of(p.Surface);
+        Surface2 = Of(p.Surface2);
+        Surface3 = Of(p.Surface3);
+        Surface4 = Of(p.Surface4);
+        Outline = Of(p.Outline);
+        Control = Of(p.Control);
+        Fg = Of(p.Fg);
+        Muted = Of(p.Muted);
+        Subtle = Of(p.Subtle);
+        Disabled = Of(p.Disabled);
+        Accent = Of(p.Accent);
+        AccentBright = Of(p.AccentBright);
+        OnAccent = Of(p.OnAccent);
+        AccentTint = Of(p.Accent.Times(0.2f));
+        BrandLight = Of(p.BrandLight);
+        Brand = Of(p.Brand);
+        BrandDeep = Of(p.BrandDeep);
+        BrandFar = Of(p.BrandFar);
+        BrandTile = Of(p.BrandTile);
+        Success = Of(p.Success);
+        Danger = Of(p.Danger);
+        DangerFg = Of(p.DangerFg);
+        Warning = Of(p.Warning);
+        Info = Of(p.Info);
+        OnArt = Of(p.OnArt);
+        TileHairline = Of(p.TileHairline);
+        Scrim = Of(p.Scrim);
+    }
+
+    public static ThemeColors Of(PleyPalette palette) => new ThemeColors(palette);
+
+    public static Color Of(Rgba c) => new Color(c.R / 255f, c.G / 255f, c.B / 255f, c.A);
+
+    public PleyPalette Palette { get; }
+    public Color Bg { get; }
+    public Color Surface { get; }
+    public Color Surface2 { get; }
+    public Color Surface3 { get; }
+    public Color Surface4 { get; }
+    public Color Outline { get; }
+    public Color Control { get; }
+    public Color Fg { get; }
+    public Color Muted { get; }
+    public Color Subtle { get; }
+    public Color Disabled { get; }
+    public Color Accent { get; }
+    public Color AccentBright { get; }
+    public Color OnAccent { get; }
+    public Color AccentTint { get; }
+    public Color BrandLight { get; }
+    public Color Brand { get; }
+    public Color BrandDeep { get; }
+    public Color BrandFar { get; }
+    public Color BrandTile { get; }
+    public Color Success { get; }
+    public Color Danger { get; }
+    public Color DangerFg { get; }
+    public Color Warning { get; }
+    public Color Info { get; }
+    public Color OnArt { get; }
+    public Color TileHairline { get; }
+    public Color Scrim { get; }
 }
 
 /// <summary>A text style: size and line height in sp, weight, tracking in sp and face (the Android app's PleyType).</summary>

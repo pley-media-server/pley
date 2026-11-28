@@ -1,4 +1,6 @@
 sub init()
+    m.c = uiColors()
+    uiRecolor(m.top, m.c)
     m.background = m.top.findNode("background")
     m.name = m.top.findNode("name")
     m.address = m.top.findNode("address")
@@ -24,20 +26,20 @@ end sub
 sub onFocus()
     focused = m.top.itemHasFocus and m.top.listHasFocus
     if focused
-        m.background.color = "0x38BDF8FF"
-        m.name.color = "0x16191EFF"
-        m.address.color = "0x16191EFF"
-        m.tag.color = "0x16191EFF"
+        m.background.color = m.c.accent
+        m.name.color = m.c.accentFg
+        m.address.color = m.c.accentFg
+        m.tag.color = m.c.accentFg
         return
     end if
-    m.background.color = "0x262B35FF"
-    m.name.color = "0xEBEBEBFF"
-    m.address.color = "0xA1A9B6FF"
+    m.background.color = m.c.surface2
+    m.name.color = m.c.fg
+    m.address.color = m.c.muted
     if m.warning
-        m.tag.color = "0xEB6B70FF"
+        m.tag.color = m.c.danger
     else if m.found
-        m.tag.color = "0x3FB27FFF"
+        m.tag.color = m.c.success
     else
-        m.tag.color = "0xA1A9B6FF"
+        m.tag.color = m.c.muted
     end if
 end sub

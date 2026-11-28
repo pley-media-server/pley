@@ -18,7 +18,7 @@ use pley_core::store::SubtitleFont;
 use pley_core::{ApiError, Promise};
 use pley_i18n::{Language, t};
 use pley_kit::{Dialog, DialogButton, Heading, List, ListRow, ListState, ProfileTile, SidePanel, Trailing, is_inert};
-use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen, SettingsSection, avatar_color};
+use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen, SettingsSection};
 use pley_ui::theme;
 use pley_ui::{Dirs, Edge, Group, Id, Ui};
 
@@ -89,7 +89,7 @@ struct Fixed {
 pub struct SettingsScreen {
     shown: SettingsSection,
     /// Each category's pane, so each keeps its place.
-    panes: [ListState; 8],
+    panes: [ListState; 9],
     /// Focus goes into this category's first row this frame.
     into: Option<SettingsSection>,
     panel: Option<Picking>,
@@ -137,7 +137,7 @@ impl SettingsScreen {
     pub fn new(section: Option<SettingsSection>) -> SettingsScreen {
         SettingsScreen {
             shown: section.unwrap_or(SettingsSection::Profile),
-            panes: [ListState::default(); 8],
+            panes: [ListState::default(); 9],
             into: None,
             panel: None,
             panel_drawn: None,
@@ -251,7 +251,7 @@ impl SettingsScreen {
             self.profiles = state.profiles().map(<[AppProfile]>::to_vec);
             stale = true;
         }
-        stale |= self.facts.settings != *state.settings();
+        stale |= self.facts.settings != *state.settings() || self.facts.theme != state.theme_pick();
         let on_device = !state.keeps_language();
         let automatic = if on_device { state.automatic_language() } else { state.account_automatic_language() };
         stale |= self.facts.automatic_language != automatic || self.facts.language_on_device != on_device;
@@ -280,6 +280,7 @@ impl SettingsScreen {
             household: household.iter().map(|p| (p.id, p.name.clone())).collect(),
             always_start_as: state.always_start_as(),
             settings: state.settings().clone(),
+            theme: state.theme_pick(),
             server: state.server().map(pley_core::addresses::host_port),
             device: fixed.map(|f| f.device.clone()).unwrap_or_default(),
             version: fixed.map(|f| f.version.clone()).unwrap_or_default(),
@@ -535,7 +536,7 @@ impl SettingsScreen {
                     Item::Profile => profile_header(ui, s.rect, facts, avatar),
                     Item::Intro(text) => {
                         let opts = TextOpts::wrap(s.rect.w - INTRO_X, 0);
-                        ui.text(Point::new(s.rect.x + INTRO_X, s.rect.y), text, &theme::BODY, &opts, theme::MUTED);
+                        ui.text(Point::new(s.rect.x + INTRO_X, s.rect.y), text, &theme::BODY, &opts, theme::muted());
                     }
                     Item::Heading(text) => {
                         Heading::Settings.show(ui, text, s.rect.origin(), s.rect.w);
@@ -582,7 +583,7 @@ impl SettingsScreen {
                     &panel.title,
                     &theme::TITLE,
                     &TextOpts::wrap(title_w, 2),
-                    theme::FG,
+                    theme::fg(),
                 )
                 .h;
             let top = area.y + 8.0 + h + 12.0;
@@ -687,7 +688,7 @@ impl Screen for SettingsScreen {
             t!("settings.title"),
             &theme::PAGE_TITLE,
             &TextOpts::line(CATEGORIES_W + PANE_W),
-            theme::FG,
+            theme::fg(),
         );
         let mut action = self.categories(ui, root);
         if let Some(a) = self.pane(ui, root, &avatar) {
@@ -783,7 +784,7 @@ fn item_height(ui: &Ui, item: &Item, width: f32) -> f32 {
 fn profile_header(ui: &mut Ui, rect: Rect, f: &Facts, avatar: &[ImageRequest]) {
     let Some(p) = &f.profile else { return };
     let circle = Rect::new(rect.x + 20.0, rect.y, AVATAR, AVATAR);
-    ProfileTile::new(&p.name).color(avatar_color(p.avatar_color.as_deref())).picture(avatar).avatar(ui, circle);
+    ProfileTile::new(&p.name).color(p.avatar_color.as_deref()).picture(avatar).avatar(ui, circle);
     let x = circle.right() + 16.0;
     let w = rect.right() - x;
     let line = [p.managed.then(|| t!("settings.profile.managed")), f.server.as_deref()]
@@ -793,8 +794,8 @@ fn profile_header(ui: &mut Ui, rect: Rect, f: &Facts, avatar: &[ImageRequest]) {
         .join(" · ");
     let block = theme::TITLE.line_height + theme::CAPTION.line_height;
     let y = circle.y + (AVATAR - block) / 2.0;
-    ui.text(Point::new(x, y), &p.name, &theme::TITLE, &TextOpts::line(w), theme::FG);
-    ui.text(Point::new(x, y + theme::TITLE.line_height), &line, &theme::CAPTION, &TextOpts::line(w), theme::MUTED);
+    ui.text(Point::new(x, y), &p.name, &theme::TITLE, &TextOpts::line(w), theme::fg());
+    ui.text(Point::new(x, y + theme::TITLE.line_height), &line, &theme::CAPTION, &TextOpts::line(w), theme::muted());
 }
 
 /// The device's facts under "Open diagnostics": `Tv.Caption`, a 150 dp label column in Muted,
@@ -804,8 +805,8 @@ fn facts_table(ui: &mut Ui, rect: Rect, list: &[(String, String)]) {
     let x = rect.x + 20.0;
     let value_w = rect.w - 40.0 - FACT_LABEL;
     for (label, value) in list {
-        ui.text(Point::new(x, y), label, &theme::CAPTION, &TextOpts::line(FACT_LABEL - 8.0), theme::MUTED);
-        ui.text(Point::new(x + FACT_LABEL, y), value, &theme::CAPTION, &TextOpts::line(value_w), theme::FG);
+        ui.text(Point::new(x, y), label, &theme::CAPTION, &TextOpts::line(FACT_LABEL - 8.0), theme::muted());
+        ui.text(Point::new(x + FACT_LABEL, y), value, &theme::CAPTION, &TextOpts::line(value_w), theme::fg());
         y += theme::CAPTION.line_height + 6.0;
     }
 }

@@ -250,6 +250,7 @@ private fun Status(now: NowPlaying, model: NowPlayingViewModel) {
  */
 @Composable
 private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel) {
+    val palette = PleyColors.palette
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     // Read again for another track, and for a seek: paused, nothing else would move the scrubber.
@@ -289,14 +290,14 @@ private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel) {
                     val y = size.height / 2f
                     val f = if (duration > 0) (position.positionMs.toFloat() / duration).coerceIn(0f, 1f) else 0f
                     val r = CornerRadius(h / 2f, h / 2f)
-                    drawRoundRect(PleyColors.Fg.copy(alpha = 0.25f), Offset(0f, y - h / 2f), Size(size.width, h), r)
+                    drawRoundRect(palette.fg.copy(alpha = 0.25f), Offset(0f, y - h / 2f), Size(size.width, h), r)
                     val buffered = if (duration > 0) (position.bufferedMs.toFloat() / duration).coerceIn(0f, 1f) else 0f
-                    drawRoundRect(PleyColors.Fg.copy(alpha = 0.45f), Offset(0f, y - h / 2f), Size(size.width * buffered, h), r)
-                    drawRoundRect(PleyColors.Accent, Offset(0f, y - h / 2f), Size(size.width * f, h), r)
+                    drawRoundRect(palette.fg.copy(alpha = 0.45f), Offset(0f, y - h / 2f), Size(size.width * buffered, h), r)
+                    drawRoundRect(palette.accent, Offset(0f, y - h / 2f), Size(size.width * f, h), r)
                     val thumb = (if (focused) PleyTv.ScrubThumbFocused else PleyTv.ScrubThumb).toPx() / 2f
                     val x = (size.width * f).coerceIn(thumb, size.width - thumb)
-                    drawCircle(PleyColors.Fg, thumb, Offset(x, y))
-                    if (focused) drawCircle(PleyColors.AccentBright, thumb + PleyFocus.ThumbRingOffset.toPx(), Offset(x, y), style = Stroke(PleyFocus.ThumbRingStroke.toPx()))
+                    drawCircle(palette.fg, thumb, Offset(x, y))
+                    if (focused) drawCircle(palette.accentHover, thumb + PleyFocus.ThumbRingOffset.toPx(), Offset(x, y), style = Stroke(PleyFocus.ThumbRingStroke.toPx()))
                 },
         )
         Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {

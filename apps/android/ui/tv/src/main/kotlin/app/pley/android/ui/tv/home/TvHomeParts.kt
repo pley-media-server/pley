@@ -353,6 +353,7 @@ private fun HeroPager(
     down: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
+    val palette = PleyColors.palette
     val calm = reducedMotion()
     // The slowest boxes go without the glide, as they do without the words' fade.
     val still = calm || LocalTvTier.current == Tier.T0
@@ -398,8 +399,8 @@ private fun HeroPager(
                 val time = progress().coerceIn(0f, 1f)
 
                 // White, short of full at rest: they are there to glance at, not to draw the eye from the title.
-                val ink = PleyColors.Fg.copy(alpha = DASH_REST + (1f - DASH_REST) * lit)
-                val track = PleyColors.Fg.copy(alpha = TRACK_REST + (TRACK_LIT - TRACK_REST) * lit)
+                val ink = palette.fg.copy(alpha = DASH_REST + (1f - DASH_REST) * lit)
+                val track = palette.fg.copy(alpha = TRACK_REST + (TRACK_LIT - TRACK_REST) * lit)
                 val high = DashHeight.toPx()
                 val round = CornerRadius(high / 2)
                 val top = (size.height - high) / 2
@@ -734,7 +735,9 @@ private val DashGap = 6.dp
 private const val DASH_REST = 0.8f
 private const val TRACK_REST = 0.3f
 private const val TRACK_LIT = 0.5f
-private val SummaryColor = PleyColors.Fg.copy(alpha = 0.85f)
+private val SummaryColor: Color
+    @Composable @ReadOnlyComposable
+    get() = PleyColors.Fg.copy(alpha = 0.85f)
 
 private const val SKELETON_DELAY_MS = 300L
 private const val TOAST_MS = 3_500L
