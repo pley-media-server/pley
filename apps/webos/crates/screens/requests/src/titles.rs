@@ -218,8 +218,11 @@ impl Screen for TitlesScreen {
             }
         }
 
-        // The page's title over the grid, which scrolls under it.
-        ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, LIST_TOP), theme::bg(), 0.0);
+        // The page's title over the grid, which scrolls under it, on the page's color and the
+        // theme's backdrop, as the rest of the screen.
+        let band = Rect::new(0.0, 0.0, theme::CANVAS_W, LIST_TOP);
+        ui.fill(band, theme::bg(), 0.0);
+        ui.clip(band, pley_kit::theme_glow);
         ui.text(title_at, &self.words.title, &theme::PAGE_TITLE, &TextOpts::line(width), theme::fg());
         self.sign_in.show(ui, cx, page.with("sign-in"));
     }

@@ -625,8 +625,11 @@ impl Screen for RequestsScreen {
             self.focus_panel = true;
         }
 
-        // Over the list: the page's title, the tabs, the filters.
-        ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, list_top), theme::bg(), 0.0);
+        // Over the list: the page's title, the tabs, the filters, on the page's color and the
+        // theme's backdrop, as the rest of the screen.
+        let band = Rect::new(0.0, 0.0, theme::CANVAS_W, list_top);
+        ui.fill(band, theme::bg(), 0.0);
+        ui.clip(band, pley_kit::theme_glow);
         let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
         ui.text(
             Point::new(theme::GUTTER, theme::SAFE_Y),
