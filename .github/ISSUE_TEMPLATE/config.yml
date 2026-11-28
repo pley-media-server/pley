@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Suggest a feature (recommended)
+    url: https://github.com/pley-media-server/pley/discussions/new?category=ideas
+    about: Start most ideas in Discussions → Ideas, where others can vote on them.
+  - name: Ask for help
+    url: https://github.com/pley-media-server/pley/discussions/new?category=q-a
+    about: Questions about setting up or using Pley go in Discussions → Q&A.
+  - name: Report a vulnerability
+    url: https://github.com/pley-media-server/pley/security/advisories/new
+    about: Report it privately, not in an issue.
+  - name: Chat on Discord
+    url: https://discord.gg/wSsVdRRnT3
+    about: Talk with other people who run Pley.

@@ -1,0 +1,86 @@
+name: Report a bug
+description: Something in Pley doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One bug per issue. **Feature requests are best started in [Ideas](https://github.com/pley-media-server/pley/discussions/new?category=ideas)**, questions in [Q&A](https://github.com/pley-media-server/pley/discussions/new?category=q-a). Report vulnerabilities privately ([SECURITY.md](https://github.com/pley-media-server/pley/blob/master/SECURITY.md)).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you saw and what you expected. Include any error message.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Open a movie with Dolby Atmos audio
+        2. Press Play
+        3. …
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it happens
+      multiple: true
+      options:
+        - Server
+        - Web app
+        - Desktop app (Windows, macOS, Linux)
+        - Android phone or tablet
+        - Android TV, Google TV or Fire TV
+        - Samsung TV
+        - LG TV
+        - Roku
+        - Kodi
+        - Another app, through the compatibility APIs
+    validations:
+      required: true
+  - type: input
+    id: server-version
+    attributes:
+      label: Server version
+      description: "At the bottom of the Account page, or `pley --version`. Only the latest release gets fixes."
+      placeholder: 0.1.15
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How the server runs
+      options:
+        - Docker
+        - Windows
+        - macOS
+        - Linux
+        - Synology
+        - Unraid
+        - Other
+  - type: input
+    id: app
+    attributes:
+      label: The app and the device
+      description: If the bug is in an app.
+      placeholder: Android 0.1.17 on a Chromecast with Google TV
+  - type: textarea
+    id: media
+    attributes:
+      label: The file
+      description: "For playback bugs, the container, codecs, HDR and subtitles (MediaInfo's summary)."
+  - type: textarea
+    id: log
+    attributes:
+      label: The server's log
+      description: "From when it happened, in `logs/pley.log` in the data folder or `docker logs`. Remove anything private, such as titles, user names, addresses and the setup code."
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send it
+      options:
+        - label: I searched the issues and it isn't reported yet.
+          required: true
+        - label: It happens on the latest release.

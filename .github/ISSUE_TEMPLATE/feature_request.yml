@@ -1,0 +1,43 @@
+name: Request a feature
+description: A small, clear request. Most ideas are better started in Discussions → Ideas.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most ideas are better started in **[Discussions → Ideas](https://github.com/pley-media-server/pley/discussions/new?category=ideas)**, where others can vote on them. Use an issue for a small, clear request.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like Pley to do
+      description: What you'd do and what you'd see.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What you're trying to do, and how you do it today.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Server
+        - Web app
+        - Desktop app (Windows, macOS, Linux)
+        - Android phone or tablet
+        - Android TV, Google TV or Fire TV
+        - Samsung TV
+        - LG TV
+        - Roku
+        - Kodi
+        - Every app
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send it
+      options:
+        - label: I searched the issues and Ideas and it isn't requested yet.
+          required: true

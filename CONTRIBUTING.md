@@ -4,6 +4,15 @@
 tested, and [AGENTS.md](AGENTS.md) the rules every change keeps: the
 checks to run, licensing, security, and how commits read.
 
+## Bugs, ideas and questions
+
+Bugs go in issues. Start feature requests in
+[Discussions → Ideas](https://github.com/pley-media-server/pley/discussions/categories/ideas)
+(a small, clear one can be an issue) and questions in
+[Q&A](https://github.com/pley-media-server/pley/discussions/categories/q-a)
+([SUPPORT.md](SUPPORT.md)). Discuss a large change before opening a pull
+request.
+
 ## The license of a contribution
 
 Pley is under the GNU Affero General Public License, version 3 only, with
