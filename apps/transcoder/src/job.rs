@@ -579,6 +579,9 @@ struct Proc {
     /// Whether it is paused (see [`PAUSE_AHEAD`]): its task suspends or
     /// resumes it as this changes. Its segment reader pauses it too.
     pause: Arc<watch::Sender<bool>>,
+    /// Whether its task holds it suspended now: paused far ahead of its
+    /// player, or making way for another player's start ([`Job::yields`]).
+    suspended: Arc<AtomicBool>,
 }
 
 /// How fast a process has been going over the last few seconds. FFmpeg's
@@ -672,6 +675,12 @@ impl Proc {
 
     fn paused(&self) -> bool {
         *self.pause.borrow()
+    }
+
+    /// Whether it makes nothing now: paused far ahead of its player, or
+    /// suspended while another player's start has the processor.
+    fn halted(&self) -> bool {
+        self.paused() || self.suspended.load(Relaxed)
     }
 
     /// Pauses or resumes the process; whether that changed anything. Its
@@ -1227,7 +1236,7 @@ impl JobManager {
         for job in jobs.iter().filter(|job| job.encodes_in_software()) {
             software += 1;
             let process = job.process.try_lock();
-            if process.map_or(true, |p| p.as_ref().is_some_and(|p| p.running() && !p.paused())) {
+            if process.map_or(true, |p| p.as_ref().is_some_and(|p| p.running() && !p.halted())) {
                 encoding += 1;
             }
         }
@@ -1259,7 +1268,7 @@ impl JobManager {
             let measured = job.measured(proc);
             // A paused process makes nothing now: what it made before tells
             // of its preset, not of how it goes.
-            let going = measured.filter(|_| !proc.paused());
+            let going = measured.filter(|_| !proc.halted());
             let speed = going.map(|(speed, ..)| speed);
             let made = going.and_then(|(_, of_its_preset, _)| match of_its_preset {
                 adaptive::Measured::Exactly(made) => Some(made),
@@ -1508,7 +1517,7 @@ impl JobManager {
         for job in self.renditions() {
             let Some(share) = job.runtime.lock().share else { continue };
             let Ok(guard) = job.process.try_lock() else { continue };
-            let Some(proc) = guard.as_ref().filter(|p| p.running() && !p.paused()) else { continue };
+            let Some(proc) = guard.as_ref().filter(|p| p.running() && !p.halted()) else { continue };
             let Some(speed) = proc.pace.lock().steady_speed() else { continue };
             let next = proc.next.load(Relaxed);
             let judged = next < proc.end && proc.started.elapsed() >= share::JUDGE_AFTER;
@@ -1821,6 +1830,8 @@ impl JobManager {
         let next_ref = next.clone();
         let pace_ref = pace.clone();
         let background = self.background.clone();
+        let suspended_flag = Arc::new(AtomicBool::new(false));
+        let suspended_ref = suspended_flag.clone();
         tokio::spawn(async move {
             // What was done to it: Windows counts suspensions.
             let mut suspended = false;
@@ -1836,6 +1847,7 @@ impl JobManager {
                 // Between polls of `wait`: the pid is still the child's.
                 if on != suspended && background::pause(&child, on) {
                     suspended = on;
+                    suspended_ref.store(on, Relaxed);
                     if !on {
                         pace_ref.lock().went_on();
                     }
@@ -1901,6 +1913,7 @@ impl JobManager {
             exited: exit_rx,
             kill: Some(kill_tx),
             pause: pause_tx,
+            suspended: suspended_flag,
         })
     }
 
@@ -2750,7 +2763,7 @@ impl Job {
         // A process paused far ahead of its player makes nothing: no speed,
         // rather than its last one.
         let paused =
-            self.process.try_lock().is_ok_and(|guard| guard.as_ref().is_some_and(|p| p.running() && p.paused()));
+            self.process.try_lock().is_ok_and(|guard| guard.as_ref().is_some_and(|p| p.running() && p.halted()));
         let rt = self.runtime.lock();
         let mut video = self.plan.video_plan(&self.media, rt.encoder_override.as_ref());
         // The bitrate its player asked for since (see `JobManager::set_bitrate`).
@@ -3379,6 +3392,7 @@ mod tests {
             exited,
             kill: None,
             pause: Arc::new(watch::channel(false).0),
+            suspended: Arc::default(),
         };
         assert!(!p.will_produce(9), "already passed (pruned or skipped): must restart");
         assert!(p.will_produce(10));
@@ -3428,6 +3442,7 @@ mod tests {
             exited,
             kill: None,
             pause: Arc::new(watch::channel(false).0),
+            suspended: Arc::default(),
         };
         let at = |next: u32, asked: u32| {
             p.next.store(next, Relaxed);
@@ -3499,6 +3514,7 @@ mod tests {
             exited,
             kill: None,
             pause: Arc::new(watch::channel(false).0),
+            suspended: Arc::default(),
         };
         (p, exit_tx)
     }
@@ -3580,6 +3596,7 @@ mod tests {
             exited,
             kill: Some(kill_tx),
             pause: Arc::new(watch::channel(false).0),
+            suspended: Arc::default(),
         };
         // Segment 5 was listed just before the kill, and read after it.
         tokio::spawn(async move {
@@ -3631,6 +3648,7 @@ mod tests {
             exited,
             kill: None,
             pause: Arc::new(watch::channel(false).0),
+            suspended: Arc::default(),
         };
         let going = |speed: f64| {
             let at = Instant::now();
@@ -5492,6 +5510,7 @@ mod tests {
             exited,
             kill: None,
             pause: Arc::new(watch::channel(false).0),
+            suspended: Arc::default(),
         });
         job.last_requested.store(5, Relaxed);
         {

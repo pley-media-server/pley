@@ -754,8 +754,9 @@ server, on by default), and FFmpeg supports `readrate`.
   players asked for are suspended too, so the start has the processor.
 - **Speed** is measured over the process's last 4 s of progress since it last
   resumed. A job's status reports it, with the frames a second that speed
-  makes, and 1× for a process held to the read rate. A paused process
-  reports neither, nor does one that just resumed until 2 s are measured.
+  makes, and 1× for a process held to the read rate. A paused process (far
+  ahead, or making way for a start) reports neither, nor does one that just
+  resumed until 2 s are measured.
 
 ### The automatic preset
 
