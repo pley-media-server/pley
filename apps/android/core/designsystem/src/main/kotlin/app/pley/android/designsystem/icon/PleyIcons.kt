@@ -153,6 +153,13 @@ object PleyIcons {
         "M8 7.5a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0z",
     )
 
+    /** Lucide `droplet`. */
+    val Droplet = PleyIcon(
+        "droplet",
+        false,
+        "M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z",
+    )
+
     /** Lucide `sliders-horizontal`. */
     val SlidersHorizontal = PleyIcon(
         "sliders-horizontal",

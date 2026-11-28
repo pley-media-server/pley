@@ -580,7 +580,7 @@ private fun LazyListScope.pane(
                 TvSettingRow(
                     stringResource(DesignR.string.appearance_accent),
                     value = stringResource(accentNameRes(Appearance.accent)),
-                    icon = PleyIcons.Sparkles,
+                    icon = PleyIcons.Droplet,
                     chevron = true,
                     onClick = { onOpen(PleyKey.Appearance(accent = true)) },
                     modifier = keyed("row-accent"),
