@@ -213,8 +213,9 @@ internal fun PhoneShell(
             override fun playOn(target: CastTarget) = shell.playOn(target)
         }
     }
-    // Outside a profile (getting in, "Who's watching?"), Midnight in its own accent; inside, the profile's pick.
-    val outside = !navigation.inside
+    // Outside a profile (getting in, "Who's watching?", Me's way to it included), Midnight in its own accent;
+    // inside, the profile's pick.
+    val outside = !navigation.inside || navigation.stack()?.lastOrNull() is PleyKey.Profiles
     val palette = Appearance.paletteFor(outside)
     val context = LocalContext.current
     LaunchedEffect(outside) { Appearance.outside(context, outside) }

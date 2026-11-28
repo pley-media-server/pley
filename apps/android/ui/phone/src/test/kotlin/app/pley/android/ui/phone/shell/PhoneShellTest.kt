@@ -178,6 +178,31 @@ class PhoneShellTest {
     }
 
     @Test
+    fun whosWatchingFromInsideIsMidnightWhateverThePick() {
+        pickMidday()
+        val graph = TestGraph(TestGraph.SERVER)
+        TestApplication.graph = graph
+        lateinit var view: View
+        lateinit var navigation: PhoneNavigation
+        compose.setContent {
+            view = LocalView.current
+            PhoneTheme {
+                CompositionLocalProvider(LocalOnboardingSource provides FakeOnboardingSource()) {
+                    PhoneShell(PhoneStart(TestGraph.SERVER, signedIn = true), { graph }) { _, shown -> navigation = shown }
+                }
+            }
+        }
+        val window = { compose.runOnIdle { (view.rootView.background as ColorDrawable).color } }
+        val midday = PleyPalette.of(PleyTheme.Midday, null).bg.toArgb()
+        assertEquals(midday, window())
+        // Me's "Switch profile" opens it over the tab's page, inside.
+        compose.runOnIdle { navigation.open(PleyKey.Profiles()) }
+        assertEquals(PleyPalette.Default.bg.toArgb(), window())
+        compose.runOnIdle { navigation.back() }
+        assertEquals(midday, window())
+    }
+
+    @Test
     fun aStartInsideAProfileIsInItsPick() {
         pickMidday()
         assertEquals(PleyPalette.of(PleyTheme.Midday, null).bg.toArgb(), windowColor(PhoneStart(TestGraph.SERVER, signedIn = true)))
