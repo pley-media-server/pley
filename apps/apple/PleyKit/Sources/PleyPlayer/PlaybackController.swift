@@ -279,6 +279,8 @@ public final class PlaybackController: ObservableObject {
     /// The intro and credits of the file playing.
     private var markers: [Marker] = []
     private var credits = CreditsGate()
+    /// Skip's first 8 seconds in a segment, when it shows by itself.
+    private var skipWindow = SkipWindow()
     /// What plays next, once looked up; the look-up under way.
     private var next: ItemSummary?
     private var nextLookup: Task<Void, Never>?
@@ -519,6 +521,9 @@ public final class PlaybackController: ObservableObject {
     /// back with no countdown only if asked for again (`playNext`).
     public func cancelUpNext() {
         hideUpNext()
+        // Skip Credits, which the card covered, appears now: its 8 seconds start.
+        guard !ended, !state.isFailed else { return }
+        followSkip(Markers.active(markers, positionMs: livePosition()))
     }
 
     /// Jumps to the start of chapter `index` (`state.chapters`).
@@ -1284,7 +1289,7 @@ public final class PlaybackController: ObservableObject {
         lastPositionMs = end
         endSession(at: end)
         state.positionMs = end
-        state.skipLabel = nil
+        clearSkip()
         updateCues()
         setPhase(.ended)
         // What comes next, with its countdown (again, when its card was canceled).
@@ -1369,8 +1374,7 @@ public final class PlaybackController: ObservableObject {
     /// The skip button, the credits' Up Next, the look-up at 90 % and the chapter playing, at `position`.
     private func followMarkers(_ position: Int) {
         let marker = state.isFailed ? nil : Markers.active(markers, positionMs: position)
-        let label = marker.map(Markers.label)
-        if state.skipLabel != label { state.skipLabel = label }
+        followSkip(marker)
         // Only credits that run to the end bring up Up Next: its countdown
         // would skip what follows other credits, which only offer Skip Credits.
         if let marker, reachesEnd(marker), credits.entered(marker) != nil { onCredits() }
@@ -1379,6 +1383,25 @@ public final class PlaybackController: ObservableObject {
             lookUpNext { _ in }
         }
         followChapters(position)
+    }
+
+    /// Skip for `marker`, the segment the playhead is in: offered while it
+    /// is, by itself for its first 8 seconds (`SkipWindow`), which start
+    /// when the Up Next card doesn't cover it.
+    private func followSkip(_ marker: Marker?) {
+        let label = marker.map(Markers.label)
+        if state.skipLabel != label { state.skipLabel = label }
+        let now = env.clock.now()
+        skipWindow.offered(state.upNext == nil ? marker.map(Markers.key) : nil, at: now)
+        let alone = skipWindow.alone(at: now)
+        if state.skipAlone != alone { state.skipAlone = alone }
+    }
+
+    /// No Skip: the item ended, or another one starts.
+    private func clearSkip() {
+        skipWindow.reset()
+        state.skipLabel = nil
+        state.skipAlone = false
     }
 
     /// Marks the chapter `position` is in.
@@ -1434,8 +1457,7 @@ public final class PlaybackController: ObservableObject {
 
     private func showUpNext(_ found: ItemSummary, countdown: Bool) {
         next = found
-        var card = UpNextCard(itemId: found.id, title: found.title, heading: NextUp.heading(found),
-                              imagePath: found.thumbUrl ?? found.backdropUrl)
+        var card = UpNextCard(itemId: found.id, title: found.title, heading: NextUp.heading(found))
         // With autoplay off (Settings), the card waits for Play Next.
         if countdown && env.autoplayNext {
             countdownLeftMs = NextUp.countdownSeconds * 1000
@@ -1518,7 +1540,7 @@ public final class PlaybackController: ObservableObject {
         state.reasons = []
         state.videoRange = nil
         state.videoOut = nil
-        state.skipLabel = nil
+        clearSkip()
         state.chapters = []
         state.audio = []
         state.subtitles = []

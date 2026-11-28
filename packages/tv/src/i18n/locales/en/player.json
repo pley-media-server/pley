@@ -55,6 +55,7 @@
     "title": "Up next",
     "episode": "Up next · {{episode}}",
     "playNow": "Play now",
+    "playNowIn": "Play now ({{seconds}})",
     "nextIn": "Next in {{seconds}}"
   },
   "speed": {
@@ -170,6 +171,7 @@
     "drawnHere": "Drawn by this TV",
     "thisTv": "This TV",
     "player": "Player",
+    "videoElement": "HTML5 video",
     "decoded": "Decoded",
     "decoder": "Video decoder",
     "hardware": "{{decoder}} (hardware)",

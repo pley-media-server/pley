@@ -8,9 +8,15 @@ import app.pley.android.model.SubtitleMode
 import java.io.IOException
 import java.util.ServiceLoader
 import java.util.concurrent.Callable
+import kotlin.concurrent.thread
+import mockwebserver3.RecordedRequest
+import okhttp3.Headers.Companion.headersOf
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
+import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -156,6 +162,52 @@ class FixtureServerTest {
                 listOf("scan_started", "scan_progress", "scan_progress", "scan_progress", "scan_finished", "library_changed"),
                 events.map { it.type },
             )
+        }
+    }
+
+    @Test
+    fun aStreamAskedForAsTheServerStopsListeningEndsAtOnce() {
+        val state = State(FixtureServer.Options(scanEveryMs = 0))
+        val alex = Caller(state.profile(FixtureIds.ALEX)!!, OAuth.SCOPES.toSet(), grant = null, expiresAtMs = null)
+        val request = RecordedRequest(
+            connectionIndex = 0,
+            exchangeIndex = 0,
+            handshake = null,
+            handshakeServerNames = emptyList(),
+            method = "GET",
+            target = "/api/events",
+            version = "HTTP/1.1",
+            url = "http://127.0.0.1/api/events".toHttpUrl(),
+            headers = headersOf(),
+            body = null,
+            bodySize = 0,
+            chunkSizes = null,
+            failure = null,
+        )
+        // Answered just before the server ends its streams, written just after: none of them yet when they ended.
+        val stream = state.events.response(Call(request), alex).body!!
+        state.events.drop()
+        val sent = Buffer()
+        val writing = thread(isDaemon = true) { stream.writeTo(sent) }
+        writing.join(5_000)
+        // Still open, it would keep MockWebServer from closing: it waits 5 s for what it is writing, then gives up.
+        assertFalse("the stream still waits for events", writing.isAlive)
+        assertTrue("ended as the server ends one", sent.readUtf8().endsWith("0\r\n\r\n"))
+    }
+
+    @Test
+    fun streamsStayOpenOnceTheServerListensAgain() = withServer(FixtureServer.Options(scanEveryMs = 0)) { server ->
+        server.mode = FixtureServer.Mode.Down
+        server.mode = FixtureServer.Mode.Normal
+        val request = Request.Builder().url("${server.url}/api/events").header("Authorization", "Bearer ${server.accessToken()}").build()
+        Client(server).http.newCall(request).execute().use { response ->
+            val source = response.body.source()
+            assertEquals(": connected", source.readUtf8Line())
+            server.emit(ServerEvent.LibraryChanged(FixtureIds.MOVIES))
+            var line = source.readUtf8Line()
+            while (line != null && !line.startsWith("data:")) line = source.readUtf8Line()
+            assertNotNull("the stream ended before its event", line)
+            assertEquals(ServerEvent.LibraryChanged(FixtureIds.MOVIES), ServerEvent.parse(line!!.removePrefix("data: ")))
         }
     }
 

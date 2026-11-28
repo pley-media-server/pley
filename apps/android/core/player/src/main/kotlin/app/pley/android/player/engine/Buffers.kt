@@ -23,12 +23,11 @@ import java.net.URISyntaxException
  * stop at a size their memory allows (48 MiB on 1 GB sticks, 64 MiB on
  * 1.5 GB ones, 96 MiB on T1, 120 MiB on T2), 15 to 30 s ahead on T0 and
  * 50 s elsewhere; phones buffer 15 to 50 s ahead and keep 10 s behind for
- * quick jumps back. Music, on any device, buffers up to 10 minutes ahead
- * (a whole track, mostly), at least 50 s, within 32 MiB (16 MiB on a
- * low-memory device), and keeps 10 s behind: a car's tunnel doesn't
- * stop it, and the radio sleeps between reads. Playback starts after
- * 500 ms from a server on the home network and 1 s from elsewhere; after
- * a stall, 1.5 s and 2 s.
+ * quick jumps back. Music, on any device, buffers up to 3 minutes ahead,
+ * at least 50 s, within 16 MiB (8 MiB on a low-memory device or T0), and
+ * keeps 10 s behind: a car's tunnel doesn't stop it, and the radio sleeps
+ * between reads. Playback starts after 500 ms from a server on the home
+ * network and 1 s from elsewhere; after a stall, 1.5 s and 2 s.
  */
 data class BufferPlan(
     /** Bytes to stop at; [C.LENGTH_UNSET] lets Media3 size it from the tracks. */

@@ -524,6 +524,7 @@ mod tests {
             placebo_fallback_peak: false,
             amf_upload: false,
             vui_primaries: None,
+            sample_aspect: None,
             hw_decode: None,
             qsv_fallback_decode: None,
             gpu_scale: None,

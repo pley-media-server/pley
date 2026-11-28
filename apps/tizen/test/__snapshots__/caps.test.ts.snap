@@ -76,6 +76,11 @@ exports[`Samsung capabilities, per set > 2018 NU8000, Tizen 4.0, TV speakers 1`]
     "hlg",
   ],
   "hls": {
+    "audio": [
+      "aac",
+      "mp3",
+    ],
+    "audio_channels": 2,
     "master_playlist": true,
     "segments": [
       "ts",
@@ -254,6 +259,11 @@ exports[`Samsung capabilities, per set > 2019 Q90R, Tizen 5.0, Dolby Digital Plu
     "hlg",
   ],
   "hls": {
+    "audio": [
+      "aac",
+      "mp3",
+    ],
+    "audio_channels": 2,
     "master_playlist": true,
     "segments": [
       "ts",
@@ -429,6 +439,11 @@ exports[`Samsung capabilities, per set > 2019 Q900R 8K, Tizen 5.0 1`] = `
     "hlg",
   ],
   "hls": {
+    "audio": [
+      "aac",
+      "mp3",
+    ],
+    "audio_channels": 2,
     "master_playlist": true,
     "segments": [
       "ts",

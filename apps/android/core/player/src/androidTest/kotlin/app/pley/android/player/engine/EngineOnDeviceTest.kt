@@ -33,6 +33,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 
 /**
  * The engine on a real device or emulator: a clip from a server with a
@@ -150,7 +151,9 @@ class EngineOnDeviceTest {
         instrumentation.runOnMainSync { StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.LAX) }
         Log.i(TAG, "first frame ${stats.firstFrameMs} ms; $stats")
 
-        assertEquals("Bearer secret", server.takeRequest().headers["Authorization"])
+        // Waited for with a limit, as :core:testing's asked() does: the device tests don't build on that module.
+        val asked = server.takeRequest(5, TimeUnit.SECONDS) ?: throw AssertionError("the server got no request for the clip")
+        assertEquals("Bearer secret", asked.headers["Authorization"])
         assertNotNull(stats.videoDecoder)
         assertTrue("rendered ${stats.renderedFrames}", stats.renderedFrames > 100)
         assertEquals("dropped buffers", 0, stats.droppedFrames)

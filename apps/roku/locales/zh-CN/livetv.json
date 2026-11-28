@@ -87,6 +87,7 @@
     "radio": "广播",
     "next": "接下来 {{time}} · {{title}}",
     "bannerHint": "上下键：频道 · 左键：{{category}} · 选项(*)：收藏 · 确定：关闭",
+    "bannerMoreHint": "重播：播放详情",
     "listHint": "确定：观看 · 选项(*)：收藏 · 返回：关闭",
     "listMoreHint": "左键：分类 · 重播：搜索",
     "categoriesHint": "确定：该分类的频道 · 返回：频道列表",

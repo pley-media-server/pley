@@ -133,6 +133,48 @@ class MusicQueueTest {
     }
 
     @Test
+    fun aBookPlaysItsPartsOnceInTheirOrderAndEndsWhatRepeatedForTheMusic() {
+        val book = (71..73L).map { ItemSummary(it, 5, ItemKind.Part, "Part $it", parentId = 70, durationMs = 3_600_000) }
+        val queue = MusicQueue(Random(5))
+        queue.start(album)
+        queue.repeat = MusicRepeat.One
+        // A book after music that repeated: nothing shows Repeat while a book plays, so nothing could turn it off.
+        queue.start(book, startIndex = 1)
+        assertEquals(MusicRepeat.Off, queue.repeat)
+        assertEquals(MusicRepeat.Off, queue.state.repeat)
+        assertEquals(2, queue.upcoming)
+        assertTrue(queue.advance())
+        assertEquals(73L, queue.current?.id)
+        // Its last part ends it: it doesn't start over.
+        assertEquals(null, queue.upcoming)
+        assertFalse(queue.hasNext)
+        assertFalse(queue.advance())
+
+        // Asked for while it plays, as a controller can: it neither repeats nor shuffles.
+        queue.repeat = MusicRepeat.All
+        queue.setShuffle(true)
+        assertEquals(MusicRepeat.Off, queue.repeat)
+        assertFalse(queue.shuffle)
+        assertEquals(book, queue.tracks)
+        queue.start(book, startIndex = 0, shuffle = true)
+        assertFalse(queue.shuffle)
+        assertEquals(book, queue.tracks)
+        // Kept shuffled, it comes back in its order, at the same part.
+        assertTrue(queue.restore(listOf(book[2], book[0], book[1]), listOf(2, 0, 1), startIndex = 1))
+        assertFalse(queue.shuffle)
+        assertEquals(book, queue.tracks)
+        assertEquals(71L, queue.current?.id)
+
+        // Music after it doesn't repeat by itself, and repeats and shuffles when asked, as music does.
+        queue.start(album)
+        assertEquals(MusicRepeat.Off, queue.repeat)
+        queue.repeat = MusicRepeat.All
+        queue.setShuffle(true)
+        assertEquals(MusicRepeat.All, queue.repeat)
+        assertTrue(queue.shuffle)
+    }
+
+    @Test
     fun shufflesDifferOverSeeds() {
         val orders = (0 until 20).map { seed ->
             MusicQueue(Random(seed)).apply { start(album, 0, shuffle = true) }.tracks.map { it.id }

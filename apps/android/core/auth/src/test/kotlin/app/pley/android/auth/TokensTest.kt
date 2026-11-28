@@ -132,7 +132,7 @@ class TokensTest {
         val got = (1..8).map { async(Dispatchers.IO) { tokens.refresh("pley_at_one") } }.awaitAll()
         assertEquals(List(8) { "pley_at_new1" }, got)
         assertEquals(1, refreshes.get())
-        val form = formOf(server.takeRequest())
+        val form = formOf(server.asked())
         assertEquals(mapOf("grant_type" to "refresh_token", "refresh_token" to "pley_rt_one", "client_id" to CLIENT_ID), form)
         // A token refreshed already isn't refreshed again for a late 401 with the old one.
         assertEquals("pley_at_new1", tokens.refresh("pley_at_one"))

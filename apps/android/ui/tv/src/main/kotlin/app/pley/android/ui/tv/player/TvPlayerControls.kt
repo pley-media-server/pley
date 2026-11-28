@@ -150,10 +150,11 @@ internal fun BoxScope.TvPlayerTopBar(state: State<PlayerUiState>, alpha: State<F
  * How it plays, badged as the phone's and the web's players do: a file
  * played as it is (direct play, or downloaded) in success, a direct stream
  * in info, a transcode in the accent, on bg 80 % so a bright picture
- * doesn't wash it out. Info, in the control row, says why.
+ * doesn't wash it out. Info, in the control row, says why. The live
+ * player's bar has it too.
  */
 @Composable
-private fun MethodBadge(method: String, way: PlaybackMethod?) {
+internal fun MethodBadge(method: String, way: PlaybackMethod?) {
     val colour = when (way) {
         PlaybackMethod.Direct -> PleyColors.Success
         PlaybackMethod.Remux -> PleyColors.Info

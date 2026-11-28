@@ -1,6 +1,7 @@
 package app.pley.android.buildlogic
 
 import com.android.build.api.dsl.CommonExtension
+import java.time.Duration
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalog
@@ -17,6 +18,16 @@ object Sdk {
     const val ROBOLECTRIC = 36
 }
 
+/**
+ * How long a module's unit tests may run. The slowest module takes a minute
+ * or two and all of them together 4 to 20, so a healthy run never reaches
+ * it, and it ends within CI's hour whenever in the job the module's tests
+ * start. A test that waits for ever fails its task at it, and the job fails
+ * naming the module; without it, it holds CI until the job's own limit,
+ * which ends the job canceled, with no report.
+ */
+internal val UNIT_TESTS_LIMIT: Duration = Duration.ofMinutes(15)
+
 /** The version catalog, gradle/libs.versions.toml. */
 val Project.libs: VersionCatalog
     get() = extensions.getByType<VersionCatalogsExtension>().named("libs")
@@ -25,8 +36,9 @@ fun VersionCatalog.lib(alias: String) = findLibrary(alias).get()
 
 /**
  * The settings every Android module shares: SDK levels, Java 17, unit tests
- * with Android resources on Robolectric's SDK, and lint that fails the build,
- * also on a word missing in French or Spanish (docs/ANDROID.md, "Language").
+ * with Android resources on Robolectric's SDK and its runtimes from Gradle,
+ * and lint that fails the build, also on a word missing in French or Spanish
+ * (docs/ANDROID.md, "Language").
  */
 internal fun Project.configureAndroid(android: CommonExtension) {
     android.compileSdk = Sdk.COMPILE
@@ -42,11 +54,13 @@ internal fun Project.configureAndroid(android: CommonExtension) {
             "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
             "--add-opens=java.base/java.io=ALL-UNNAMED",
         )
+        it.timeout.set(UNIT_TESTS_LIMIT)
     }
     // robolectric.properties (sdk=36) for every module's unit tests.
     android.sourceSets.findByName("test")?.resources?.srcDir(
         rootProject.layout.projectDirectory.dir("build-logic/robolectric"),
     )
+    configureRobolectric()
     android.lint.abortOnError = true
     android.lint.checkReleaseBuilds = true
     // Versions move through the catalog, not lint.

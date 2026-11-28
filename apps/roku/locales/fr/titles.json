@@ -194,6 +194,10 @@
     "shownAs": "Affiché en",
     "subtitles": "Sous-titres",
     "burnedIn": "Incrustés",
+    "encoder": "Encodeur",
+    "pipeline": {
+      "hybrid": "GPU et CPU"
+    },
     "speed": "Vitesse",
     "toneMapped": "SDR (mappage tonal avec {{method}})",
     "realTime": "{{speed}}× temps réel",

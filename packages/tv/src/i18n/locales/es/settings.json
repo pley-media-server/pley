@@ -67,7 +67,12 @@
     "autoplay": "Reproducir el siguiente episodio automáticamente",
     "autoplayHint": "Tras una cuenta de 10 segundos",
     "details": "Detalles de reproducción",
-    "detailsHint": "Muestra sobre el video cómo se reproduce (directo, remux o transcodificación)"
+    "detailsHint": "Muestra sobre el video cómo se reproduce (directo, remux o transcodificación)",
+    "player": "Reproductor",
+    "playerAuto": "Automático",
+    "playerAutoHint": "AVPlay, o el reproductor web del televisor donde AVPlay no puede saltar a otro punto de un archivo",
+    "playerAvplay": "Solo AVPlay",
+    "playerAvplayHint": "AVPlay de Samsung para todos los videos, como antes"
   },
   "audio": {
     "intro": "Dolby Digital, Dolby Digital Plus y Atmos siempre se envían tal cual. Activa estas opciones si tu receptor los admite; si no, Pley los convierte.",

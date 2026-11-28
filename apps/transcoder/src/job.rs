@@ -513,6 +513,10 @@ struct Runtime {
     /// failed before its first segment: FFmpeg's decoder paired with the
     /// encoder takes the video from then on.
     qsv_decode_failed: bool,
+    /// A process whose frames came from Rockchip's decoder
+    /// ([`Plan::decodes_on_rkmpp`]), which has no software fallback, failed
+    /// before its first segment: the CPU decodes the video from then on.
+    rkmpp_decode_failed: bool,
     failures: HashMap<u32, u32>,
     /// The automatic preset of the running process (index in
     /// [`adaptive::LADDER`]), and when it started or moved.
@@ -837,6 +841,13 @@ impl JobManager {
         } else {
             media
         };
+        // Media info from before probes read the pixels' shape, which
+        // Rockchip's encoder leaves out of its stream and Pley writes in.
+        // A remux asked for too: it is transcoded where it can't be made
+        // (no keyframe index yet, a turned picture, subtitles burned in).
+        let rockchip =
+            self.ff.caps.encoders.iter().any(|e| e.hardware && e.accel == pley_transcoder_api::HwAccel::Rkmpp);
+        let media = if rockchip { Arc::new(self.prober.with_sample_aspect(&input, &media, true).await) } else { media };
         let probed = probing.elapsed();
         let indexing = Instant::now();
         let keyframes = if wants_copy {
@@ -1694,11 +1705,18 @@ impl JobManager {
         let share = self.gpu_share(job, hw && fallback.is_none());
         let bitrate = *job.bitrate.lock();
         // Quick Sync's own decoder failed on the video: FFmpeg's in its place.
-        let qsv_decode_failed = job.runtime.lock().qsv_decode_failed;
-        let adjusted = (share.is_some() || bitrate.is_some() || qsv_decode_failed).then(|| {
+        // Rockchip's: the CPU's.
+        let (qsv_decode_failed, rkmpp_decode_failed) = {
+            let rt = job.runtime.lock();
+            (rt.qsv_decode_failed, rt.rkmpp_decode_failed)
+        };
+        let adjusted = (share.is_some() || bitrate.is_some() || qsv_decode_failed || rkmpp_decode_failed).then(|| {
             let mut plan = share.map_or_else(|| plan.clone(), |s| plan.with_share(s));
             if qsv_decode_failed {
                 plan = plan.without_quick_sync_decoding();
+            }
+            if rkmpp_decode_failed {
+                plan = plan.without_rkmpp_decoding();
             }
             if let (Some(kbps), Some(v)) = (bitrate, plan.video.as_mut()) {
                 v.bitrate_kbps = kbps;
@@ -2538,6 +2556,17 @@ impl Job {
                 // is the encoder's (below).
                 tracing::warn!(job = %self.id, "Quick Sync's decoder failed: FFmpeg's decoder takes the video");
                 rt.qsv_decode_failed = true;
+            } else if made_nothing && !rt.rkmpp_decode_failed && self.plan.decodes_on_rkmpp() {
+                // So is Rockchip's decoder, which has none either: the CPU
+                // decodes for the next process, which the job says as it
+                // says another GPU's decoder failing. A second failure is
+                // the encoder's.
+                tracing::warn!(job = %self.id, "Rockchip's decoder failed: decoding on the CPU");
+                rt.rkmpp_decode_failed = true;
+                rt.decoded_in_software = true;
+                if !rt.warnings.iter().any(|w| w == GPU_DECODING_FAILED) {
+                    rt.warnings.push(GPU_DECODING_FAILED.to_owned());
+                }
             } else {
                 *rt.failures.entry(next).or_insert(0) += 1;
                 // A hardware encoder failing before it made anything (a
@@ -2545,6 +2574,15 @@ impl Job {
                 // better at the next try.
                 if made_nothing && process.is_some_and(|p| p.hardware) {
                     rt.hardware_failed = true;
+                    // Rockchip's encoder failing with the CPU decoding too
+                    // (a size its encoder doesn't make): the first failure
+                    // was the encoder's as well, not its decoder's, which
+                    // brings the software encoder its frames again.
+                    if rt.rkmpp_decode_failed {
+                        rt.rkmpp_decode_failed = false;
+                        rt.decoded_in_software = false;
+                        rt.warnings.retain(|w| w != GPU_DECODING_FAILED);
+                    }
                 }
             }
         }
@@ -4662,6 +4700,86 @@ mod tests {
         let long_ago = Instant::now() - LATCH_HOLDS - Duration::from_secs(1);
         jobs.opencl_failed.lock().values_mut().for_each(|at| *at = long_ago);
         assert!(jobs.gpu_share(&fourth, true).unwrap().opencl);
+    }
+
+    /// Rockchip's decoder has no software fallback either: a process whose
+    /// frames came from it that fails before its first segment leaves the
+    /// video to the CPU, without counting against the segment, and the job
+    /// says the GPU's decoding failed. A second failure is the encoder's.
+    #[tokio::test]
+    async fn rockchip_decoder_failing_gives_way_to_the_cpu() {
+        use pley_transcoder_api::{Capabilities, GpuPipeline, HwAccel, StreamKind, VideoRequest};
+        let dir = crate::testing::tempdir();
+        let rkmpp = EncoderInfo {
+            name: "h264_rkmpp".into(),
+            codec: VideoCodec::H264,
+            hardware: true,
+            accel: HwAccel::Rkmpp,
+            main10: false,
+            low_power: false,
+        };
+        let ff = Ffmpeg {
+            ffmpeg: dir.path().join("no-ffmpeg"),
+            ffprobe: dir.path().join("no-ffprobe"),
+            caps: Capabilities {
+                ffmpeg_available: true,
+                encoders: vec![rkmpp],
+                hwaccels: vec!["rkmpp".into()],
+                gpu_pipelines: vec![GpuPipeline {
+                    accel: HwAccel::Rkmpp,
+                    codecs: vec!["h264".into()],
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+            segment_times_relative: true,
+        };
+        let video = MediaStream {
+            kind: StreamKind::Video,
+            codec: "h264".into(),
+            width: Some(1920),
+            height: Some(1080),
+            frame_rate: Some(25.0),
+            ..Default::default()
+        };
+        let media = MediaInfo { duration_ms: Some(8_000), streams: vec![video], ..Default::default() };
+        let req = JobRequest {
+            input: "/media/movie.mkv".into(),
+            video: Some(VideoRequest { max_height: Some(720), ..Default::default() }),
+            ..Default::default()
+        };
+        let mut job = job(dir.path(), vec![0, 4_000, 8_000]);
+        job.plan = Plan::build(&req, &media, &ff, None).unwrap();
+        job.media = Arc::new(media);
+        assert!(job.plan.decodes_on_rkmpp(), "MPP decodes, RGA scales, MPP encodes");
+        assert_eq!(job.status().video.unwrap().decoder.as_deref(), Some("rkmpp"));
+
+        let (tail, metrics) = (Mutex::new(VecDeque::new()), Metrics::default());
+        let started = |job: &Job| {
+            job.runtime.lock().process = Some(ProcessStatus { start_segment: 1, hardware: true, ..Default::default() });
+        };
+        started(&job);
+        job.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
+        {
+            let rt = job.runtime.lock();
+            assert!(rt.rkmpp_decode_failed && rt.decoded_in_software && !rt.hardware_failed && !rt.qsv_decode_failed);
+            assert_eq!(rt.failures.get(&1), None, "the segment is tried again");
+        }
+        let status = job.status();
+        assert_eq!(status.warnings, [GPU_DECODING_FAILED]);
+        let shown = status.video.unwrap();
+        assert_eq!((shown.decoder.as_deref(), shown.pipeline.as_deref()), (Some("cpu"), Some("hybrid")));
+
+        // Failing again with the CPU decoding: the encoder's, the first
+        // failure too. The software encoder standing in gets MPP's frames.
+        started(&job);
+        job.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
+        {
+            let rt = job.runtime.lock();
+            assert!(rt.hardware_failed && !rt.rkmpp_decode_failed && !rt.decoded_in_software);
+            assert_eq!(rt.failures.get(&1), Some(&1));
+        }
+        assert!(job.status().warnings.is_empty());
     }
 
     /// Quick Sync's own decoder has no software fallback: a process whose

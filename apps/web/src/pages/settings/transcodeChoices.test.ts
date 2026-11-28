@@ -42,7 +42,7 @@ describe("what goes with the hardware acceleration chosen", () => {
   it("keeps Vulkan's tone mapping on libplacebo, and takes every tone mapper with the others", () => {
     const modes: ToneMapping[] = ["auto", "libplacebo", "opencl", "zscale", "none"];
     expect(modes.filter((mode) => tonemapGoesWith("vulkan", mode))).toEqual(["auto", "libplacebo"]);
-    const others: HwAccel[] = ["auto", "none", "nvenc", "qsv", "amf", "vaapi", "videotoolbox"];
+    const others: HwAccel[] = ["auto", "none", "nvenc", "qsv", "amf", "vaapi", "videotoolbox", "rkmpp"];
     for (const accel of others) expect(modes.every((mode) => tonemapGoesWith(accel, mode))).toBe(true);
   });
 

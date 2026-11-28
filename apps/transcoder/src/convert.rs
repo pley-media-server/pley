@@ -296,6 +296,12 @@ impl Conversions {
             Some(media) => Arc::new(media),
             None => self.prober.probe(&input).await.context("probe failed")?,
         };
+        // Media info from before probes read the pixels' shape, which
+        // Rockchip's encoder leaves out of its stream and Pley writes in.
+        let rockchip =
+            self.ff.caps.encoders.iter().any(|e| e.hardware && e.accel == pley_transcoder_api::HwAccel::Rkmpp);
+        let media =
+            if rockchip { Arc::new(self.prober.with_sample_aspect(&input, &media, false).await) } else { media };
         // Made at full speed, from the start.
         req.options.throttle = false;
         req.start_ms = None;
@@ -339,7 +345,7 @@ impl Conversions {
             .video
             .as_ref()
             .filter(|v| !v.copy)
-            .map(|v| if v.preset == AUTO { SOFTWARE_PRESET } else { v.preset.as_str() });
+            .map(|v| if v.preset == AUTO { SOFTWARE_PRESET.to_owned() } else { v.preset.clone() });
 
         tokio::fs::create_dir_all(&self.dir).await?;
         let container = req.container.unwrap_or_default();
@@ -349,34 +355,52 @@ impl Conversions {
             input: &input,
             encoder: fallback,
             relative_split_times: self.ff.segment_times_relative,
-            preset,
+            preset: preset.as_deref(),
             shader_cache: self.shader_cache.as_deref(),
         };
-        let args = plan.file_args(&ctx, &media, &part, container);
-        tracing::debug!(conversion = %id, "ffmpeg {}", args.iter().map(|a| a.to_string_lossy()).collect::<Vec<_>>().join(" "));
-        let mut cmd = self.ff.command();
-        // A file for later: never at the cost of a playback.
-        background_priority(&mut cmd);
-        cmd.args(&args).current_dir(&self.dir).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
-        let mut child = cmd.spawn().context("failed to start ffmpeg")?;
-        let stderr = child.stderr.take().ok_or_else(|| anyhow!("ffmpeg's error output is unavailable"))?;
-        let tail = Arc::new(Mutex::new(VecDeque::new()));
-        let reader = tokio::spawn(read_progress(stderr, duration_ms, tail.clone(), conversion.clone()));
-        let (status, removed) = tokio::select! {
-            status = child.wait() => (status?, false),
-            () = conversion.stopped() => {
-                let _ = child.start_kill();
-                (child.wait().await?, true)
+        loop {
+            let args = plan.file_args(&ctx, &media, &part, container);
+            tracing::debug!(conversion = %id, "ffmpeg {}", args.iter().map(|a| a.to_string_lossy()).collect::<Vec<_>>().join(" "));
+            let mut cmd = self.ff.command();
+            // A file for later: never at the cost of a playback.
+            background_priority(&mut cmd);
+            cmd.args(&args).current_dir(&self.dir).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
+            let mut child = cmd.spawn().context("failed to start ffmpeg")?;
+            let stderr = child.stderr.take().ok_or_else(|| anyhow!("ffmpeg's error output is unavailable"))?;
+            let tail = Arc::new(Mutex::new(VecDeque::new()));
+            let reader = tokio::spawn(read_progress(stderr, duration_ms, tail.clone(), conversion.clone()));
+            let (status, removed) = tokio::select! {
+                status = child.wait() => (status?, false),
+                () = conversion.stopped() => {
+                    let _ = child.start_kill();
+                    (child.wait().await?, true)
+                }
+            };
+            let _ = reader.await;
+            if removed {
+                let _ = tokio::fs::remove_file(&part).await;
+                bail!("removed");
             }
-        };
-        let _ = reader.await;
-        if removed {
-            let _ = tokio::fs::remove_file(&part).await;
-            bail!("removed");
-        }
-        if !status.success() {
+            if status.success() {
+                break;
+            }
             let _ = tokio::fs::remove_file(&part).await;
             let lines: Vec<String> = tail.lock().iter().cloned().collect();
+            // Rockchip's decoder has no software fallback: where it failed
+            // before the first frame, once, the CPU decodes in its place, as
+            // a job's next process does. A failure later on is the file's,
+            // its share's or its disk's.
+            if plan.decodes_on_rkmpp() && conversion.status.lock().progress <= 0.0 {
+                tracing::warn!(conversion = %id, "Rockchip's decoder failed ({}): decoding on the CPU", lines.join(" / "));
+                plan = plan.without_rkmpp_decoding();
+                // Made again from the start: the first try's progress
+                // would pass for the second's.
+                conversion.update(|s| {
+                    s.video = plan.video_plan(&media, None);
+                    s.progress = 0.0;
+                });
+                continue;
+            }
             if lines.is_empty() {
                 bail!("ffmpeg exited with {status}");
             }

@@ -111,6 +111,10 @@ qrcodegen = { group = "io.nayuki", name = "qrcodegen", version.ref = "qrcodegen"
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+# Robolectric's Android runtimes for SDK 36 and 27, at the versions this
+# Robolectric asks for: they change with it (build-logic, Robolectric.kt).
+robolectric-android-all-36 = { group = "org.robolectric", name = "android-all-instrumented", version = "16-robolectric-13921718-i7" }
+robolectric-android-all-27 = { group = "org.robolectric", name = "android-all-instrumented", version = "8.1.0-robolectric-4611349-i7" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTest" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTest" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }

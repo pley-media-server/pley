@@ -328,19 +328,91 @@ public class PlayerModelTests
         Assert.Null(h.State.SkipLabel);
     }
 
+    /// <summary>Skip shows on its own for 8 s from entering its marker, then only with the controls; leaving and entering again starts afresh.</summary>
+    [Fact]
+    public void Skip_shows_on_its_own_for_8_s_then_only_with_the_controls()
+    {
+        var intro = new Marker { FileId = 10, Kind = "intro", StartMs = 10_000, EndMs = 70_000, Source = "chapter" };
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { intro }));
+        h.Start(new PlayRequest(1, 9_000, false));
+        h.Play(1_000);
+        Assert.Equal(("Skip Intro", true), (h.State.SkipLabel, h.State.SkipAlone));
+        h.Play(7_500);
+        Assert.True(h.State.SkipAlone);
+        h.Play(500);
+        // The label stays, for the controls.
+        Assert.Equal(("Skip Intro", false), (h.State.SkipLabel, h.State.SkipAlone));
+        // A seek within the intro: still only with the controls.
+        h.Engine.PositionMs = 50_000;
+        h.Play(500);
+        Assert.Equal(("Skip Intro", false), (h.State.SkipLabel, h.State.SkipAlone));
+        // Out and back in: on its own again.
+        h.Engine.PositionMs = 5_000;
+        h.Play(500);
+        Assert.Equal(((string?)null, false), (h.State.SkipLabel, h.State.SkipAlone));
+        h.Engine.PositionMs = 20_000;
+        h.Play(500);
+        Assert.Equal(("Skip Intro", true), (h.State.SkipLabel, h.State.SkipAlone));
+    }
+
+    /// <summary>Skip Credits, hidden under Up Next, gets its 8 s on its own from when the card is cancelled.</summary>
+    [Fact]
+    public void Cancelling_up_next_gives_skip_credits_its_8_s_on_its_own_from_then()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_600_000, EndMs = 2_700_000, Source = "chapter" };
+        var next = PlayerHarness.Episode(2, 2);
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
+        h.Source.NextOf[1] = next;
+        h.Start(new PlayRequest(1, 2_599_000, false));
+        h.Play(1_000);
+        Assert.NotNull(h.State.UpNext);
+        h.Play(8_000);
+        Assert.Equal(("Skip Credits", false), (h.State.SkipLabel, h.State.SkipAlone));
+        h.Model.CancelUpNext();
+        Assert.Equal(((UpNextCard?)null, "Skip Credits", true), (h.State.UpNext, h.State.SkipLabel, h.State.SkipAlone));
+        // The 8 s run from the first tick without the card, as on Android TV.
+        h.Play(8_000);
+        Assert.True(h.State.SkipAlone);
+        h.Play(500);
+        Assert.Equal(("Skip Credits", false), (h.State.SkipLabel, h.State.SkipAlone));
+    }
+
+    /// <summary>A seek that stays in the credits ends Up Next: Skip Credits gets its 8 s on its own from then, as on Android TV.</summary>
+    [Fact]
+    public void A_seek_within_the_credits_ends_up_next_and_gives_skip_credits_its_8_s_on_its_own()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_580_000, EndMs = 2_700_000, Source = "chapter" };
+        var next = PlayerHarness.Episode(2, 2);
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
+        h.Source.NextOf[1] = next;
+        h.Start(new PlayRequest(1, 2_579_000, false));
+        h.Play(1_000);
+        Assert.NotNull(h.State.UpNext);
+        // Skip's first 8 s go by under the card.
+        h.Play(8_000);
+        Assert.Equal(("Skip Credits", false), (h.State.SkipLabel, h.State.SkipAlone));
+        h.Model.SeekTo(2_581_000);
+        Assert.Null(h.State.UpNext);
+        h.Play(500);
+        Assert.Equal(("Skip Credits", true), (h.State.SkipLabel, h.State.SkipAlone));
+        h.Play(7_500);
+        Assert.True(h.State.SkipAlone);
+        h.Play(500);
+        Assert.Equal(("Skip Credits", false), (h.State.SkipLabel, h.State.SkipAlone));
+    }
+
     [Fact]
     public void Entering_the_credits_brings_up_next_whose_countdown_plays_it_on_the_same_engine()
     {
         var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_600_000, EndMs = 2_700_000, Source = "chapter" };
         var next = PlayerHarness.Episode(2, 2);
         h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
-        h.Source.NextOf[1] = next with { ThumbUrl = "/api/items/2/images/thumb?v=1", UserState = new UserState { PositionMs = 30_000 } };
+        h.Source.NextOf[1] = next with { UserState = new UserState { PositionMs = 30_000 } };
         h.Start(new PlayRequest(1, 2_599_000, false));
         Assert.Equal(("Ashfall", "S1 · E1 · Episode 1"), (h.State.Title, h.State.Subtitle));
         h.Play(1_000);
         var card = h.State.UpNext!;
         Assert.Equal((2L, "Episode 2", "Up next · S1 · E2", 10), (card.ItemId, card.Title, card.Heading, card.SecondsLeft));
-        Assert.Equal(ItemKit.Origin + "/api/items/2/images/thumb?v=1&w=480", card.ImageUrl);
         h.Play(5_000);
         Assert.Equal(5, h.State.UpNext!.SecondsLeft);
         h.Play(5_000);
@@ -351,6 +423,52 @@ public class PlayerModelTests
         Assert.Equal(2, h.State.ItemId);
         Assert.Equal("S1 · E2 · Episode 2", h.State.Subtitle);
         Assert.Equal(2, h.Engine.Prepared.Count);
+    }
+
+    /// <summary>Credits that begin 6 s before the end: the file ends with the countdown under way, and the card keeps its count rather than losing it until the next step.</summary>
+    [Fact]
+    public void The_file_ending_while_the_credits_countdown_runs_keeps_the_cards_seconds()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_694_000, EndMs = 2_700_000, Source = "chapter" };
+        var next = PlayerHarness.Episode(2, 2);
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
+        h.Source.NextOf[1] = next;
+        h.Start(new PlayRequest(1, 2_693_000, false));
+        h.Play(1_000);
+        Assert.Equal(10, h.State.UpNext!.SecondsLeft);
+        // To just after one of the countdown's steps, so the end falls well inside a second.
+        while (h.State.UpNext!.SecondsLeft == 10) h.Play(50);
+        h.Play(4_000);
+        Assert.Equal(5, h.State.UpNext!.SecondsLeft);
+        h.End();
+        Assert.Equal((PhaseKind.Paused, 5), (h.State.Phase.Kind, h.State.UpNext!.SecondsLeft));
+        // The countdown wasn't started again: the next episode plays when it was going to.
+        h.Play(4_900);
+        Assert.Equal(1, h.State.UpNext!.SecondsLeft);
+        Assert.Single(h.Source.Bodies);
+        h.Play(100);
+        Assert.Null(h.State.UpNext);
+        Assert.Equal(2L, h.LastBody["item_id"]);
+    }
+
+    /// <summary>The sleep timer, set while the credits' countdown runs, ends with the file: the card holds no count, and the next episode waits.</summary>
+    [Fact]
+    public void The_sleep_timer_ending_with_the_file_while_the_credits_countdown_runs_leaves_the_card_no_seconds()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_694_000, EndMs = 2_700_000, Source = "chapter" };
+        var next = PlayerHarness.Episode(2, 2);
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
+        h.Source.NextOf[1] = next;
+        h.Start(new PlayRequest(1, 2_693_000, false));
+        h.Play(1_000);
+        Assert.Equal(10, h.State.UpNext!.SecondsLeft);
+        h.Model.SetSleep(new SleepChoice.EndOfItem());
+        h.End();
+        Assert.True(h.State.Sleep.Fired);
+        Assert.Null(h.State.UpNext!.SecondsLeft);
+        h.Play(20_000);
+        Assert.Null(h.State.UpNext!.SecondsLeft);
+        Assert.Single(h.Source.Bodies);
     }
 
     /// <summary>Credits a minute before the end (an after-credits scene after them) bring Skip Credits alone; Up Next comes at the end, as without credits.</summary>

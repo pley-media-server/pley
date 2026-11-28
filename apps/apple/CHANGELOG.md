@@ -88,7 +88,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   typed or on Apple TV's number pad, AirPlay, and Watch here instead when
   every connection is in use. Search shows the channels it finds. Live TV
   stopped from another device, or its connection taken, stops at once and
-  says why.
+  says why. Details say how a channel plays.
 - Music: Play and Shuffle on albums, artists and music playlists, a track
   plays its album from there, and it plays on in the background and with
   the screen locked. A mini player and Now Playing (a window on the Mac,
@@ -155,6 +155,12 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Skip Intro and Skip Credits show by themselves for 8 seconds as an intro
+  or the credits begin, then only with the player's controls, so they no
+  longer sit over the picture, or hold Apple TV's focus, for the whole
+  segment. Seeking back into one shows Skip again for 8 seconds.
+- Up Next's card shows the next episode's name without its picture, so it
+  covers less of the credits.
 - Movies, shows and music without a picture, or whose picture doesn't
   load, show their title's colors with Pley's mark, as the other apps do,
   in place of a gray box, on tiles, an item's page, playlists and

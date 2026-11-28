@@ -34,12 +34,14 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.data.Loadable
+import app.pley.android.model.Hub
 import app.pley.android.model.HubKeys
 import app.pley.android.model.Hubs
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
+import app.pley.android.model.UserState
 import app.pley.android.network.OfflineException
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.home.HomeViewModel
@@ -395,6 +397,25 @@ class TvHomeTest {
         press(Key.DirectionDown)
         press(Key.DirectionCenter)
         assertEquals(PleyKey.Item(204), backStack.last())
+    }
+
+    @Test
+    fun aBookHeardToItsEndIsFinishedNotWatched() {
+        // Books alone: with no video in the rows, the hero is the newest book.
+        val book = ItemSummary(
+            id = 70, libraryId = 5, kind = ItemKind.Audiobook, title = "Harbor Lights", authors = listOf("Ilse Brandt"),
+            leafCount = 1, viewedLeafCount = 1, userState = UserState(watched = true),
+        )
+        sources.home.value = Loadable.Ready(Hubs(listOf(Hub("recently_added:5", "Recently Added Books", 5, listOf(book)))), fresh = false)
+        show()
+        compose.waitForIdle()
+        compose.onNodeWithText("Play").assertIsFocused()
+        press(Key.DirectionDown)
+        assertEquals("Harbor Lights, Ilse Brandt, finished", focusedDescription())
+        // The hero's mark, after Play and Info, in the words of the book's page.
+        press(Key.DirectionUp)
+        press(Key.DirectionRight, times = 2)
+        assertEquals("Mark as not finished", focusedDescription())
     }
 
     @Test

@@ -3,15 +3,13 @@
 //! and its countdown, the seek badge, "Reconnecting…", the compact Playback details and the
 //! player's toasts.
 
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
-
-use pley_base::{Color, Icon, ImageRequest, ImageState, MarkGlyph, Point, Priority, Rect, RgbaImage, Size, TextOpts};
+use pley_base::{Color, Icon, Point, Rect, Size, TextOpts};
 use pley_i18n::t;
-use pley_kit::look::shade;
-use pley_kit::{Button, placeholder};
+use pley_kit::Button;
+use pley_kit::look::{mix, shade};
+use pley_player::controller::COUNTDOWN_SECONDS;
 use pley_ui::theme::{self, focus::ControlLook, radius};
-use pley_ui::{Dir, Dirs, Edge, FocusOpts, Group, Id, ImageOpts, Response, Ui};
+use pley_ui::{Dir, Dirs, Easing, Edge, FocusOpts, Group, Id, Motion, Response, Ui};
 
 use crate::controls::register;
 
@@ -103,9 +101,6 @@ pub fn sleep_notice(
 pub struct Card<'a> {
     pub heading: &'a str,
     pub title: &'a str,
-    pub image: Option<ImageRequest>,
-    /// The glyph of the mark on the still's placeholder: the title's kind's.
-    pub mark: MarkGlyph,
     /// Seconds before the next plays; none when it won't by itself.
     pub seconds_left: Option<i64>,
 }
@@ -117,41 +112,31 @@ pub struct CardAnswer {
     pub cancel: bool,
 }
 
-/// The Up Next card's width (`UP_NEXT_WIDTH`) and its still's height.
+/// The Up Next card's width (`UP_NEXT_WIDTH`).
 pub const CARD_W: f32 = 300.0;
-const STILL_H: f32 = 169.0;
-/// The countdown (`COUNTDOWN_SECONDS`) the ring fills over.
-const COUNTDOWN: f32 = 10.0;
+/// Through each second of the countdown the sweep glides, evenly, to where it stands at the
+/// second's end (`countdownFill`): it moves without steps and is full as the countdown reaches 0.
+/// It runs on every tier, as on Android, and while a direction key is held: the sweep follows the
+/// countdown, not the focus.
+const SWEEP_GLIDE: Motion = Motion { held: true, ..Motion::new(1.0, Easing::LINEAR) };
+/// The sweep over Play now at rest, on its faint fill (`PlayNowButton`).
+const SWEEP_REST: Color = theme::alpha(theme::FG, 0.14);
+/// The sweep over a focused Play now, darker on the Accent.
+const SWEEP_FOCUSED: Color = theme::alpha(Color::BLACK, 0.18);
 
 /// The Up Next card (`TvPlayerOverlays.kt`): 300 wide, right edge 912, bottom 489, Surface2 at
-/// 96 % with 8 dp corners; the still, then "Up next · S2 · E6", the title, and Play now (with its
-/// countdown ring) and Cancel. Focus stays on the card: Play now first, Left and Up and Down go
-/// nowhere.
+/// 96 % with 8 dp corners; "Up next · S2 · E6", the title, and Play now (with the countdown in
+/// it) and Cancel. No still: the card stays small over the credits. Focus stays on the card: Play
+/// now first, Left and Up and Down go nowhere.
 pub fn up_next(ui: &mut Ui, group: Id, play_id: Id, cancel_id: Id, card: &Card, reduced: bool) -> CardAnswer {
     let pad = 16.0;
     let inner = CARD_W - 2.0 * pad;
     let heading = ui.layout(card.heading, &theme::CAPTION, &TextOpts::line(inner));
     let title = ui.layout(card.title, &theme::TITLE, &TextOpts::wrap(inner, 2));
-    let h = STILL_H + pad + heading.size.h + title.size.h + pad + 48.0 + pad;
+    let h = pad + heading.size.h + title.size.h + pad + 48.0 + pad;
     let rect = Rect::new(RIGHT - CARD_W, BOTTOM_HIDDEN - h, CARD_W, h);
     ui.fill(rect, theme::SURFACE2.alpha(0.96), radius::DIALOG);
-    // The card's shape cuts the still: rounded at the top, square where the text starts. It is
-    // drawn taller by the corner and clipped to its own height. Until the still is in, and when
-    // there is none, the title's placeholder gradient stands in (`Artwork`, without its title),
-    // with Pley's mark for its kind once no still will come (the title is under it).
-    let still = Rect::new(rect.x, rect.y, CARD_W, STILL_H);
-    let drawn = Rect::new(rect.x, rect.y, CARD_W, STILL_H + radius::DIALOG);
-    ui.clip(still, |ui| {
-        let shown = card.image.as_ref().map(|req| ui.image_state(req, Priority::Visible));
-        if !shown.is_some_and(|s| s.opaque()) {
-            let none = shown.is_none_or(|s| matches!(s.state, ImageState::Failed));
-            placeholder(ui, drawn, card.title, "", none.then_some(card.mark), radius::DIALOG);
-        }
-        if let Some(s) = shown {
-            ui.draw_image(drawn, &s, &ImageOpts::cover().rounded(radius::DIALOG));
-        }
-    });
-    let mut y = rect.y + STILL_H + pad;
+    let mut y = rect.y + pad;
     let hh = heading.size.h;
     ui.draw_text(Point::new(rect.x + pad, y), heading, theme::MUTED);
     y += hh;
@@ -172,22 +157,19 @@ pub fn up_next(ui: &mut Ui, group: Id, play_id: Id, cancel_id: Id, card: &Card, 
     answer
 }
 
-/// Play now: at least 48 tall, padded 20 · 16 · 4; the play icon, "Play now" and, 12 dp after, the
-/// countdown ring (22 dp, a 3 dp stroke filling as the seconds go), or "Next in 7" in Caption with
-/// Reduce motion. At rest Fg 12 % with a 1 dp Control edge; focused the Accent, 1.05 larger. Its
-/// width.
+/// Play now (`PlayNowButton`): at least 48 tall, padded 20 · 16 · 4; the play icon and "Play now",
+/// with the countdown in it while one runs: "Play now (7)" and a sweep across the button, under
+/// the label and inside the button's shape, moving smoothly ([`countdown_fill`]); "Next in 7" and
+/// a step each second with Reduce motion. The button keeps the width of the countdown's first
+/// second as the count shortens. At rest Fg 12 % with a 1 dp Control edge; focused the Accent,
+/// 1.05 larger. Its width.
 fn play_now(ui: &mut Ui, id: Id, at: Point, left: Option<i64>, reduced: bool, answer: &mut CardAnswer) -> f32 {
-    let l = ui.layout(t!("player.upNext.playNow"), &theme::LABEL, &TextOpts::default());
-    let next_in = left
-        .filter(|_| reduced)
-        .map(|s| ui.layout(&t!("player.upNext.nextIn", seconds = s), &theme::CAPTION, &TextOpts::default()));
-    let ring = left.is_some() && !reduced;
-    let after = match &next_in {
-        Some(n) => 12.0 + n.size.w,
-        None if ring => 12.0 + 22.0,
-        None => 0.0,
-    };
-    let w = 20.0 + 22.0 + 10.0 + l.size.w + after + 16.0;
+    let l = ui.layout(&play_now_label(left, reduced), &theme::LABEL, &TextOpts::default());
+    let widest = left.map(|_| play_now_label(Some(COUNTDOWN_SECONDS), reduced));
+    let widest = widest.map(|label| ui.measure(&label, &theme::LABEL, &TextOpts::default()).w);
+    let label_w = widest.map_or(l.size.w, |w| w.max(l.size.w));
+    let done = left.map(|s| countdown_fill(ui, id.with("sweep"), s, reduced));
+    let w = 20.0 + 22.0 + 10.0 + label_w + 16.0;
     let rect = Rect::new(at.x, at.y, w, 48.0);
     let r = register(ui, id, rect, FocusOpts::default());
     answer.play_now = r.activated;
@@ -196,65 +178,51 @@ fn play_now(ui: &mut Ui, id: Id, at: Point, left: Option<i64>, reduced: bool, an
     let lh = l.size.h;
     ui.transform(Point::ZERO, s.scale, rect.center(), |ui| {
         ui.fill(rect, s.fill, radius::CONTROL);
+        if let Some(done) = done.filter(|d| *d > 0.0) {
+            // The button's own shape in the sweep's color, cut where the countdown stands.
+            let swept = Rect::new(rect.x, rect.y, rect.w * done, rect.h);
+            let color = mix(SWEEP_REST, SWEEP_FOCUSED, s.progress);
+            ui.clip(swept, |ui| ui.fill(rect, color, radius::CONTROL));
+        }
         if let Some(edge) = s.edge {
             ui.stroke(rect.expand(-0.5), edge, radius::CONTROL - 0.5, 1.0);
         }
-        let mut x = rect.x + 20.0;
+        let x = rect.x + 20.0;
         ui.icon(Rect::new(x, rect.y + 13.0, 22.0, 22.0), Icon::Play, content);
-        x += 22.0 + 10.0;
-        let lw = l.size.w;
-        ui.draw_text(Point::new(x, rect.y + (48.0 - lh) / 2.0), l, content);
-        x += lw + 12.0;
-        if let Some(n) = next_in {
-            let nh = n.size.h;
-            ui.draw_text(Point::new(x, rect.y + (48.0 - nh) / 2.0), n, content);
-        } else if let (true, Some(seconds)) = (ring, left) {
-            let done = ((COUNTDOWN - seconds as f32) / COUNTDOWN).clamp(0.0, 1.0);
-            countdown(ui, Rect::new(x, rect.y + 13.0, 22.0, 22.0), done, content);
-        }
+        ui.draw_text(Point::new(x + 22.0 + 10.0, rect.y + (48.0 - lh) / 2.0), l, content);
     });
     w
 }
 
-/// The countdown ring: a 3 dp stroke, its track at 25 % and the arc from the top, clockwise, as
-/// far as `done`; a picture made at the screen's pixels (the display list has no arcs).
-fn countdown(ui: &mut Ui, rect: Rect, done: f32, color: Color) {
-    let px = ui.image_px(rect.w);
-    let stroke = 3.0 * ui.scale();
-    let steps = (done * 100.0).round() as u32;
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    ("player.countdown", px, steps, color.r, color.g, color.b, color.a).hash(&mut h);
-    let image = ring_image(px, stroke, steps as f32 / 100.0, color);
-    ui.raw(rect, Arc::new(image), h.finish());
+/// Play now's words (`playNowLabel`): with the seconds left while a countdown runs.
+fn play_now_label(left: Option<i64>, reduced: bool) -> String {
+    match left {
+        None => t!("player.upNext.playNow").to_string(),
+        Some(seconds) if reduced => t!("player.upNext.nextIn", seconds = seconds),
+        Some(seconds) => t!("player.upNext.playNowIn", seconds = seconds),
+    }
 }
 
-/// A ring `px` pixels across with a `stroke` wide band: the track at 25 % of `color` and the arc
-/// in `color` from 12 o'clock clockwise over `done` of the turn, edges smoothed over a pixel.
-pub fn ring_image(px: u32, stroke: f32, done: f32, color: Color) -> RgbaImage {
-    let mut img = RgbaImage::new(px, px);
-    let c = px as f32 / 2.0;
-    let outer = c;
-    let inner = (c - stroke).max(0.0);
-    for y in 0..px {
-        for x in 0..px {
-            let dx = x as f32 + 0.5 - c;
-            let dy = y as f32 + 0.5 - c;
-            let d = (dx * dx + dy * dy).sqrt();
-            let cover = (outer - d).clamp(0.0, 1.0).min((d - inner).clamp(0.0, 1.0));
-            if cover <= 0.0 {
-                continue;
-            }
-            // Angle from 12 o'clock, clockwise, 0 to 1.
-            let turn = (dx.atan2(-dy) / std::f32::consts::TAU).rem_euclid(1.0);
-            let a = if turn <= done { 1.0 } else { 0.25 };
-            let i = ((y * px + x) * 4) as usize;
-            img.pixels[i] = color.r;
-            img.pixels[i + 1] = color.g;
-            img.pixels[i + 2] = color.b;
-            img.pixels[i + 3] = (color.a as f32 * a * cover).round() as u8;
-        }
+/// How much of the countdown has gone with `left` seconds to go, 0 to 1 (`countdownFill`): through
+/// each second it glides ([`SWEEP_GLIDE`]) to where it stands at that second's end, carrying on
+/// from where it is when a second comes a little early. Ahead of this second's end (a countdown
+/// that started again) or more than half a step behind its start (seconds that were missed), it
+/// starts from this second's place at once rather than sliding there. With Reduce motion it
+/// steps once a second.
+fn countdown_fill(ui: &mut Ui, id: Id, left: i64, reduced: bool) -> f32 {
+    let total = COUNTDOWN_SECONDS as f32;
+    let step = 1.0 / total;
+    let gone = |seconds: i64| ((COUNTDOWN_SECONDS - seconds) as f32 / total).clamp(0.0, 1.0);
+    let (start, end) = (gone(left), gone(left - 1));
+    if reduced {
+        return start;
     }
-    img
+    // Asked for every frame the countdown shows, so its glide carries on from second to second.
+    let fill = ui.animate_from(id, start, end, SWEEP_GLIDE);
+    if fill > end + step / 1000.0 || fill < start - step / 2.0 {
+        return ui.animate_again(id, start, end, SWEEP_GLIDE);
+    }
+    fill
 }
 
 /// The seek badge while the controls are hidden: a 64 dp square, radius 6, Bg 60 %, saying what
@@ -355,19 +323,6 @@ pub fn toast(ui: &mut Ui, toast: &Toast, controls: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn fills_the_countdown_ring_clockwise_from_the_top() {
-        let img = ring_image(44, 6.0, 0.25, Color::WHITE);
-        let alpha = |x: u32, y: u32| img.pixels[((y * 44 + x) * 4 + 3) as usize];
-        // Just above the right of the ring is under a quarter turn: filled; the left is the
-        // track at 25 %.
-        assert_eq!(alpha(42, 21), 255);
-        assert_eq!(alpha(42, 23), 64);
-        assert!(alpha(1, 22) > 50 && alpha(1, 22) < 70, "{}", alpha(1, 22));
-        // Inside the ring: nothing.
-        assert_eq!(alpha(22, 22), 0);
-    }
 
     #[test]
     fn places_skip_and_the_notice_as_the_controls_come() {

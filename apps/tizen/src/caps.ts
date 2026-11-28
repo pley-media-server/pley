@@ -84,7 +84,8 @@ export function tizenCaps(f: TizenFacts, o: CapsOverrides = { truehd: false, dts
     audio_track_switching: true,
     picture_subtitles_sideload: true,
     // One size per stream (no `variants`): AVPlay may go black moving between sizes, as between streams (docs/QUALITY.md).
-    hls: { master_playlist: true, segments: y >= 2020 ? ["ts", "fmp4"] : ["ts"] },
+    // Before 2020, AVPlay plays Dolby audio from a file but not from MPEG-TS segments: a stream's audio is AAC stereo.
+    hls: y >= 2020 ? { master_playlist: true, segments: ["ts", "fmp4"] } : { master_playlist: true, segments: ["ts"], audio: ["aac", "mp3"], audio_channels: 2 },
     display: f.uhd8k ? { width: 7680, height: 4320, refresh_rates: [50, 60] } : f.uhd ? { width: 3840, height: 2160, refresh_rates: [50, 60] } : { width: 1920, height: 1080, refresh_rates: [50, 60] },
     device: { form: "tv", tier: tierOf(f), fire_tv: false, model: f.model },
   };

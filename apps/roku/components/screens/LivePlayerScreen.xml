@@ -2,10 +2,12 @@
 <!-- The live player: a channel's live HLS stream in the Video node (its
      own controls and seek bar off: live is live, with a Live chip), the
      channel's logo with a spinner under it while it tunes, a banner of
-     what's on and next, up and down to change channel within the
-     category it was opened from, the category's channels at the left
-     (Left; another category, or a search, can be listed there), and what
-     went wrong when it did (every connection in use, the channel not
+     what's on and next with how the channel plays badged before its Live
+     chip, as the player's controls badge a title's, up and down to change
+     channel within the category it was opened from, its channels at the left
+     (Left; another category, or a search, can be listed there), how it
+     plays in the panel the player's Info opens (Replay), and what went
+     wrong when it did (every connection in use, the channel not
      playing). -->
 <component name="LivePlayerScreen" extends="Group">
     <interface>
@@ -27,6 +29,7 @@
     <script type="text/brightscript" uri="pkg:/components/screens/LivePlayerScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
@@ -34,6 +37,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Live.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Remote.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Details.brs" />
     <children>
         <Rectangle width="1920" height="1080" color="0x000000FF" />
         <Video id="video" width="1920" height="1080" enableUI="false" />
@@ -69,6 +73,9 @@
             <Rectangle id="bannerTrack" translation="[384, 886]" width="1100" height="6" color="0x2E3440FF" />
             <Rectangle id="bannerFill" translation="[384, 886]" width="0" height="6" color="0x38BDF8FF" />
             <Label id="bannerNext" translation="[384, 908]" width="1100" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <!-- How the channel plays, once the server has said: before
+                 the Live chip, as on Android TV (the screen places it). -->
+            <MethodBadge id="method" visible="false" />
             <!-- The Live chip: live is all there is. -->
             <Rectangle translation="[1648, 750]" width="176" height="52" color="0xEB6B70FF" />
             <Label id="liveMark" translation="[1648, 750]" width="176" height="52" horizAlign="center" vertAlign="center" color="0xEBEBEBFF">
@@ -77,7 +84,8 @@
             <Label id="star" translation="[1648, 816]" width="176" horizAlign="center" color="0x38BDF8FF">
                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
             </Label>
-            <Label id="bannerHint" translation="[96, 968]" width="1728" color="0x8B95A5FF" font="font:TinySystemFont" />
+            <!-- Two lines: the channels and the favorite, then the details. -->
+            <Label id="bannerHint" translation="[96, 952]" width="1728" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:TinySystemFont" />
         </Group>
         <!-- What went wrong, and what can be done. -->
         <Group id="notice" visible="false">
@@ -97,6 +105,21 @@
             <!-- Two lines: what the channels do, then the categories and search. -->
             <Label id="listHint" translation="[96, 936]" width="664" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:TinySystemFont" />
         </Group>
+        <!-- Playback details (Replay), as the player's Info panel: 720 wide
+             from the right edge, over the picture dimmed behind it. -->
+        <Group id="details" visible="false">
+            <Rectangle id="detailsScrim" width="1920" height="1080" color="0x16191E80" />
+            <!-- It slides in from the right over 200 ms, as the player's. -->
+            <Group id="detailsPanel">
+                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFA" />
+                <Label id="detailsTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xEBEBEBFF" />
+                <FactSheet id="detailsFacts" translation="[1256, 152]" width="608" height="780" labelWidth="200" />
+            </Group>
+        </Group>
+        <Animation id="detailsSlide" duration="0.2" easeFunction="outCubic">
+            <Vector2DFieldInterpolator key="[0, 1]" keyValue="[[720, 0], [0, 0]]" fieldToInterp="detailsPanel.translation" />
+            <FloatFieldInterpolator key="[0, 1]" keyValue="[0, 1]" fieldToInterp="detailsScrim.opacity" />
+        </Animation>
         <Group id="toast" visible="false">
             <Rectangle translation="[460, 72]" width="1000" height="96" color="0x16191EE6" />
             <Label id="toastText" translation="[460, 72]" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
@@ -113,5 +136,7 @@
         <Timer id="stallTimer" duration="0.7" />
         <!-- A channel that failed is tuned again after this (1 s, then 3 s). -->
         <Timer id="retryTimer" duration="1" />
+        <!-- Playback details asked again while they show. -->
+        <Timer id="detailsTimer" duration="2" repeat="true" />
     </children>
 </component>

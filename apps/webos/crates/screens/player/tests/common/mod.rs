@@ -97,10 +97,8 @@ impl Fake {
     pub fn card(seconds: i64) -> UpNextCard {
         UpNextCard {
             item_id: 20_003,
-            kind: pley_core::model::ItemKind::Episode,
             title: "The Third".into(),
             heading: "Up next · S1 · E3".into(),
-            image_url: None,
             seconds_left: Some(seconds),
         }
     }

@@ -34,6 +34,11 @@ export interface EngineSource {
   audioCodec: string | null;
   /** A live channel's HLS: it starts at the live edge, whatever `startMs` says. */
   live?: boolean;
+  /**
+   * The audio played is the one the file starts with (its default track,
+   * or none): a player that can't be told which track to play can take it.
+   */
+  audioDefault?: boolean;
 }
 
 /** An audio track as the engine knows it, in the file's order. */
@@ -75,6 +80,20 @@ export interface EngineListener {
   firstFrame(): void;
   error(error: EngineError): void;
   tracks(): void;
+  /**
+   * A seek to `targetMs` (or the start at `source.startMs`) didn't get
+   * there: the player refused it, or said it was made and plays on from
+   * elsewhere. It plays on where it is; the session decides what next.
+   * `slow`: it was still loading when the player gave up on it, which a
+   * slow network does too: not a refusal to remember for the kind of file.
+   */
+  seekFailed?(targetMs: number, slow?: boolean): void;
+  /**
+   * The engine started the source again on another of the TV's players,
+   * before a first picture (Samsung's <video> couldn't open the file, so
+   * AVPlay does): the time waited so far isn't the new player's.
+   */
+  restarted?(): void;
 }
 
 export interface PlayerEngine {
@@ -118,6 +137,32 @@ export interface PlayerEngine {
    */
   setSpeed?(rate: number): boolean;
 
+  /**
+   * A seek it is still making, in a stream the server makes: the time it
+   * waits is the server's, not a stall (bounded by the session). Already
+   * true when it says "buffering" for the seek.
+   */
+  seekPending?(): boolean;
+  /**
+   * It plays a stream started part-way from the stream's first segment,
+   * and seeks to the place once it plays (Samsung's AVPlay): the session
+   * has the server start making it there too, rather than at the place,
+   * where the server would stop for the first segment and start again.
+   */
+  readonly hlsFromFirstSegment?: boolean;
+  /**
+   * Which of the TV's players plays now, where the engine has more than one
+   * (Samsung's "avplay" and "video"); what each refuses is remembered apart.
+   * `null` or absent: the engine is one player.
+   */
+  activePlayer?(): string | null;
+  /**
+   * A seek in a file played as it is that the player playing refused: the
+   * same address plays on the TV's other player at `targetMs` (Samsung's
+   * <video>, which fetches from there by HTTP range), with the session
+   * left as it is. False when no other player takes the file.
+   */
+  switchForSeek?(targetMs: number): boolean;
   status(): EngineStatus;
   playing(): boolean;
   audioTracks(): EngineTrack[];

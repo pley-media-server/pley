@@ -13,6 +13,7 @@ import app.pley.android.network.ApiException
 import app.pley.android.network.HttpPleyApi
 import app.pley.android.network.PleyApi
 import app.pley.android.testing.network.FakePleyApi
+import app.pley.android.testing.network.asked
 import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
@@ -65,7 +66,7 @@ class DownloadRunnerTest {
         assertTrue(done.extrasSaved)
         assertArrayEquals(body, store.mediaOf(done).readBytes())
         assertFalse("the partial file is gone", store.partOf(done).exists())
-        assertEquals("/api/files/7/stream", server.takeRequest().url.encodedPath)
+        assertEquals("/api/files/7/stream", server.asked().url.encodedPath)
     }
 
     @Test
@@ -80,7 +81,7 @@ class DownloadRunnerTest {
         assertEquals(DownloadState.Queued, queued.state)
         assertTrue(queued.image)
         assertArrayEquals(picture, store.imageOf(queued).readBytes())
-        assertEquals("/api/items/42/thumb", server.takeRequest().url.encodedPath)
+        assertEquals("/api/items/42/thumb", server.asked().url.encodedPath)
     }
 
     @Test
@@ -97,7 +98,7 @@ class DownloadRunnerTest {
 
         runner().run()
 
-        assertEquals("bytes=100000-", server.takeRequest().headers["Range"])
+        assertEquals("bytes=100000-", server.asked().headers["Range"])
         val done = store.get(saved.key)!!
         assertEquals(DownloadState.Done, done.state)
         assertArrayEquals(body, store.mediaOf(done).readBytes())
@@ -148,7 +149,7 @@ class DownloadRunnerTest {
         val done = store.get(saved.key)!!
         assertEquals(DownloadState.Done, done.state)
         assertArrayEquals(body, store.mediaOf(done).readBytes())
-        assertEquals("the server's file", FILE, server.takeRequest().url.encodedPath)
+        assertEquals("the server's file", FILE, server.asked().url.encodedPath)
         assertEquals((done.conversion to done.converting), CONVERSION to null)
         // Asked for once, then looked at until whole.
         assertEquals(1, api.calls("convert").size)
@@ -163,7 +164,7 @@ class DownloadRunnerTest {
         runner().run()
 
         assertEquals(DownloadState.Done, store.get(saved.key)!!.state)
-        assertEquals("/api/files/7/stream", server.takeRequest().url.encodedPath)
+        assertEquals("/api/files/7/stream", server.asked().url.encodedPath)
     }
 
     @Test
@@ -214,9 +215,9 @@ class DownloadRunnerTest {
 
         assertFalse(runner().run())
 
-        assertEquals("/api/files/7/subtitles/2.vtt", server.takeRequest().url.encodedPath)
-        assertEquals("the file doesn't wait for the track", "/api/files/7/stream", server.takeRequest().url.encodedPath)
-        assertEquals("/api/files/7/subtitles/2.vtt", server.takeRequest().url.encodedPath)
+        assertEquals("/api/files/7/subtitles/2.vtt", server.asked().url.encodedPath)
+        assertEquals("the file doesn't wait for the track", "/api/files/7/stream", server.asked().url.encodedPath)
+        assertEquals("/api/files/7/subtitles/2.vtt", server.asked().url.encodedPath)
         val done = store.get(saved.key)!!
         assertEquals(DownloadState.Done, done.state)
         assertEquals(listOf(2), done.subtitles)
@@ -265,8 +266,8 @@ class DownloadRunnerTest {
 
         runner().run()
 
-        assertEquals("bytes=100000-", server.takeRequest().headers["Range"])
-        assertEquals("what was down is kept", "bytes=100000-", server.takeRequest().headers["Range"])
+        assertEquals("bytes=100000-", server.asked().headers["Range"])
+        assertEquals("what was down is kept", "bytes=100000-", server.asked().headers["Range"])
         val done = store.get(begun.key)!!
         assertEquals(DownloadState.Done, done.state)
         assertArrayEquals(body, store.mediaOf(done).readBytes())
@@ -288,8 +289,8 @@ class DownloadRunnerTest {
 
         runner().run()
 
-        assertEquals("bytes=100000-", server.takeRequest().headers["Range"])
-        assertEquals("from the start", null, server.takeRequest().headers["Range"])
+        assertEquals("bytes=100000-", server.asked().headers["Range"])
+        assertEquals("from the start", null, server.asked().headers["Range"])
         assertArrayEquals(body, store.mediaOf(store.get(saved.key)!!).readBytes())
     }
 

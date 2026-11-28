@@ -90,6 +90,16 @@ object MockPley {
     fun url(server: MockWebServer, path: String): String = issuerOf(server) + path
 }
 
+/**
+ * The next request the server got, in the order they came. One that never
+ * comes fails the test: waited for without end, as
+ * [MockWebServer.takeRequest] waits, it would hold up every test after it.
+ * The sign-in tests have the same wait for the MockWebServer class they use
+ * (`asked` in `:core:auth`'s TestKit.kt): the two change together.
+ */
+fun MockWebServer.asked(): RecordedRequest =
+    takeRequest(5, TimeUnit.SECONDS) ?: throw AssertionError("the server got no further request within 5 s ($requestCount in all)")
+
 /** The request's body as text. */
 val RecordedRequest.bodyText: String get() = body?.utf8().orEmpty()
 

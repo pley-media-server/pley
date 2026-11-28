@@ -61,15 +61,16 @@ fn states() -> Vec<State> {
         state("seek-preview", preview, "up wait:300 hold:right:1500"),
         state("seek-chapter", |_, _| {}, "up wait:300 hold:left:700"),
         state("seek-badge", |_, _| {}, "right right right"),
-        state("skip", |p, _| p.state.skip_label = Some(t!("player.skip.intro").into()), "wait:400"),
-        state(
-            "skip-lifted",
-            |p, _| p.state.skip_label = Some(t!("player.skip.credits").into()),
-            "wait:200 info wait:400",
-        ),
+        // Skip in its first 8 s, on its own, then with the controls brought on it.
+        state("skip", |p, _| skip(p, t!("player.skip.intro"), true), "wait:400"),
+        state("skip-lifted", |p, _| skip(p, t!("player.skip.credits"), true), "wait:200 info wait:400"),
+        // After its 8 s: only with the controls, which open on the scrubber.
+        state("skip-controls", |p, _| skip(p, t!("player.skip.intro"), false), "wait:200 up wait:400"),
         state("up-next", up_next, "wait:400"),
         State { reduced_motion: true, ..state("up-next-reduced", up_next, "wait:400") },
-        state("up-next-no-still", |p, _| p.state.up_next = Some(card(7)), "wait:400"),
+        // Its countdown under way, the sweep across Play now: focused, then at rest beside Cancel.
+        state("up-next-counting", |p, _| p.state.up_next = Some(card(7)), "wait:400"),
+        state("up-next-cancel", |p, _| p.state.up_next = Some(card(4)), "wait:400 right wait:300"),
         state("sleep-notice", |p, _| p.state.sleep.seconds_left = Some(28), "wait:400"),
         state("buffering", |p, _| p.state.phase = Phase::Buffering, "wait:900"),
         state(
@@ -143,11 +144,16 @@ fn card(seconds: i64) -> pley_player::controller::UpNextCard {
     card
 }
 
-/// The card as it first shows, its countdown at its widest ("Next in 10" under Reduce motion).
+/// Skip offered as `label`, on its own (its first 8 s) or only with the controls.
+fn skip(p: &mut Fake, label: &str, alone: bool) {
+    p.state.skip_label = Some(label.into());
+    p.state.skip_alone = alone;
+}
+
+/// The card as it first shows, its countdown at its widest ("Play now (10)"; "Next in 10" under
+/// Reduce motion).
 fn up_next(p: &mut Fake, _: &mut Settings) {
-    let mut card = card(pley_player::controller::COUNTDOWN_SECONDS);
-    card.image_url = Some("still:next".into());
-    p.state.up_next = Some(card);
+    p.state.up_next = Some(card(pley_player::controller::COUNTDOWN_SECONDS));
 }
 
 fn error(p: &mut Fake, _: &mut Settings) {

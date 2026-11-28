@@ -113,7 +113,13 @@
     "joinHint": "可以加入已在观看的频道，或等某个停止后再试。",
     "watchAgain": "重新观看",
     "otherChannels": "其他频道",
-    "backToGuide": "返回节目指南"
+    "backToGuide": "返回节目指南",
+    "details": {
+      "interlacedWhy": "隔行扫描视频会转换为逐行扫描。",
+      "noVideo": "此设备无法播放 {{codec}} 视频。",
+      "noAudio": "此设备无法播放 {{codec}} 音频。",
+      "interlaced": "隔行扫描"
+    }
   },
   "panel": {
     "changeGroup": "切换分组",

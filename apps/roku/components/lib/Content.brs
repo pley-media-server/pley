@@ -335,7 +335,13 @@ function contentMediaLine(media as dynamic, unknown = "" as string) as string
     summary = httpObject(media)
     parts = []
     if summary <> invalid
-        for each part in [fmtBitrate(summary.bitrate), fmtBytes(summary.size)]
+        ' A size of 0 is one not known yet (a .strm file's media before it is
+        ' found): left out, and with no bitrate either, nothing is said.
+        size = httpNumber(summary.size, -1)
+        if size = 0 and httpNumber(summary.bitrate, 0) <= 0 then return ""
+        sizeText = ""
+        if size > 0 then sizeText = fmtBytes(summary.size)
+        for each part in [fmtBitrate(summary.bitrate), sizeText]
             if part <> "" then parts.Push(part)
         end for
     end if
@@ -842,7 +848,7 @@ function contentPlayerTitle(detail as object) as string
     return parts.Join(" · ")
 end function
 
-' Up Next's card for the next episode: { itemId, title, line, image,
+' Up Next's card for the next episode: { itemId, title, line,
 ' startMs }.
 function contentUpNext(item as object, server as string) as object
     tile = contentTile(item, server, true)
@@ -856,7 +862,7 @@ function contentUpNext(item as object, server as string) as object
             line = line + title
         end if
     end if
-    return { itemId: tile.itemId, title: tile.title, line: line, image: tile.image, startMs: playerStartOf(tile.positionMs, tile.durationMs) }
+    return { itemId: tile.itemId, title: tile.title, line: line, startMs: playerStartOf(tile.positionMs, tile.durationMs) }
 end function
 
 ' A title's quality badges ("4K", "DV"): its media's, else its first file's.

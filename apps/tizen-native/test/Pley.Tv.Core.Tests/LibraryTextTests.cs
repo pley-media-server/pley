@@ -203,6 +203,9 @@ public class LibraryTextTests
         Assert.Equal("", LibraryText.MediaLine(null));
         Assert.Equal("Bitrate unknown", LibraryText.MediaLine(new MediaSummary()));
         Assert.Equal("8.2 Mbps", LibraryText.MediaLine(new MediaSummary { Bitrate = 8_200_000 }));
+        // A .strm file's media before it is found: no "0 B".
+        Assert.Equal("", LibraryText.MediaLine(new MediaSummary { Size = 0 }));
+        Assert.Equal("8.2 Mbps", LibraryText.MediaLine(new MediaSummary { Bitrate = 8_200_000, Size = 0 }));
         Assert.Equal(new[] { "HDR" }, LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, DynamicRange = "hdr10" }));
         Assert.Empty(LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, VideoCodec = "h264", DynamicRange = "sdr" }));
         Assert.Equal(new[] { "4K" }, LibraryText.MediaBadges(new MediaSummary { Width = 3840, Height = 2160, VideoCodec = "h264", DynamicRange = "sdr" }));

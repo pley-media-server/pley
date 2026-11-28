@@ -10,9 +10,11 @@
 //!   sends it) is read at once, under an id of its own, while the server is
 //!   asked what the channel is made into ([`plays_as_sent`]): sent as it is,
 //!   or with sound the TV decodes itself, it plays from its first keyframe
-//!   rather than after the first HLS segments. Its address takes the token,
-//!   which the TV's player can't send, so the app reads it and hands it on
-//!   from the TV's loopback address ([`StreamRelay`]).
+//!   rather than after the first HLS segments. So does one the server would
+//!   convert whose video and sound this TV plays as the provider sends them:
+//!   no transcode is made for it. Its address takes the token, which the TV's
+//!   player can't send, so the app reads it and hands it on from the TV's
+//!   loopback address ([`StreamRelay`]).
 //! - Otherwise, or when it fails, the server's HLS from its live edge, once
 //!   its playlist has come: before the stream.ts played at once; while it
 //!   played, once the server has said watching didn't end there.
@@ -20,23 +22,33 @@
 //!   stream started its clock over, and the TV's player says nothing) is read
 //!   again on the same session, from the server's last keyframe
 //!   ([`crate::live::stuck`], the web app's rules).
+//! - Playback details ([`crate::live::details`]) asks the plan again while
+//!   it shows ([`LiveSession::ask_plan`]): the server answers what it knows
+//!   at once, with what the provider sends now. A channel on HLS whose tune
+//!   didn't learn its plan asks it once as its picture starts, for the badge
+//!   that says how it plays.
+//! - As a video's, it counts the channel's stalls and times its first
+//!   picture from each tune, for Playback details' This TV.
 //!
 //! The owner calls [`LiveSession::tick`] each frame with the app's clock in ms.
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use pley_base::Rect;
 use pley_core::ApiError;
+use pley_core::caps::takes;
 use pley_core::http::{Method, sentence};
 use pley_core::media::{EngineEvent, EngineStats, LoadRequest, MediaKind, PlayerEngine};
-use pley_core::model::{BusyConnection, DeviceKind, LiveChannel, LivePlan, ServerEvent, WatchRequest};
+use pley_core::model::{
+    BusyConnection, ClientCaps, DeviceKind, LiveChannel, LivePlan, MediaStream, ServerEvent, VideoDecoder, WatchRequest,
+};
 use pley_core::task::{Cancel, Promise, Tasks};
 use pley_i18n::t;
 
 use crate::controller::engine_error;
-use crate::env::PlayerEnv;
+use crate::env::{CapsProbe, PlayerEnv};
 use crate::live::relay::{Opener, StreamRelay};
 use crate::live::stuck::{Coming, StuckWatch, Unstick, unstick};
 use crate::recovery::EngineError;
@@ -70,14 +82,78 @@ pub const STREAM_CLIENT: &str = "-stream";
 /// can't: AC-3, E-AC-3 and MP2 (docs/LG.md, "What an LG TV plays").
 pub const TV_DECODED_AUDIO: [&str; 3] = ["ac3", "eac3", "mp2"];
 
-/// Whether this TV plays a channel's stream.ts as the provider sends it (the Samsung app's
+/// Video LG's pipeline reads from an MPEG-TS, by ffprobe's names: H.264, HEVC and MPEG-2, on
+/// every webOS from 4.0 (LG's format pages, docs/LG.md's references). They list VP9 and AV1 only
+/// from Matroska and MP4, so a channel in those stays with the server.
+pub const TS_VIDEO: [&str; 3] = ["h264", "hevc", "mpeg2video"];
+/// Sound they list for one that every TV's report decodes: AAC, AC-3, E-AC-3, MP2 and MP3.
+pub const TS_AUDIO: [&str; 5] = ["aac", "ac3", "eac3", "mp2", "mp3"];
+
+/// Sent as it is, or left out.
+pub(crate) fn as_is(action: &str) -> bool {
+    action == "copy" || action == "none"
+}
+
+/// The channel as the server sends it plays here whatever the TV reports (the Samsung app's
 /// `LiveRules.PlaysAsSent`): its picture sent as it is (or none), its sound sent as it is (or
-/// none) or in a format the TV decodes itself.
-pub fn plays_as_sent(plan: &LivePlan) -> bool {
-    let as_is = |s: &str| s == "copy" || s == "none";
+/// none) or in a format every LG TV decodes itself.
+pub(crate) fn sent_as_it_is(plan: &LivePlan) -> bool {
     as_is(&plan.video)
         && (as_is(&plan.audio)
             || plan.audio_codec.as_deref().is_some_and(|c| TV_DECODED_AUDIO.contains(&c.to_ascii_lowercase().as_str())))
+}
+
+/// Whether this TV decodes the provider's video from the stream.ts: in a codec the pipeline reads
+/// from MPEG-TS, which its report decodes ([`reports_video`]).
+pub(crate) fn decodes_video(plan: &LivePlan, caps: &ClientCaps) -> bool {
+    plan.video_codec.as_deref().is_some_and(|c| TS_VIDEO.iter().any(|t| t.eq_ignore_ascii_case(c)))
+        && reports_video(plan, caps)
+}
+
+/// Whether the TV's report decodes the provider's video, from an MPEG-TS or a file: not interlaced
+/// video the server makes progressive, within a decoder of the report at its bit depth (8 when the
+/// plan doesn't say), size and frame rate, by the rule a file's direct play goes by ([`takes`]). A
+/// report that only names codecs (version 1) is taken at 8 bits.
+pub(crate) fn reports_video(plan: &LivePlan, caps: &ClientCaps) -> bool {
+    let Some(codec) = plan.video_codec.as_deref().map(str::to_ascii_lowercase) else { return false };
+    if plan.made_progressive() {
+        return false;
+    }
+    let depth = plan.bit_depth.filter(|d| *d > 0).unwrap_or(8);
+    let decoders: Vec<&VideoDecoder> = caps.video.iter().filter(|e| e.codec.eq_ignore_ascii_case(&codec)).collect();
+    if decoders.is_empty() {
+        return !caps.is_v2() && depth <= 8 && caps.video_codecs.iter().any(|c| c.eq_ignore_ascii_case(&codec));
+    }
+    let video = MediaStream {
+        codec,
+        width: plan.width,
+        height: plan.height,
+        frame_rate: plan.frame_rate,
+        ..MediaStream::default()
+    };
+    decoders.iter().any(|e| takes(e, &video, depth))
+}
+
+/// Whether this TV plays the provider's sound from the stream.ts: in a format the pipeline
+/// reads from MPEG-TS, which the TV's report decodes or sends on to a receiver.
+pub(crate) fn plays_audio(plan: &LivePlan, caps: &ClientCaps) -> bool {
+    plan.audio_codec
+        .as_deref()
+        .is_some_and(|c| TS_AUDIO.iter().any(|t| t.eq_ignore_ascii_case(c)) && caps.plays_audio(c))
+}
+
+/// Whether this TV plays a channel's stream.ts as the provider sends it. A channel the server
+/// sends as it is always does ([`sent_as_it_is`]). So does one it would convert whose video and
+/// sound this TV's report (`caps`, the one a file's direct play goes by) plays; with no report,
+/// only the first holds.
+pub fn plays_as_sent(plan: &LivePlan, caps: Option<&ClientCaps>) -> bool {
+    if sent_as_it_is(plan) {
+        return true;
+    }
+    let Some(caps) = caps else { return false };
+    let video = as_is(&plan.video) || decodes_video(plan, caps);
+    let audio = as_is(&plan.audio) || plays_audio(plan, caps);
+    video && audio && !(plan.video == "none" && plan.audio == "none")
 }
 
 /// Why a channel isn't playing.
@@ -206,6 +282,12 @@ pub struct LiveState {
     pub audio_only: bool,
     /// Counts each channel tuned by the person (not a recovery), so the banner shows anew.
     pub tunes: u32,
+    /// Time from tuning to the channel's first picture, in ms (Playback details' First frame, as
+    /// a video's); none before it shows.
+    pub first_frame_ms: Option<i64>,
+    /// Times the channel stopped to wait for more once it played (Playback details' Stalls, as
+    /// a video's): counted anew for another channel.
+    pub stalls: u32,
 }
 
 /// What a failure's question to the server was for.
@@ -236,8 +318,18 @@ fn take(answered: &Answered) -> Option<String> {
     answered.lock().unwrap_or_else(|e| e.into_inner()).take()
 }
 
+/// The TV's report, asked once, on a task: what [`plays_as_sent`] and Playback details go by.
+type Caps = Arc<OnceLock<Option<ClientCaps>>>;
+
+/// What a tune found to play, with what the server said the channel is made into when the tune
+/// asked.
+struct Found {
+    source: Source,
+    plan: Option<Box<LivePlan>>,
+}
+
 enum Done {
-    Tuned { g: u64, session: Answered, channel: Option<Box<LiveChannel>>, result: Result<Source, Trouble> },
+    Tuned { g: u64, session: Answered, channel: Option<Box<LiveChannel>>, result: Result<Found, Trouble> },
     Why { g: u64, asked: Box<Asked>, why: Option<String> },
 }
 
@@ -262,6 +354,8 @@ pub struct LiveSession {
     generation: Arc<AtomicU64>,
     retries: u32,
     now: i64,
+    /// When the channel was last tuned, for its First frame.
+    tuned_at: i64,
     start_deadline: Option<i64>,
     picture_at: Option<i64>,
     retry_at: Option<(i64, LiveChannel)>,
@@ -285,6 +379,18 @@ pub struct LiveSession {
     coming: Coming,
     /// When the stream.ts was last read again, since the channel was tuned.
     read_again_at: Option<i64>,
+    /// Asks the TV's report.
+    probe: CapsProbe,
+    caps: Caps,
+    /// What the server last said the channel tuned is made into, for Playback details.
+    plan: Option<LivePlan>,
+    /// The plan asked again for Playback details, and the tune it was asked in.
+    plan_job: Option<(u64, Promise<Option<LivePlan>>)>,
+}
+
+/// The TV's report, asked the first time: on a task, as the TV may ask its services.
+fn caps_of<'a>(caps: &'a Caps, probe: &CapsProbe) -> Option<&'a ClientCaps> {
+    caps.get_or_init(|| probe().map(|report| report.caps)).as_ref()
 }
 
 /// Why a session ended, from its plan: the server's words for a `410` (empty when it gave none, not
@@ -314,6 +420,8 @@ impl LiveSession {
                 shown: false,
                 audio_only: false,
                 tunes: 0,
+                first_frame_ms: None,
+                stalls: 0,
             },
             version: 0,
             session: None,
@@ -323,6 +431,7 @@ impl LiveSession {
             generation: Arc::new(AtomicU64::new(0)),
             retries: 0,
             now,
+            tuned_at: now,
             start_deadline: None,
             picture_at: None,
             retry_at: None,
@@ -337,6 +446,10 @@ impl LiveSession {
             stuck: None,
             coming: Coming::from(0),
             read_again_at: None,
+            probe: env.caps.clone(),
+            caps: Caps::default(),
+            plan: None,
+            plan_job: None,
         }
     }
 
@@ -367,9 +480,38 @@ impl LiveSession {
         self.session.as_deref()
     }
 
+    /// What the server last said the channel tuned is made into: from the tune when it asked,
+    /// then from each [`LiveSession::ask_plan`]; none until it is known.
+    pub fn plan(&self) -> Option<&LivePlan> {
+        self.plan.as_ref()
+    }
+
+    /// This TV's report, once a tune or [`LiveSession::ask_plan`] has asked it; none before, and
+    /// where the TV gave none.
+    pub fn caps(&self) -> Option<&ClientCaps> {
+        self.caps.get().and_then(Option::as_ref)
+    }
+
+    /// Asks the plan of the session watched again, for Playback details: what the provider sends
+    /// now, and the plan itself where the tune didn't wait for it. One ask at a time. A failure
+    /// leaves what is known: a session that ended says so where its stream stops.
+    pub fn ask_plan(&mut self) {
+        let g = self.current();
+        if self.closed || self.plan_job.as_ref().is_some_and(|(asked, _)| *asked == g) {
+            return;
+        }
+        let Some(session) = self.session.clone() else { return };
+        let (server, caps, probe) = (self.server.clone(), self.caps.clone(), self.probe.clone());
+        let job = self.tasks.spawn(move || {
+            caps_of(&caps, &probe);
+            server.live_plan(&session).ok().flatten()
+        });
+        self.plan_job = Some((g, job));
+    }
+
     /// Whether an answer is still to come (tests wait for them).
     pub fn busy(&self) -> bool {
-        !self.jobs.is_empty() || !self.reporter.idle()
+        !self.jobs.is_empty() || self.plan_job.is_some() || !self.reporter.idle()
     }
 
     /// Bytes of stream.ts that have come for the TV's player since the first channel was tuned
@@ -378,8 +520,14 @@ impl LiveSession {
         self.relay.as_ref().map_or(0, |r| r.came())
     }
 
-    /// What the engine says of itself, for Info.
+    /// What the engine says of itself, and the TV's network speed, for Playback details.
     pub fn engine_stats(&self) -> EngineStats {
+        EngineStats { network_bps: self.engine.network_bps(), ..self.engine.stats() }
+    }
+
+    /// What the engine says of itself, for Playback details' readout: it shows no network speed,
+    /// which on LG means reading a file.
+    pub fn readout_stats(&self) -> EngineStats {
         self.engine.stats()
     }
 
@@ -561,6 +709,18 @@ impl LiveSession {
         };
         self.opener = Some(opener.clone());
         self.read_again_at = None;
+        // Of the channel before, or of this one before it was watched anew.
+        self.plan = None;
+        // Another channel's stalls say nothing of this one.
+        if self.state.channel.id != channel.id {
+            self.state.stalls = 0;
+        }
+        // From each tune; the HLS that takes over from a stream.ts that never played is the same
+        // tune, its first frame timed from when it was asked for.
+        if allow_direct || self.state.shown {
+            self.tuned_at = self.now;
+        }
+        self.state.first_frame_ms = None;
         let mut stream = match (&relay, take_over) {
             (Some(r), None) => r.serve(opener.clone()),
             _ => None,
@@ -572,6 +732,7 @@ impl LiveSession {
         self.state.audio_only = false;
         self.changed();
         let (server, reporter, generation) = (self.server.clone(), self.reporter.clone(), self.generation.clone());
+        let (caps, probe) = (self.caps.clone(), self.probe.clone());
         let answered = Answered::default();
         self.answered = (g, answered.clone());
         let req = WatchRequest {
@@ -637,24 +798,30 @@ impl LiveSession {
                     return handed_on(Done::Tuned { g, session, channel: None, result });
                 }
             }
+            let mut plan = None;
             if let Some(stream) = stream {
                 match server.live_plan(&watching.session_id) {
-                    Ok(Some(plan)) if plays_as_sent(&plan) => {
+                    // A channel sent as it is plays whatever the TV reports: its report isn't
+                    // waited for.
+                    Ok(Some(p)) if sent_as_it_is(&p) || plays_as_sent(&p, caps_of(&caps, &probe)) => {
                         log::info!(
                             "live: the channel plays from its stream.ts (video {} {}, audio {} {})",
-                            plan.video,
-                            plan.video_codec.as_deref().unwrap_or("?"),
-                            plan.audio,
-                            plan.audio_codec.as_deref().unwrap_or("?")
+                            p.video,
+                            p.video_codec.as_deref().unwrap_or("?"),
+                            p.audio,
+                            p.audio_codec.as_deref().unwrap_or("?")
                         );
-                        let url = stream.url().to_string();
-                        return handed_on(Done::Tuned { g, session, channel: named, result: Ok(Source::Ts(url)) });
+                        let found = Found { source: Source::Ts(stream.url().to_string()), plan: Some(Box::new(p)) };
+                        return handed_on(Done::Tuned { g, session, channel: named, result: Ok(found) });
                     }
-                    Ok(Some(plan)) => log::info!(
-                        "live: the channel plays its HLS: the server makes it into video {}, audio {}",
-                        plan.video,
-                        plan.audio
-                    ),
+                    Ok(Some(p)) => {
+                        log::info!(
+                            "live: the channel plays its HLS: the server makes it into video {}, audio {}",
+                            p.video,
+                            p.audio
+                        );
+                        plan = Some(Box::new(p));
+                    }
                     Ok(None) => log::info!("live: the channel plays its HLS: its plan isn't known in time"),
                     Err(e) => log::info!("live: the channel plays its HLS: no plan ({})", e.problem()),
                 }
@@ -669,7 +836,7 @@ impl LiveSession {
             }
             // The channel's first segments, before the player asks: a TV's player gives up sooner than the server takes to tune.
             let result = match server.media(Method::Get, &playlist, Duration::from_millis(PLAYLIST_WAIT_MS)) {
-                Ok(_) => Ok(Source::Hls(playlist)),
+                Ok(_) => Ok(Found { source: Source::Hls(playlist), plan }),
                 // Ended before it played (taken over, say): a keyed address only says the session
                 // has gone, its own address says why.
                 Err(e) if e.is(410) => {
@@ -704,8 +871,26 @@ impl LiveSession {
         self.version != before
     }
 
+    /// The plan asked again for Playback details: kept when it came for the channel still tuned.
+    fn collect_plan(&mut self) {
+        let Some((g, job)) = self.plan_job.as_mut() else { return };
+        if !job.ready() && !job.failed() {
+            return;
+        }
+        let (g, plan) = (*g, job.take().flatten());
+        self.plan_job = None;
+        if g == self.current()
+            && let Some(plan) = plan
+            && self.plan.as_ref() != Some(&plan)
+        {
+            self.plan = Some(plan);
+            self.changed();
+        }
+    }
+
     fn collect(&mut self) {
         self.take_answered();
+        self.collect_plan();
         loop {
             let mut done = Vec::new();
             let mut i = 0;
@@ -799,10 +984,7 @@ impl LiveSession {
         log::info!("live: the channel's stream.ts stands still while it comes: read again");
         // Waiting, for the person, from now until what is read again plays.
         self.clear_stall();
-        if self.state.phase != LivePhase::Buffering {
-            self.state.phase = LivePhase::Buffering;
-            self.changed();
-        }
+        self.waits();
         // The plan first: asking marks the watch session seen, so it stays while no stream is
         // read for it, and one that ended (stopped from elsewhere) says why instead.
         let (server, g) = (self.server.clone(), self.current());
@@ -855,6 +1037,10 @@ impl LiveSession {
                     self.state.channel = *c;
                     self.changed();
                 }
+                let result = result.map(|found| {
+                    self.plan = found.plan.map(|plan| *plan);
+                    found.source
+                });
                 match result {
                     Ok(Source::Hls(url)) => {
                         // Made into something else, or not known in time: the stream.ts read
@@ -951,10 +1137,7 @@ impl LiveSession {
                 if matches!(self.state.phase, LivePhase::Error | LivePhase::Tuning) {
                     return;
                 }
-                if self.state.phase != LivePhase::Buffering {
-                    self.state.phase = LivePhase::Buffering;
-                    self.changed();
-                }
+                self.waits();
                 self.watch_stall();
             }
             // A stream.ts that ends before it plays: its HLS now, not after the wait.
@@ -973,6 +1156,18 @@ impl LiveSession {
             | EngineEvent::VideoInfo { .. }
             | EngineEvent::Buffered { .. } => {}
         }
+    }
+
+    /// The channel waits for more: a stall, counted when it played until now.
+    fn waits(&mut self) {
+        if self.state.phase == LivePhase::Buffering {
+            return;
+        }
+        if self.state.phase == LivePhase::Playing {
+            self.state.stalls += 1;
+        }
+        self.state.phase = LivePhase::Buffering;
+        self.changed();
     }
 
     /// A stall that lasts: the server says whether watching ended (and why); one that goes on is a failure.
@@ -996,6 +1191,13 @@ impl LiveSession {
         self.start_deadline = None;
         self.state.shown = true;
         self.state.phase = LivePhase::Playing;
+        // From the tune: a stream read again, a while into the channel, isn't its first picture.
+        self.state.first_frame_ms.get_or_insert(self.now - self.tuned_at);
+        // On HLS with a plan the tune didn't learn (its stream.ts failed, or the app can't hand
+        // one on): asked once, so the badge says how the channel plays.
+        if !self.direct && self.plan.is_none() {
+            self.ask_plan();
+        }
         self.picture_at = Some(self.now + PICTURE_CHECK_MS);
         // From its first picture: until then the stream has its 10 s to start.
         self.stuck = self.direct.then(|| StuckWatch::new(self.now, self.engine.reported_ms()));
@@ -1106,12 +1308,14 @@ impl LiveSession {
         self.leave();
     }
 
-    /// The TV shows the app again: the channel from its live edge. One that stopped on the server
-    /// keeps its card, and is watched again only with Watch again (as Android's).
-    pub fn resume(&mut self) {
+    /// The TV shows the app again, at `now` (it may have been hidden long past the last tick, and
+    /// the first frame is timed from here): the channel from its live edge. One that stopped on
+    /// the server keeps its card, and is watched again only with Watch again (as Android's).
+    pub fn resume(&mut self, now: i64) {
         if self.closed {
             return;
         }
+        self.now = now.max(self.now);
         if self.state.phase == LivePhase::Error
             && self.state.trouble.as_ref().is_some_and(|t| t.kind == TroubleKind::Stopped)
         {
@@ -1139,6 +1343,8 @@ impl LiveSession {
     }
 
     fn leave(&mut self) {
+        // The plan asked of the session that goes isn't waited for.
+        self.plan_job = None;
         if let Some(s) = self.session.take() {
             self.leave_session(s);
         }

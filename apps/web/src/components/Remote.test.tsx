@@ -4,14 +4,24 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PlayingSession, RemoteDevice, TrackOption } from "@/api/types";
 import { formatClock } from "@/lib/format";
 import { playingHere } from "@/lib/playingHere";
-import { openRemoteOn } from "@/lib/remote";
+import { ANSWER_WAIT_MS, openRemoteOn } from "@/lib/remote";
 import { makeItem, makeMarker, makeReceiver, makeSession } from "@/test/fixtures";
 import { apiError, mockApi, renderWithProviders, type FakeRequest } from "@/test/render";
 import { RemoteButton } from "./Remote";
 
-// A short wait for an answer, so the tests don't sit through the real one, yet long enough
-// for a test to look at what shows while a command waits.
-vi.mock("@/lib/remote", async (original) => ({ ...(await original<typeof import("@/lib/remote")>()), ANSWER_WAIT_MS: 200 }));
+// A wait for an answer longer than a test may take, so a busy machine never ends it while a
+// test looks at what shows as a command waits. A test of what shows once it is over fakes
+// the clock (`fakeWaits`) and says when (`waitOver`).
+vi.mock("@/lib/remote", async (original) => ({ ...(await original<typeof import("@/lib/remote")>()), ANSWER_WAIT_MS: 60_000 }));
+
+/** The remote's waits, on a faked clock, so a test can say when the wait for an answer is over. */
+const fakeWaits = () => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+/** The wait for an answer is over. */
+function waitOver() {
+  act(() => {
+    vi.advanceTimersByTime(ANSWER_WAIT_MS);
+  });
+}
 
 const nowSecs = () => Math.floor(Date.now() / 1000);
 
@@ -104,6 +114,23 @@ describe("RemoteButton", () => {
     sessions = [episode(), live()];
     await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
     expect(await screen.findByRole("button", { name: "Remote, 1 device playing" })).toBeInTheDocument();
+  });
+
+  it("says what it is in a tip on hover, and not while it is open", async () => {
+    serve(
+      () => [],
+      () => [phone],
+    );
+    renderWithProviders(<RemoteButton />);
+    const user = userEvent.setup();
+    const button = await screen.findByRole("button", { name: "Remote, 1 device ready to play" });
+    expect(button).not.toHaveAttribute("title");
+    await user.hover(button);
+    expect(await screen.findByText("Remote, 1 device ready to play", { selector: '[role="tooltip"]' })).toBeInTheDocument();
+
+    await user.click(button);
+    expect(screen.getByRole("dialog", { name: "Your devices" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("tooltip", { hidden: true })).toBeNull());
   });
 
   it("lists the devices that play first, with what they play, then those ready to play, each by name", async () => {
@@ -326,9 +353,9 @@ describe("RemoteButton", () => {
     expect(commands(requests)).toEqual([{ command: "play" }]);
     // It shows playing at once, not when the player's report comes.
     expect(within(panel).getByRole("button", { name: "Pause on Living room TV" })).toBeInTheDocument();
-    // The player's report brings `sessions_changed`.
+    // The player's report brings `sessions_changed`: the remote waits no more.
     await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
-    await act(() => new Promise((r) => setTimeout(r, 100)));
+    await waitFor(() => expect(within(panel).getByRole("status")).toBeEmptyDOMElement());
     expect(within(panel).getByRole("button", { name: "Pause on Living room TV" })).toBeInTheDocument();
     expect(within(panel).queryByRole("alert")).toBeNull();
   });
@@ -383,6 +410,7 @@ describe("RemoteButton", () => {
   });
 
   it("says so when the device didn't answer, and shows where it is again", async () => {
+    fakeWaits();
     serve(
       () => [episode({ controls: ["skip"] })],
       () => [],
@@ -393,6 +421,8 @@ describe("RemoteButton", () => {
 
     await user.click(within(panel).getByRole("button", { name: "Forward 30 seconds on Living room TV" }));
     expect(within(panel).getByRole("group")).toHaveTextContent("1:30");
+    expect(within(panel).queryByRole("alert")).toBeNull();
+    waitOver();
     expect(await within(panel).findByRole("alert")).toHaveTextContent("Living room TV didn't answer.");
     expect(within(panel).getByRole("group")).toHaveTextContent("1:00");
   });
@@ -417,10 +447,10 @@ describe("RemoteButton", () => {
     await user.click(within(tv).getByRole("button", { name: "Forward 30 seconds on Living room TV" }));
     expect(tv).toHaveTextContent("11:00");
 
-    // The player reports it went there: it stays there, with no failure.
+    // The player reports it went there: the remote waits no more, and it stays there, with no failure.
     sessions = [episode({ controls: ["seek", "skip"], position_ms: 660_000, updated_at: nowSecs() + 1 })];
     await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
-    await act(() => new Promise((r) => setTimeout(r, 100)));
+    await waitFor(() => expect(within(panel).getByRole("status")).toBeEmptyDOMElement());
     expect(tv).toHaveTextContent("11:00");
     expect(within(panel).queryByRole("alert")).toBeNull();
   });
@@ -577,6 +607,7 @@ describe("RemoteButton", () => {
   });
 
   it("lets a device go once a next started nothing", async () => {
+    fakeWaits();
     let sessions = [episode({ controls: ["next"] })];
     serve(
       () => sessions,
@@ -593,10 +624,12 @@ describe("RemoteButton", () => {
     await user.click(within(panel).getByRole("button", { name: "Next on Living room TV" }));
     await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
     expect(within(panel).getByRole("group", { name: "Living room TV" })).toBeInTheDocument();
+    waitOver();
     await waitFor(() => expect(screen.queryByRole("button", { name: /^Remote/ })).toBeNull());
   });
 
   it("doesn't call a next or previous that changed nothing a failure", async () => {
+    fakeWaits();
     serve(
       () => [episode({ controls: ["next"] })],
       () => [],
@@ -607,6 +640,7 @@ describe("RemoteButton", () => {
 
     await user.click(within(panel).getByRole("button", { name: "Next on Living room TV" }));
     expect(within(panel).getByRole("status")).toHaveTextContent("Waiting for Living room TV");
+    waitOver();
     await waitFor(() => expect(within(panel).getByRole("status")).toBeEmptyDOMElement());
     expect(within(panel).queryByRole("alert")).toBeNull();
   });
@@ -666,7 +700,7 @@ describe("RemoteButton", () => {
         { command: "subtitles", stream_index: 3 },
       ]);
       await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
-      await act(() => new Promise((r) => setTimeout(r, 100)));
+      await waitFor(() => expect(within(panel).getByRole("status")).toBeEmptyDOMElement());
       expect(within(panel).queryByRole("alert")).toBeNull();
 
       // Opened again, the subtitles now playing are ticked; Escape closes the menu alone.
@@ -703,6 +737,7 @@ describe("RemoteButton", () => {
     });
 
     it("says so when the device didn't take the track picked", async () => {
+      fakeWaits();
       serve(
         () => [withTracks()],
         () => [],
@@ -713,6 +748,8 @@ describe("RemoteButton", () => {
 
       await user.click(within(panel).getByRole("button", { name: "Subtitles on Living room TV" }));
       await user.click(within(panel).getByRole("menuitemradio", { name: "French (SRT, Forced)" }));
+      expect(within(panel).queryByRole("alert")).toBeNull();
+      waitOver();
       expect(await within(panel).findByRole("alert")).toHaveTextContent("Living room TV didn't answer.");
     });
 

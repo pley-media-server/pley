@@ -111,6 +111,7 @@ private class ResourceFormatWords(private val r: Resources) : FormatWords {
 
     override val watched: String get() = r.getString(R.string.format_watched)
     override fun unwatched(n: Int) = r.getQuantityString(R.plurals.format_unwatched, n, n)
+    override val finished: String get() = r.getString(R.string.format_finished)
 
     override val unknown: String get() = r.getString(R.string.format_unknown)
     override val stereo: String get() = r.getString(R.string.format_stereo)

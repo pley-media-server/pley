@@ -89,7 +89,8 @@ class MusicEnvironment(
  *   whether the session goes on first;
  * - Previous restarts a track that has played more than 3 s;
  * - Repeat plays the queue again from its start once it ends, or the
- *   track again once it does, each time with a session of its own;
+ *   track again once it does, each time with a session of its own; a
+ *   book's parts play once, in their order ([MusicQueue]);
  * - a sleep timer pauses after the minutes chosen, or at the end of the
  *   track (the next one waits, paused);
  * - a video or a channel ends the music's session ([pauseForVideo]): the
@@ -608,6 +609,7 @@ class MusicPlayback(
         if (queue.jumpTo(index)) startTrack(0)
     }
 
+    /** Shuffles the queue around the track playing, or puts it back in order; a book's parts stay in theirs. */
     fun setShuffle(shuffle: Boolean) {
         queue.setShuffle(shuffle)
         // Another track may come next.
@@ -615,7 +617,10 @@ class MusicPlayback(
         publish()
     }
 
-    /** Repeats the queue, the track, or nothing, from the track playing on; the queue's end, passed already, stays. */
+    /**
+     * Repeats the queue, the track, or nothing, from the track playing on; the queue's end, passed already, stays.
+     * A book never repeats, whatever is asked.
+     */
     fun setRepeat(repeat: MusicRepeat) {
         queue.repeat = repeat
         lookAhead()

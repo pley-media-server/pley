@@ -312,6 +312,9 @@ class FormatTest {
         assertEquals(emptyList<String>(), mediaBadges(MediaSummary()))
         assertEquals("Bitrate unknown", mediaLine(MediaSummary()))
         assertEquals("", mediaLine(null))
+        // A .strm file's media before it is found: no "0 B".
+        assertEquals("", mediaLine(MediaSummary(size = 0)))
+        assertEquals("8.2 Mbps", mediaLine(MediaSummary(bitrate = 8_200_000, size = 0)))
     }
 
     @Test
@@ -396,6 +399,12 @@ class FormatTest {
             "Severance, 2 seasons, 6 unwatched",
             tileDescription(item(ItemKind.Show, "Severance", childCount = 2, leafCount = 19, viewedLeafCount = 13), FormatWords.English, us),
         )
+        // A book is listened to: heard to its end it is finished, as its page says, and so is a part of it.
+        val book = item(ItemKind.Audiobook, "Harbor Lights", userState = UserState(watched = true)).copy(authors = listOf("Ilse Brandt"))
+        assertEquals("Harbor Lights, Ilse Brandt, finished", tileDescription(book, FormatWords.English, us))
+        assertEquals("Harbor Lights, Ilse Brandt", tileDescription(book.copy(userState = UserState()), FormatWords.English, us))
+        val part = item(ItemKind.Part, "Part 1", parentTitle = "Harbor Lights", userState = UserState(watched = true))
+        assertEquals("Part 1, Harbor Lights, finished", tileDescription(part, FormatWords.English, us))
     }
 
     @Test

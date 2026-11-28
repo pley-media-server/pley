@@ -567,9 +567,14 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
 - `.strm` files are off until an administrator turns them on
   (`strm_files`). Off, scans leave them out, and nothing asks their
   addresses.
-- Nothing asks an address until someone opens or plays its item: a scan
-  reads the files only. An address that fails isn't asked again for 20
-  seconds by a playback, or for 10 minutes by a page opening.
+- By default, nothing asks an address until someone opens or plays its
+  item: a scan reads the files only. With `strm_probe` on, a scan, once
+  done, asks the address of each `.strm` file whose media isn't known yet,
+  a few at a time, for video or audio as above, so writing a `.strm` file
+  in a library folder is enough for Pley to ask its address, with nobody
+  opening it. An address that fails isn't asked again for 20 seconds by a
+  playback, for 10 minutes by a page opening, or for a day by a scan
+  (unless its file names another, or the server restarts).
 
 ### Untrusted media
 
@@ -747,14 +752,22 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
 - The music service lets in only the app, the system's own media controls,
   Android Auto and the Google app: those two by the certificate Google signs
   them with, and only as the app that asks (its name must be the asking
-  uid's). They browse the music and pick what plays; a media button, from a
-  headset or another app, only plays, pauses and skips, as do apps given
-  access to notifications (a watch's companion), which Android lets control
-  any media session. Their covers come
+  uid's). They browse the music and pick what plays, and their covers come
   through a content provider that isn't exported: each of them is granted
   reading it alone, and it fetches only the server's item and collection
-  pictures and Live TV's channel logos. What music played last is kept on
-  the device for the profile that played it, and goes when it signs out.
+  pictures and Live TV's channel logos. No other app reads the library or
+  picks what plays: it only steers what already plays. A media button, from
+  a headset or another app, plays, pauses and skips, as do apps given access
+  to notifications (a watch's companion), which Android lets control any
+  media session. The service is exported, for the car and the system, so an
+  app can also send it what the notification's buttons send, and one with
+  access to notifications can pass for the system's media controls, which
+  Media3 knows by name alone. Either then steers the music as the
+  notification may (seeking, a place in the queue, Shuffle, Repeat, a book's
+  speed, its volume, stopping it), and the second reads what those controls
+  read: what plays, its queue and what played last. What music played last
+  is kept on the device for the profile that played it, and goes when it
+  signs out.
 - The TV launcher plays a title from the Watch Next row only when the link
   carries the signature this installation gave it, so no other app can make
   it play.

@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
@@ -41,7 +42,15 @@ internal fun BoxScope.DetailsReadout(state: PlayerScreenState, enabled: Boolean)
     val shown = enabled && !state.controlsVisible && state.sheet == null && state.phase !is PlayerPhase.Error
     LaunchedEffect(shown) { state.readout(shown) }
     DisposableEffect(state) { onDispose { state.readout(false) } }
-    val details = state.details
+    DetailsReadout(state.details, shown)
+}
+
+/**
+ * The readout itself, the live player's too: [details]' way and first
+ * rows at the top left while [shown], once there is something to say.
+ */
+@Composable
+internal fun BoxScope.DetailsReadout(details: PlaybackDetailsUi?, shown: Boolean) {
     // It comes once the controls have faded, so the two never overlap.
     AnimatedVisibility(
         visible = shown && details != null,
@@ -61,7 +70,8 @@ private fun Readout(details: PlaybackDetailsUi) {
             .padding(16.dp)
             .widthIn(max = READOUT_WIDTH)
             .background(Color.Black.copy(alpha = 0.6f), PleyShape.Card)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .testTag(TAG_READOUT),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(details.method, style = MaterialTheme.typography.labelMedium, color = methodColors(details.playbackMethod).text)
@@ -78,3 +88,5 @@ private fun Readout(details: PlaybackDetailsUi) {
 private const val READOUT_ROWS = 6
 private val READOUT_WIDTH = 360.dp
 private val LABEL_WIDTH = 72.dp
+
+internal const val TAG_READOUT = "phone-player-readout"

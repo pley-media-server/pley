@@ -56,10 +56,16 @@ sealed interface MusicId {
 
     /**
      * A track, picked from its [from] (an album or a playlist), or alone (a search: its album plays on). A book's
-     * part is one too, in the queue: its book plays on from it.
+     * part is one too, in the queue: its book plays on from it. One a playlist has again says where it is there
+     * ([at], counted from 0): each row has an id of its own, and the playlist plays on from the one picked.
      */
-    data class Track(val id: Long, val from: MusicId? = null) : MusicId {
-        override val text get() = if (from == null) "track:$id" else "track:$id@${from.text}"
+    data class Track(val id: Long, val from: MusicId? = null, val at: Int? = null) : MusicId {
+        override val text
+            get() = when {
+                from == null -> "track:$id"
+                at == null -> "track:$id@${from.text}"
+                else -> "track:$id@${from.text}#$at"
+            }
     }
 
     /** The audiobooks' tab: those being heard, those added last, then every one by title. */
@@ -113,8 +119,14 @@ sealed interface MusicId {
                 val at = track.indexOf('@')
                 if (at < 0) return track.toIdOrNull()?.let { Track(it) }
                 val id = track.substring(0, at).toIdOrNull() ?: return null
-                val from = parse(track.substring(at + 1))
-                return if (from is Album || from is Playlist) Track(id, from) else null
+                val place = track.indexOf('#', at)
+                if (place < 0) {
+                    val from = parse(track.substring(at + 1))
+                    return if (from is Album || from is Playlist) Track(id, from) else null
+                }
+                // Only a playlist has a track more than once.
+                val from = parse(track.substring(at + 1, place)) as? Playlist ?: return null
+                return track.substring(place + 1).toPlaceOrNull()?.let { Track(id, from, it) }
             }
             val colon = text.indexOf(':')
             if (colon < 0) return null
@@ -139,6 +151,10 @@ sealed interface MusicId {
 
         /** The longest id taken: a group's name is the provider's, and a car sends ids back. */
         private const val MAX_LENGTH = 512
+
+        /** A place in a playlist, digits only. */
+        private fun String.toPlaceOrNull(): Int? =
+            if (isEmpty() || length > 6 || any { it !in '0'..'9' }) null else toIntOrNull()
 
         /** A positive id, digits only. */
         private fun String.toIdOrNull(): Long? =

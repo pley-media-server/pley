@@ -165,8 +165,7 @@ rates as the decoder gives them, the same in every language.
   gradient alone. A tile's name is in its caption, not on its picture. The mark shows only
   where the title's name is by its picture (a caption, the line beside
   it): backdrops, people, Live TV's programs and a playlist's mosaic
-  keep the gradient alone, and the player's Up Next card too, as it
-  doesn't know its title's kind. The gradient and the mark are
+  keep the gradient alone. The gradient and the mark are
   `packages/placeholder`'s, which unit tests hold the app's copies to.
 - **The tabs** are a bar under the page on a phone held upright, with
   their names, and a rail beside it on a phone on its side, a tablet or
@@ -633,7 +632,8 @@ audio and subtitles cast (`audio_index`, `subtitle_index`, `-1` for none)
 in place of the profile's saved choices for that play, not saved, a track
 the file it plays doesn't have leaving the choice to them; a show or a
 season its next episode; a track, an album or an artist in the
-music player, shuffled with `shuffle`; a playlist from its first entry
+music player, shuffled with `shuffle`, else a track from `start_ms` when
+given; a playlist from its first entry
 (a random one with `shuffle`), video as a queue in the player and music
 in the music player; a channel in the live player, tuned as Watch on that
 channel would, on a phone or a TV, Fire TV included. What plays makes way,
@@ -748,7 +748,10 @@ Playing (phone, TV and the notification) has back 15 seconds and forward
 car's button does; the speed is kept on the device for every book, the
 car included. Previous and Next go from chapter to chapter in a file with
 chapters, then from part to part, and Now Playing and the bar of what
-plays are named for the chapter playing, the book under it.
+plays are named for the chapter playing, the book under it. A book's
+parts play once, in their order: it never shuffles or repeats, whatever
+asks (a car's own controls, the Assistant), and Repeat set for the music
+before it ends as the book starts, as it does when the music stops.
 
 Now Playing moves from one track (or chapter) to the next, on phones and
 TVs alike: the cover stays until the next one has come and fades in over
@@ -766,8 +769,21 @@ no See all. TMDB's Discover row comes after them ([Requests](#requests)).
 
 ### Up Next
 
-Skip Intro and Skip Credits show while an intro or the credits play, until
-a second before they end; nothing is skipped by itself. Up Next, what
+Skip Intro and Skip Credits are offered while an intro or the credits
+play, until a second before they end; nothing is skipped by itself. Skip
+shows by itself for 8 seconds from when it appears (the playhead playing
+or seeking into the segment, or the title starting in it), then fades
+out, so it doesn't sit over the whole intro; after that it shows only
+with the player's controls, where it sits with them, and hides with them.
+Entering a segment again, or the next one, starts a fresh 8 seconds;
+seeking inside the same one doesn't. On TVs Skip has focus while it shows
+by itself, so OK skips; when it goes, focus goes back to the video, and
+OK, the arrows and the rest do what they do with nothing on screen. In
+those 8 seconds, the keys that open the controls without a place of their
+own (Menu, Info) open them on Skip, and the controls closing give Skip its
+focus back; after them, the controls open on the scrubber, Up reaches
+Skip, and Skip goes as they close. Under Up Next's card Skip Credits
+doesn't show; after Cancel, its 8 seconds run from then. Up Next, what
 plays next with a 10 s countdown (none with Play the next episode by
 itself off), comes as credits that run to the end of their file begin,
 and otherwise at the end of the file. Credits run to the end when they end
@@ -776,7 +792,11 @@ as the player has it; with no length known, they don't. Credits that
 something follows, an after-credits scene or a show's last minutes, offer
 only Skip Credits, so the countdown never skips what comes after them. An
 episode goes on to the next one, and a title played from a playlist or a
-collection to the next title there, the same on phones and TVs.
+collection to the next title there, the same on phones and TVs. The card
+holds the next title's name and episode, without a picture, so it covers
+little of the credits; its countdown is in Play now, "Play now (7)" with a
+sweep filling the button smoothly, in steps of a second with reduced
+motion, the same on phones and TVs.
 
 ### Audio and subtitles
 
@@ -871,10 +891,19 @@ connections are set up in the web app's Settings → Live TV
 On Android the player reads the channel's MPEG-TS (`stream.ts`) as it
 asks for the channel (`POST …/watch`), the server tuning for whichever
 comes first, then asks for the session's `plan`: a channel the server sends
-as it is plays that MPEG-TS from its first keyframe, as does one whose AC3
-or E-AC3 sound the server converts, where the device decodes it or sends it
-to its receiver as it is (Diagnostics lists both); anything else
-plays the server's HLS. Taking over a connection, it reads `stream.ts` only once
+as it is plays that MPEG-TS from its first keyframe, and so does any
+channel the device plays as the provider sends it
+([API.md](API.md#live-tv)), of which the server makes no transcode:
+H.264, HEVC or MPEG-2 video that one of the device's decoders
+takes at its bit depth, size and frame rate (8 bits when the plan gives
+none), with AAC, AC3, E-AC3 or MP3 sound the device decodes or sends to
+its receiver as it is (Diagnostics lists both), which is what Media3 reads
+from MPEG-TS and Android has decoders for. Interlaced video stays with
+the server while its Deinterlace setting is on, and so does MP2 sound, which the app doesn't look for a decoder of. Before the
+device's decoders are known, only a channel sent as it is plays so.
+Anything else plays the server's HLS, and so does a channel whose
+`stream.ts` fails.
+Taking over a connection, it reads `stream.ts` only once
 the watch has answered, as only the watch takes the connection. Leaving
 the player ends the session, unless it goes into picture in picture
 (below). A page of channels that didn't load is asked for again once
@@ -893,6 +922,45 @@ server starts at its last keyframe. A channel that never played, or that
 stands still again within 2 minutes of being read again, plays the
 server's HLS instead. A provider that sends nothing isn't read again: the
 player waits for it.
+
+The live player says how the channel plays as the video player does:
+**Direct play** from `stream.ts`, **Direct stream** for HLS with its video
+copied (**Direct stream · Audio transcoding** when the server converts
+its sound), or **Transcoding**, in the same badge, after the channel's
+name on phones and beside **Live** on TVs. It has the video player's
+**Playback details** too, opened the same way: the badge on phones (an
+info button beside channel down and up on a car's screen, which has no
+badge), in the video player's sheet; **Info**, last in the controls, on
+TVs, in its side panel, which Up and Down scroll. They say how the
+channel plays and, for a channel on HLS, why it isn't played as sent
+(**Interlaced video is made progressive.**, **This device doesn't play
+HEVC 10-bit video.**, **This device doesn't play EAC3 audio.**; nothing
+when the device decodes a codec that Media3 doesn't read from MPEG-TS, or
+when `stream.ts` failed). Then the provider's video ("HEVC 10-bit ·
+3840×2160 · 50 fps", with "interlaced"), sound ("EAC3 5.1") and bitrate as
+it is now, each with what the server makes of it when it converts it ("→
+H.264 1080p", "→ AAC 2.0", the transcode's video bitrate), a transcode's
+encoder, and this device's side as for a video: the decoder, the
+picture, dropped frames, where the sound goes. The video's bit depth is
+said only above 8, in its row and in the reason, and a transcode's size
+is written as a video's ("4K", "1080p", "SD"), from its lines. A row whose
+value isn't known is left out. The badge comes from the plan the player
+asked for as it tuned, or asks for it once when a channel went to HLS
+without one. While the details show, the player asks for the session's
+`plan` again every 2.5 s, and for the next channel's when the channel
+changes; closed, it asks nothing. A channel on HLS whose plan the server
+doesn't give has no badge, and its details, where a button opens them,
+show waiting.
+
+**Settings → Playback details** keeps the video player's readout over a
+channel as over a video, at the top left while the channel plays and the
+controls are hidden: how it plays, then the rows of its details, and on
+TVs this TV's lines too (the decoder, the display, dropped frames, the
+buffer). It steps aside for the controls, the channel list and the
+details themselves, and picture in picture shows the picture alone. It
+asks for the `plan` as the details do while it shows, and shows what the
+badge knows until the server answers.
+
 Live TV has no pause, so another app's sound, a call's included, quiets
 the channel instead: its sound comes back once the other app is done, or,
 after music or a video, which take the sound for good, with the next
@@ -909,8 +977,10 @@ player. The screen turning off lets the session go too, and the channel
 is tuned again in the small window once the screen is back on.
 
 On TVs, OK in the player opens the channel list, as Menu and Guide do;
-holding OK shows the controls (the channel list and the favorite's star) over
-what's on. Up and Down, Channel up and down, and Previous and Next change
+holding OK shows the controls (the channel list, the favorite's star and
+Info, for Playback details) over
+what's on, which says how the channel plays beside Live. Up and Down,
+Channel up and down, and Previous and Next change
 channel. In the guide, Left and Right go program by program, back
 through a program that began before the guide a screen at a time, and a
 half hour at a time on a channel without a guide; rewind and fast forward
@@ -1266,7 +1336,7 @@ the order it has, and Next on its last track and Previous on its first go
 round; a track that repeats plays again by itself, and Next and Previous
 still move, stopping at the queue's ends as they do without Repeat (on
 the phone as in the car). Repeat stays as another album plays, until the
-music stops.
+music stops or a book plays.
 
 A track is one entry of the car's Now Playing from the moment it is the
 queue's: its title, artist, cover and length as the library has them,
@@ -1638,6 +1708,12 @@ pwsh ..\..\scripts\check-android.ps1   # the release's libraries, native code an
 - Two flavors: `store` (Google Play and the Amazon Appstore, no
   self-updater) and `direct` (the APK to sideload, with an update check).
 - Debug APKs: `app/build/outputs/apk/{store,direct}/debug/`.
+- Unit tests run on Robolectric's Android 16 (SDK 36, robolectric.properties)
+  and, where a test asks for it, 8.1 (SDK 27). Gradle fetches those runtimes
+  (`robolectric-android-all-*` in the version catalog) and the tests never
+  download them. A Robolectric update moves their versions too; a test on
+  another SDK needs its runtime added to the catalog and to
+  `build-logic`'s `Robolectric.kt`, or it fails with "no artifact for".
 - `-Ppley.composeReports=true` writes Compose compiler reports to each
   module's `build/compose/`.
 - Baseline and Startup Profiles live in

@@ -9,7 +9,9 @@ and packaging. It follows the [Android TV app](ANDROID.md): the same
 is a native app: [LG.md](LG.md).)
 
 - **Package:** a Tizen web app (`.wgt`).
-- **Player:** AVPlay, Samsung's player, on the hardware video plane.
+- **Player:** AVPlay, Samsung's player on the hardware video plane;
+  `<video>` for files played as they are on sets before 2020, and where
+  AVPlay won't seek in one.
 - **Oldest TV:** 2018 (Tizen 4.0, Chromium 56); Samsung's store takes new
   media apps for 2021 (Tizen 6.0) and later.
 
@@ -67,6 +69,8 @@ until it has, asks "Who's watching?". What differs:
   the native Samsung app show the controls on OK (Down: on Play/Pause),
   wait for OK before a seek, as YouTube's TV app does, and show the
   chapters as a row of cards over the scrubber.
+- The media keys drive the music on Now Playing only; in the native
+  Samsung app they drive it from any page.
 - Samsung's `ChannelUp`, `ChannelDown`, `ChannelList` and `Guide` keys are
   registered.
 
@@ -126,14 +130,38 @@ segment at start + 4 s (a `HEAD` request), then moves the engine there. The
 screen is black meanwhile, and the loading ring waits 2.5 s. With no
 transcode free for two (`503`), the old session ends first.
 
+### Skip Intro and Skip Credits
+
+Skip Intro or Skip Credits shows on its own for 8 seconds as the playhead
+enters an intro or the credits (playing into them, seeking into them, or
+starting inside them), paused or not, with focus, so OK skips. Then it
+goes, and focus goes back to the video, where OK, the arrows and the other
+keys do what they do with nothing on screen. Until a second before the
+segment ends, Skip shows again with the controls, above the scrubber,
+where Up reaches it. Up opens the controls on the scrubber and Down on
+the row of buttons, during Skip's 8 seconds too; Info and Menu, which
+open them without a direction, open them on Skip during its 8 seconds and
+on the scrubber after. Skip going while it has focus over the controls
+(pressed, or its segment over) leaves focus on the scrubber. Entering a
+segment again, or another, starts a fresh 8 seconds; a seek within the
+same one doesn't. Nothing is skipped by itself. Under Up Next's card Skip
+Credits doesn't show; when the card goes with the playhead still in the
+credits (Cancel, or a seek within them), Skip Credits gets its 8 seconds
+from then. Both Samsung apps share the rule, pinned by
+`packages/tv/test/fixtures/skip-shown.json`.
+
 ### Up Next
 
 Up Next (the next episode, or the next title of a playlist or collection)
 comes as credits that run to the end of the file begin: credits ending
 within 15 s of the end, where only a studio's logo or black follows.
-Seeking back into them doesn't bring it again. Its card counts down 10 s,
-then plays the next title; with Settings' Play the next episode by itself
-off, it waits. Credits that something follows (an after-credits scene, the last minutes
+Seeking back into them doesn't bring it again. Its card, the next title's
+name without a picture, counts down 10 s in Play now, as on Android TV:
+"Play now (7)", with a sweep that fills the button smoothly from its left
+edge ("Next in 7" and a step each second with Reduce motion). The button
+keeps its width as the count shortens, so Cancel beside it stays where it
+is. Then the next title plays; with Settings' Play the next episode by itself
+off, it waits, and the button says "Play now" alone. Credits that something follows (an after-credits scene, the last minutes
 of a show after music every episode shares) bring Skip Credits alone, and
 Up Next comes at the end of the file, as it does for a file without
 credits. `packages/tv/test/fixtures/markers.json` pins which credits bring
@@ -160,6 +188,34 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 - **The player:** Up and Down, CH+ and CH−, Previous and Next change
   channel. The menu key (and CH LIST) opens the channel list beside the
   picture, which moves aside into the 520 px left of it.
+- **Playback info:** Info, last in the player's controls, opens the panel
+  a title's player has. This app plays Live TV through the server's HLS
+  alone, never the provider's own stream (`stream.ts`), so a channel is a
+  **Direct stream** (the server copies its video; "· Audio transcoding"
+  after it when it converts the sound) or **Transcoding**, never
+  Direct play, and the panel has no Why. Under Playback come the
+  provider's video and sound with what the server makes of them
+  ("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "AC3 5.1 → AAC
+  2.0", as a title's sound is written), the provider's bitrate as it is
+  now with a transcode's after it, and the encoder; what isn't known is
+  left out. Then This TV, as for
+  a title: the player, what it decodes, dropped frames, the buffer, the
+  channel's stalls and the time from tuning to its first picture.
+  The plan (`GET /api/live/sessions/{id}/plan`) is asked as the panel
+  opens and again 2.5 s after each answer; the panel says "Asking the
+  server…" until the server knows the channel. It stays open over a
+  change of channel and says the new channel's, and nothing more is asked
+  once it closes or watching ends. A failure's card closes it.
+- **The badge:** the controls say the way in a title's badge, its words
+  and colors, left of Live, as on Android TV. The plan is asked once as
+  each channel shows, for it (asking starts no transcode); a channel the
+  server doesn't know by then has no badge until Playback info has asked,
+  and none shows while a channel tunes.
+- **Settings → Playback details** keeps the compact readout over a
+  channel as over a title, while the controls, the channel list and
+  Playback info are closed: the way, the panel's Video, Audio, Bitrate and
+  Encoder lines, then what the TV's player decodes, drops and holds. The
+  plan is asked again 2.5 s after each answer while it shows.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change of
   channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).
@@ -503,8 +559,9 @@ its packages into the SDK by hand and it runs on WHPX.
   the TV build for the TV's engine. The native Samsung app has them in C#.
 - `apps/tizen` has `facts.ts` (what the TV says about itself), `caps.ts`
   (the capability report, with snapshot tests of real sets), `engine.ts`
-  (AVPlay), `platform.ts`, `main.ts`, its manifest (`config.xml`) and
-  `scripts/`.
+  (AVPlay), `engine-select.ts` (`<video>` or AVPlay for each source, and
+  the Player setting), `platform.ts`, `main.ts`, its manifest
+  (`config.xml`) and `scripts/`.
 - The server's side is in [API.md](API.md): the `tizen.json` OAuth client,
   [keyed addresses](API.md#keyed-urls) and CORS.
 
@@ -523,8 +580,8 @@ and field reports:
 
 | Year | Tizen | Chromium | Beyond H.264 and HEVC Main 10 | Notes |
 |---|---|---|---|---|
-| 2018 | 4.0 | 56 | VP9 Profile 0 and 2 | |
-| 2019 | 5.0 | 63 | VP9; 8K HEVC on 8K sets | |
+| 2018 | 4.0 | 56 | VP9 Profile 0 and 2 | Dolby audio from files only: silent in MPEG-TS segments |
+| 2019 | 5.0 | 63 | VP9; 8K HEVC on 8K sets | Dolby audio from files only: silent in MPEG-TS segments |
 | 2020 | 5.5 | 69 | AV1 | fMP4 in HLS |
 | 2021 | 6.0 | 76 | AV1 | Codec queries, HTTP status in player errors; the store's floor |
 | 2022 | 6.5 | 85 | AV1 | |
@@ -558,6 +615,14 @@ Pley's capability report (`apps/tizen/src/caps.ts`,
 version), the panel (4K, 8K, HDR), codec queries on Tizen 6.0 and later,
 and the sound output. AC-3 and E-AC-3 are passed through when the TV's
 output is set to Dolby; TrueHD and DTS only when Settings → Playback asks.
+Before 2020, AVPlay plays AC-3 and E-AC-3 from a file but is silent on
+them in a stream's MPEG-TS segments (2018 and 2019 sets): the report's
+`hls.audio` and `hls.audio_channels` say what a stream's audio can be (AAC
+or MP3, stereo), and every stream is asked for with only those
+(`streamingCaps`, `packages/tv/src/player/plan.ts`), so the server
+converts the rest. A stream the server chose for a file the app expected to
+play as it is is asked for again that way. (The native app needs Tizen 9,
+so it never plays on these sets.)
 
 AVPlay rules the engine keeps: one call at a time while a seek runs; no
 seek to 0; stop and close before the next source; the picture placed in
@@ -566,6 +631,72 @@ the native player too, can say one failure twice (its error, and the call
 that failed): the apps act on a session's first only, so the fallbacks go
 one step at a time. When the TV hides the app, the session closes and
 reopens at the same place.
+
+AVPlay can say it is ready before it plays, and a seek in a stream can
+leave it paused (Tizen 5): the engine asks it to play before it says ready,
+and again once a seek is made, and the session asks it to play when it
+means to and finds it paused. A file played as it is that AVPlay won't
+seek in is seeked as a remux, a new session at the place; once AVPlay
+refused seeks in a kind of file (container and video codec) on two items,
+seeks in that kind go straight to the remux for 30 days
+(`packages/tv/src/player/seekmemory.ts`). While AVPlay makes a seek in a
+stream, the server making the place isn't a stall, for up to 30 s. A seek
+shorter than 30 s failed only when AVPlay plays on from where it was:
+it lands on a keyframe, which in a long-GOP file can be as far behind the
+target as the skip is long. Tizen 5's AVPlay (sets before 2020) prepares a stream from
+its first segment and doesn't answer a seek before it plays, so there a
+stream started part-way plays first and seeks to the place once it does.
+The session therefore asks the server for such a stream from its start
+(`hlsFromFirstSegment`), unless picture subtitles are on, and the
+transcoder's first process makes the segment AVPlay asks for first. The
+seek then restarts it once at the place. Later sets seek to the place
+before they play, as the stream the server started there.
+
+The app has two players (`apps/tizen/src/engine-select.ts`). On sets
+before 2020, whose AVPlay refuses seeks in files played as they are, such
+a file goes to `<video>` (`packages/tv/src/player/video-engine.ts`), whose
+pipeline fetches it by HTTP range and seeks in it from there, as
+Jellyfin's player does on these TVs, when it is H.264 or HEVC up to 1080p
+in SDR, in MKV, MP4, TS or WebM, with the audio track the file starts with
+in AAC, AC-3, E-AC-3, MP3, FLAC, Opus or PCM. AVPlay plays the rest:
+streams and live channels, 4K and 8K, HDR and Dolby Vision, and another
+audio track than the file's own. The two share the screen and the decoder,
+so one is let go entirely before the other starts. A file `<video>` can't
+open before its first picture goes on with AVPlay at the same place, and
+that kind of file stays on AVPlay while the player is open; the session's
+stall clock starts again with AVPlay. Later sets play such files on
+AVPlay, as before. On any set, a seek AVPlay refuses in a file `<video>`
+takes (and in HEVC up to 4K in SDR, as Jellyfin plays it there) plays the
+same address on `<video>` at the place before a remux; one `<video>`
+can't open goes to the remux. What each player refuses is remembered
+apart. `<video>` takes a seek as made when it lands within 5 s of the
+place, or nearer it than where it was (a keyframe), or, for one shorter
+than 30 s, anywhere but where it was; one still fetching over a slow
+network is left to the session's stall clock.
+`<video>`'s frame counts aren't used: dropped frames would have the server
+convert a file played as it is. Settings → Playback → Player set to AVPlay
+only plays everything on AVPlay. An audio track picked while `<video>`
+plays starts a new session on AVPlay: `<video>` can't be told which track
+to play.
+
+Music plays a file as it is through `<audio>`, which on Tizen 5 doesn't
+move in a FLAC file: told a new `currentTime`, it pauses and plays on where
+it was, or from 0. A seek in a file therefore goes up to three steps
+(`climb` in `packages/tv/src/player/music.ts`): it moves the element and
+takes the seek as made when it lands within 3 s of the place (or played on
+past it) within 1.5 s; else it loads the file again from the place
+(`#t=`) and waits up to 2.5 s once it can play; else it ends the session
+and the server converts the track's audio from the place, for that session
+only, so the next track and the next seek ask for the file again. No step
+waits more than 3 s, and a newer seek replaces one under way. Which step
+worked is remembered for each kind of audio file (`flac`) for 30 days
+(`storedAudioSeekMemory`), so later seeks in that kind skip the steps that
+failed. A step that ran out of time while the file still loaded (a slow
+network) teaches nothing, and the first seek in a kind since the app
+started tries a plain move again: one that works forgets the kind. A seek
+asked while a track starts, or before the file knows its length, goes
+through the same steps. The console logs each step as `[music] seek
+ladder`.
 
 ## Releases
 
@@ -622,12 +753,12 @@ page's address and QR code, signing out); Diagnostics (the TV's facts and
 what it tells the server it plays); Live TV's page (the categories and
 their search, the guide and the channels' tiles, a program's details
 and favorites) and its live player (changing channel, number keys, what's
-on, the channel list on OK and the controls on OK held, and why a channel
-doesn't play); music's artist and
+on, the channel list on OK and the controls on OK held, Playback details,
+and why a channel doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
 (the scrubber, the controls, the sleep timer and the queue), with the
 music playing on behind the other pages, driven by the remote's media keys
-from any of them, and pausing for a video; Discover and requests, ported from Android TV
+on Now Playing, and pausing for a video; Discover and requests, ported from Android TV
 ([Requests](#requests): the rail's entry and its number, Discover's hero
 and rows, a title's page and Which seasons?, the requests and their
 actions, Discover's row in Search, Request more seasons on a show's page,
@@ -652,8 +783,9 @@ Quality, the sleep timer, Speed where the TV's player has other speeds, and Info
 where the server's speed sits beside the TV's network speed: the fastest
 second of the last ten, from the bytes the TV's network received, since
 Tizen's player doesn't say how fast it downloads),
-Chapters opening the chapters' cards, Skip Intro and Skip Credits (over the scrubber, where Up
-reaches them, as on Android TV), Up
+Chapters opening the chapters' cards, Skip Intro and Skip Credits (on their own for 8 seconds,
+then with the controls over the scrubber, where Up reaches them, as on Android TV and as
+[Skip Intro and Skip Credits](#skip-intro-and-skip-credits) describes), Up
 Next (the next episode, or the next in a playlist or collection, at
 credits that run to the end of the file, else at its end, as
 [Up Next](#up-next) describes),
@@ -694,10 +826,21 @@ The engine says it is prepared apart (`Opened`), for the audio chosen to
 be switched to before it plays.
 
 A channel starts as on Android: its `stream.ts` (the provider's MPEG-TS,
-from its last keyframe) is read while the server says what it makes of the
-channel, and plays when that is the channel as it is, or with sound every
-Samsung TV decodes itself (AC3, E-AC3, MP2), which the server converts for
-other players; otherwise, or when it fails, the channel's HLS. The TV's
+from its last keyframe) is read while the server says what the channel is
+and what it makes of it, and plays when that is the channel as it is, or
+with sound every Samsung TV decodes itself (AC3, E-AC3, MP2), which the
+server converts for other players; otherwise, or when it fails, the
+channel's HLS. A channel the server would convert plays from `stream.ts`
+too when the TV decodes it as the provider sends it, and the server makes
+no transcode of it: video that a decoder in the TV's report
+takes at its bit depth (8 when the server doesn't say), size and frame
+rate (the report a film's direct play goes by, `Player/TizenCaps.cs`), and
+sound the TV decodes or passes to the receiver. Only what the TV's player
+reads out of MPEG-TS counts (H.264, HEVC and MPEG-2 video; AAC, AC3,
+E-AC3, MP2 and MP3 sound), so an AV1 channel stays with its HLS though the
+TV plays AV1 files, and interlaced video stays with the server while its
+Deinterlace setting is on. The rule is
+`LiveRules.PlaysAsSent`, as Android's `playsAsSent`. The TV's
 player can't send the `Authorization` header `stream.ts` needs, and the
 server takes an app's token nowhere else, so the app reads it with its
 token and hands it on to the player as it comes, on the TV's loopback
@@ -710,6 +853,33 @@ for its buffer after every seek too, not only after a stall, so films wait
 for 0.5 s there, where Android waits 1.5 s or 2 s after a stall: a seek
 took 2 s, now under one. A film asks the server for its stream before its player
 screen is made, which takes the UI thread half a second the first time.
+
+The live player's controls (OK held) have Info, the film player's button
+by name and icon, last as there: after the channel list and the favorite,
+as on Android TV. It opens Playback details in the film player's Info
+panel, under the same title and headings. How it plays says the way in a
+film's words (Direct play from `stream.ts`; from its HLS, Direct stream
+when the server sends the video as it is, with "Audio transcoding" after
+it when it converts the sound, else Transcoding), why it isn't Direct play
+when the server's plan and the TV's report say, in a sentence
+(**Interlaced video is made progressive.**, **This device doesn't play
+HEVC 10-bit video.**, **This device doesn't play DTS audio.**), the
+provider's video, audio and bitrate with what the server makes of them,
+the encoder of a transcode and the TV's network speed. A channel has no
+file or tracks to list, so its Video and Audio lines say what a film's
+sections of those names do ("HEVC 10-bit · 3840×2160 · 50 fps → H.264
+1080p", "EAC3 5.1 → AAC 2.0"). The video's bit depth is written only above
+8, in its line and in the reason, and a transcode's size by a film's name
+for it ("4K", "1080p").
+This TV has a film's lines: what the TV's player says it decodes, its
+buffer, the channel's stalls and the time to its first picture. A line
+whose value isn't known is left out. While the panel shows, the plan is
+asked again 2.5 s after each answer, for the provider's bitrate as it is
+now; asking starts no transcode. A channel that stops closes the panel for
+its card. The bar over the picture says the way too, in the film player's
+badge beside Live, as on Android TV: from the plan the player asked for as
+it tuned, with nothing more asked of the server, so a channel on HLS whose
+plan isn't known has no badge until Playback details have asked for it.
 
 Someone taking over a channel's connection (the server's
 `live_taken_over`) stops it at once, as on Android TV: the card says "Live
@@ -848,11 +1018,14 @@ forms and the same values, French and Spanish to their punctuation.
   pins which titles Home's hero features, and in what order; `language.json`
   pins which language shows, and that a server naming any language, even
   one the app doesn't have, keeps an account's; `markers.json` pins which
-  credits bring Up Next. Where the
-  Android app is
-  stricter (a token answer without `token_type`, a device code without
-  `expires_in`), the native app follows it, and its test says which
-  fixture case it answers differently.
+  credits bring Up Next; `skip-shown.json` pins when Skip shows (8 s on
+  its own from entering a segment or from Up Next's card going, then only
+  with the controls); `countdown-fill.json` pins how far the sweep across
+  Up Next's Play now reaches between the countdown's seconds, and its
+  steps with Reduce motion. Where the Android app is stricter (a
+  token answer without `token_type`, a device code without `expires_in`),
+  the native app follows it, and its test says which fixture case it
+  answers differently.
 
 ### Setting up
 

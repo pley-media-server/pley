@@ -1,11 +1,14 @@
+import app.pley.android.buildlogic.UNIT_TESTS_LIMIT
 import app.pley.android.buildlogic.lib
 import app.pley.android.buildlogic.libs
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
+import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 
@@ -27,6 +30,7 @@ class JvmLibraryConventionPlugin : Plugin<Project> {
         dependencies {
             add("testImplementation", libs.lib("junit"))
         }
+        tasks.withType<Test>().configureEach { timeout.set(UNIT_TESTS_LIMIT) }
         tasks.register("testDebugUnitTest") {
             group = "verification"
             description = "Runs this JVM module's tests, with the Android modules' debug unit tests."

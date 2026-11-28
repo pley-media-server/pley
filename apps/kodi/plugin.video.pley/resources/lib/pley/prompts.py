@@ -1,6 +1,7 @@
 """Skip Intro, Skip Credits and Up Next, by the web player's rules
 (apps/web/src/player/SkipButton.tsx): a button from a marker's start until
-a second before its end; an episode's credits that run to the end of the
+a second before its end, on its own for its first 8 seconds; an episode's
+credits that run to the end of the
 file bring up the next episode, which plays after a countdown unless it is
 canceled. Without them, Up Next comes when the file ends (the service's
 after_end)."""
@@ -18,9 +19,12 @@ CREDITS_TAIL_MS = 15_000
 # Skip Intro lands this long before the intro ends, so it plays out.
 INTRO_LEAD_MS = 750
 COUNTDOWN = 10
-# A skip button holds the remote while it shows: it goes after this long,
-# as streaming apps' do (credits can last minutes).
-SKIP_SHOWN = 10
+# A skip button holds the remote while it shows: it goes this long after it
+# appears (credits can last minutes). The other apps bring it back with
+# their controls; Kodi's controls are the skin's OSD, which a button over
+# it would take the remote from, so here it stays away until the playhead
+# enters a marker again.
+SKIP_ALONE = 8
 
 
 def active(markers: list, position_ms: float):
@@ -61,6 +65,10 @@ class Moments:
         self.next_item = next_item
         self.clock = clock
         self.duration_ms = duration_ms
+        # The marker the playhead is in, Skip's for it that was pressed or
+        # dismissed, and when it appeared: leaving the marker forgets them,
+        # so entering one again starts afresh.
+        self.inside = None
         self.dismissed = set()
         self.shown_since = {}
         self.next_cancelled = False
@@ -68,15 +76,26 @@ class Moments:
 
     def offer(self, position_ms: float):
         marker = active(self.markers, position_ms)
+        inside = key(marker) if marker else None
+        if inside != self.inside:
+            self.inside = inside
+            self.dismissed.clear()
+            self.shown_since.clear()
         if marker and reaches_end(marker, self.duration_ms) and self.next_item and not self.next_cancelled:
+            # Up Next takes Skip Credits' place: if it comes back (Cancel), its 8 seconds start then.
+            self.shown_since.pop(key(marker), None)
             return "next", marker
         if marker and key(marker) not in self.dismissed:
-            since = self.shown_since.setdefault(key(marker), self.clock())
-            if self.clock() - since >= SKIP_SHOWN:
-                self.dismiss(marker)
+            since = self.shown_since.get(key(marker))
+            if since is not None and self.clock() - since >= SKIP_ALONE:
                 return None
             return "skip", marker
         return None
+
+    def appeared(self, marker: dict) -> None:
+        """Skip for `marker` is on screen: its 8 seconds start, the first
+        time only. A seek inside the marker keeps them where they are."""
+        self.shown_since.setdefault(key(marker), self.clock())
 
     def credits_from(self):
         """Where the credits start, if a marker says (ms)."""

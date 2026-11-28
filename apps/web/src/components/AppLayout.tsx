@@ -1,10 +1,11 @@
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState, type CSSProperties } from "react";
 import { Outlet, ScrollRestoration } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateWatchState } from "@/api/hooks";
 import { AudioPlayerBar } from "@/audio/AudioPlayerBar";
 import { useAudioPlayer } from "@/audio/AudioPlayer";
 import { cn } from "@/lib/cn";
+import { useLocalStorage } from "@/lib/hooks";
 import { APP_RESUMED } from "@/lib/shell";
 import { ImportTabTitle } from "@/pages/plexImport/ImportTabTitle";
 import { ConnectionBanner } from "./ConnectionBanner";
@@ -15,6 +16,8 @@ import { PageSpinner } from "./ui";
 
 export function AppLayout() {
   const [drawer, setDrawer] = useState(false);
+  // Narrowed to its icons on a wide screen, as this browser last left it.
+  const [collapsed, setCollapsed] = useLocalStorage("pley.sidebar.collapsed", false);
   const closeDrawer = useCallback(() => setDrawer(false), []);
   const audio = useAudioPlayer();
   const qc = useQueryClient();
@@ -27,10 +30,14 @@ export function AppLayout() {
   }, [qc]);
 
   return (
-    <div className="group/shell min-h-screen">
+    <div
+      className="group/shell min-h-screen"
+      // How wide the sidebar is, for what sits beside it (the page, the audio bar).
+      style={{ "--sidebar-width": collapsed ? "4rem" : "15rem" } as CSSProperties}
+    >
       <ImportTabTitle />
-      <Sidebar open={drawer} onClose={closeDrawer} />
-      <div className="flex min-h-screen flex-col lg:pl-60">
+      <Sidebar open={drawer} onClose={closeDrawer} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
+      <div className="flex min-h-screen flex-col transition-[padding] duration-200 motion-reduce:transition-none lg:pl-[var(--sidebar-width)]">
         <TopBar onMenu={() => setDrawer(true)} />
         <ConnectionBanner />
         <main className={cn("flex-1", audio.current && "pb-24")}>

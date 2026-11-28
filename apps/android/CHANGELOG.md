@@ -8,6 +8,38 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits, and its countdown fills smoothly instead of
+  a step each second. On TVs the countdown is in Play now as on phones,
+  "Play now (7)" with a sweep across the button, in place of a ring.
+- Skip Intro and Skip Credits show by themselves for 8 seconds, then only
+  with the player's controls, instead of over the whole intro or credits.
+  On TVs, OK and the arrows act on the video again once Skip has gone.
+
+### Fixed
+
+- Up Next's countdown stays in Play now when the episode ends during it.
+
+## [0.1.20] - 2026-11-27
+
+### Added
+
+- Live TV plays a channel as its provider sends it when the device
+  decodes it, and the live player has Playback details.
+
+### Changed
+
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
+
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
+## [0.1.19] - 2026-11-25
+
 ### Added
 
 - Audiobooks on phones and TVs: book libraries, Continue Listening on
@@ -113,6 +145,8 @@ With Android Auto:
   the title and every control in view.
 - A Live TV channel played as it is plays on after a few seconds when its
   provider's stream starts over.
+- A track cast to a phone or TV through the API with a place to start at
+  (`start_ms`) starts there.
 
 ## [0.1.18] - 2026-11-24
 
@@ -1035,7 +1069,9 @@ On Android TV:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.20]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
+[0.1.19]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25
 [0.1.18]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.17]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20

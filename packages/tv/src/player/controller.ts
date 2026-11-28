@@ -28,7 +28,7 @@ import { NOTHING_SHOWN, SubtitlePresenter, type ShownSubtitles } from "../subs/p
 import { clampOffset, type OffsetStore } from "../subs/sync";
 import { automaticAt, automaticNow, buildDetails, fallbackText, loweredText, methodText, stoppedText, upNextHeading, type PlaybackDetails } from "./details";
 import type { EngineSource, EngineStatus, PlayerEngine } from "./engine";
-import { activeMarker, CreditsGate, markersOf, skipLabel, skipTarget } from "./markers";
+import { activeMarker, CreditsGate, markersOf, skipLabel, skipTarget, SkipWindow } from "./markers";
 import { hasNext, labelOf, nextAfter, startOf, TRICKPLAY_GIVE_UP_MS, TRICKPLAY_RETRY_MS } from "./nextup";
 import {
   audioListed,
@@ -46,6 +46,8 @@ import {
   playbackRequest,
   playingAudio,
   startMs as startOfPlay,
+  startsWith,
+  streamingCaps,
   subtitleStreams,
   willStream,
   withoutAudio,
@@ -60,6 +62,7 @@ import { failureText, Recovery, StruggleMeter, type EngineError, type RecoveryAc
 import { qualityAction, remoteAction, trackAction, videoControls, type PlayerCommand } from "./remote";
 import type { Reporter } from "./reporter";
 import { badgeText } from "./seeker";
+import { seekKind, type SeekMemory } from "./seekmemory";
 import { SLEEP_OFF, SleepTimer, type SleepChoice, type SleepState } from "./sleep";
 import { SPEEDS } from "./speed";
 
@@ -103,7 +106,6 @@ export interface UpNextCard {
   itemId: number;
   title: string;
   heading: string;
-  imageUrl: string | null;
   /** Seconds before it plays by itself; `null` when it won't. */
   secondsLeft: number | null;
 }
@@ -129,6 +131,8 @@ export interface PlayerState {
   canPlayOriginal: boolean;
   suggestLowerQuality: boolean;
   skipLabel: string | null;
+  /** Skip shows on its own, in its first 8 s in the marker ([SkipWindow]); after that only with the controls. */
+  skipAlone: boolean;
   markers: Marker[];
   chapters: ChapterMark[];
   trickplay: { fileId: number; info: Trickplay } | null;
@@ -189,6 +193,7 @@ const initial = (): PlayerState => ({
   canPlayOriginal: false,
   suggestLowerQuality: false,
   skipLabel: null,
+  skipAlone: false,
   markers: [],
   chapters: [],
   trickplay: null,
@@ -228,6 +233,8 @@ export interface PlayerEnv {
   autoMemory?: AutoMemory | null;
   /** What the server knows of this TV's network, asked before Automatic starts and told of its ceilings. */
   network?: NetworkMemory | null;
+  /** Kinds of file this TV's player refuses to seek in as it plays them: a seek there goes straight to a remux. */
+  seekMemory?: SeekMemory | null;
   autoplayNext: () => boolean;
   /** Subscribes to the server's events; returns the unsubscribe. */
   events: (listener: (e: ServerEvent) => void) => () => void;
@@ -251,8 +258,16 @@ export const PROGRESS_MS = 10_000;
 export const PAUSED_HEARTBEAT_MS = 30_000;
 export const SEEK_REPORT_MS = 1_000;
 export const STALL_MS = 12_000;
+/**
+ * The longest a seek the engine is still making in a stream holds off the
+ * stall: the server may take a while to make the place (a small server's
+ * restart), and a stall then would start yet another session.
+ */
+export const SEEK_PENDING_MAX_MS = 30_000;
 export const SHORT_END_MS = 60_000;
 export const SHORT_PLAY_MS = 5_000;
+/** Seeks this near each other are to the same place (a failed one isn't tried again there). */
+export const SEEK_SAME_MS = 1_000;
 export const STARVING_MS = 1_000;
 export const STRUGGLE_SAMPLE_MS = 2_000;
 /**
@@ -267,7 +282,6 @@ export const COUNTDOWN_SECONDS = 10;
 export const END_WAIT_MS = 2_000;
 /** Seeks stop this short of the end, so the end isn't reached by a seek. */
 export const SEEK_END_MARGIN_MS = 250;
-export const UP_NEXT_IMAGE_WIDTH = 480;
 /** The server out of reach mid-playback is asked again this long, as long as it waits for a player it doesn't hear from. */
 export const OUTAGE_MS = 90_000;
 /** Between its questions: 0.5 s, 1 s, then every 2 s. */
@@ -355,6 +369,23 @@ export class PlaybackController {
 
   private lastPositionMs = 0;
   private startedAtMs = 0;
+  /**
+   * Where the session playing started (the resume point, or where a seek
+   * went), and whether it got there: played well past it, or was taken
+   * elsewhere by a seek. Until it did, its `stopped` report says no less
+   * than where it started, so a start the TV's player failed to make
+   * doesn't move the resume point back.
+   */
+  private sessionAtMs = 0;
+  private passedStart = true;
+  /** A seek the TV's player didn't make, tried once more with a new session there: not again for the same place, until one there played. */
+  private seekRetryFor: number | null = null;
+  /** A seek AVPlay refused, taken to the TV's other player (`switchForSeek`): not again for the same place. */
+  private elementTriedFor: number | null = null;
+  /** That seek's kind of file, remembered as one the other player seeks in once it played on from the place. */
+  private elementSeekKind: { kind: string; itemId: number } | null = null;
+  /** The last seek asked of this item: where to, and from where it played then (`null`: no session played). */
+  private seekAsked: { target: number; from: number | null } | null = null;
   private mediaShown = false;
   /** When a seek of the player's own was asked (its buffering is no stall). */
   private seekedAt = -1e9;
@@ -373,11 +404,15 @@ export class PlaybackController {
   private readonly recovery = new Recovery();
   private readonly struggle = new StruggleMeter();
   private readonly credits = new CreditsGate();
+  /** When Skip shows on its own: its first 8 s in each marker the playhead enters. */
+  private readonly skipWindow = new SkipWindow();
   private readonly presenter: SubtitlePresenter;
   private readonly sleep: SleepTimer;
 
   private lastAdvanceAt = 0;
   private lastAdvancePos = -1;
+  /** Since when the engine has been making a seek in a stream (`seekPending`), `null` while it isn't. */
+  private seekPendingSince: number | null = null;
   private lastStruggleSample = 0;
   /** Dropped frames aren't counted before this (an audio track switched in place). */
   private framesQuietUntil = 0;
@@ -468,6 +503,8 @@ export class PlaybackController {
           firstFrame: () => this.onFirstFrame(),
           error: (e) => this.onError(e),
           tracks: () => undefined,
+          seekFailed: (target, slow) => this.onSeekFailed(target, slow === true),
+          restarted: () => this.onEngineRestarted(),
         });
       }
       this.update({ speeds: this.engineRef.setSpeed ? SPEEDS : [] });
@@ -502,6 +539,9 @@ export class PlaybackController {
     this.quality = this.originalOnly ? ORIGINAL : chooseQuality(this.env.quality.remembered(), qualitiesFor(chosen));
     this.titlePlayedMs = 0;
     this.movingAt = null;
+    this.seekRetryFor = null;
+    this.elementTriedFor = null;
+    this.seekAsked = null;
     this.startAuto(known);
     this.offset = chosen ? this.env.offsets.get(this.env.api.server, chosen.id) : 0;
     this.markers = chosen ? markersOf(detail, chosen.id) : [];
@@ -624,8 +664,13 @@ export class PlaybackController {
       streaming: willStream(mode, decision, chosen, audio, caps),
       sideload: this.sideload,
     };
+    // A stream the TV's player starts at its first segment (seeking to the
+    // place once it plays) is made from there: started at the place, the
+    // server would stop for the first segment and start again, then once
+    // more for the seek. Not with picture subtitles, copied from the place first.
+    const fromFirstSegment = (c: Choices) => c.streaming && this.engineRef?.hlsFromFirstSegment === true && !isPicture(c.subtitle);
     const ask = (c: Choices): PlaybackRequest => {
-      const req = playbackRequest(detail.id, c, this.env.clientId, caps, this.env.keyedUrls);
+      const req = playbackRequest(detail.id, fromFirstSegment(c) ? { ...c, startMs: 0 } : c, this.env.clientId, c.streaming && caps ? streamingCaps(caps) : caps, this.env.keyedUrls);
       req.controls = videoControls(hasNext(detail.kind, this.current.queue), audioStreams(chosen).length, subtitleStreams(chosen).length);
       if (alongside) req.keep_previous = true;
       return req;
@@ -657,7 +702,10 @@ export class PlaybackController {
       sent = ask(choices);
       info = await this.env.api.play(sent);
     }
-    if (needsIndexes(info, sent, choices)) {
+    // A stream the server chose for a file expected to play as it is: asked
+    // for again as a stream, with the track indexes and the audio the TV's
+    // player plays in a stream's segments (a 2019 Samsung's Dolby, silent there).
+    if (needsIndexes(info, sent, choices) || (info.hls && !choices.streaming && caps !== null && streamingCaps(caps) !== caps)) {
       this.discard(info);
       choices = { ...choices, streaming: true };
       sent = ask(choices);
@@ -673,7 +721,7 @@ export class PlaybackController {
       return;
     }
     if (alongside && preparing) {
-      if (info.hls) await warmStream(this.streamFetch, this.env.api.url(info.url), atMs + PREPARE_LEAD_MS, preparing, this.now);
+      if (info.hls) await warmStream(this.streamFetch, this.env.api.url(info.url), fromFirstSegment(choices) ? 0 : atMs + PREPARE_LEAD_MS, preparing, this.now);
       // Replaced or closed meanwhile, or the last one ended or failed by itself: this one never plays.
       if (generation !== this.generation || this.closed || this.ended || this.state.value.phase.kind === "error") {
         this.discard(info);
@@ -740,6 +788,7 @@ export class PlaybackController {
           }
         : null,
       audioCodec: info.audio_converted ? null : this.audio?.codec ?? null,
+      audioDefault: startsWith(chosen, this.audio),
     };
     engine.prepare(source, this.wantPlay);
     const speed = this.state.value.speed;
@@ -756,7 +805,9 @@ export class PlaybackController {
     const itemId = this.item?.id ?? this.current.itemId;
     const api = this.env.api;
     const tracks = this.reportedTracks();
-    this.env.reporter.send(() => api.progress(itemId, positionMs, info.duration_ms, "stopped", info.session_id, tracks));
+    // Not back before where it started, when it never got there.
+    const position = this.passedStart ? positionMs : Math.max(positionMs, this.sessionAtMs);
+    this.env.reporter.send(() => api.progress(itemId, position, info.duration_ms, "stopped", info.session_id, tracks));
     this.env.reporter.send(() => api.stopSession(info.session_id));
     return true;
   }
@@ -777,6 +828,9 @@ export class PlaybackController {
   private reset(atMs: number, switching: boolean): void {
     this.lastPositionMs = atMs;
     this.startedAtMs = atMs;
+    this.sessionAtMs = atMs;
+    this.passedStart = false;
+    this.elementSeekKind = null;
     this.mediaShown = false;
     this.ended = false;
     this.struggle.reset();
@@ -844,8 +898,8 @@ export class PlaybackController {
     switch (status) {
       case "buffering":
         if (this.ended) break;
-        // A stall: it played, and no seek of its own asked it to wait.
-        if (this.state.value.phase.kind === "playing" && this.now() - this.seekedAt > SEEK_SETTLE_MS) {
+        // A stall: it played, and no seek of its own, nor of the TV's player (a stream's resume point), asked it to wait.
+        if (this.state.value.phase.kind === "playing" && this.now() - this.seekedAt > SEEK_SETTLE_MS && this.engineRef?.seekPending?.() !== true) {
           this.update({ stalls: this.state.value.stalls + 1 });
           this.auto?.waiting(this.now());
         }
@@ -983,6 +1037,133 @@ export class PlaybackController {
     return reached + SHORT_END_MS < expected && reached < this.startedAtMs + SHORT_PLAY_MS;
   }
 
+  /**
+   * The engine started the source afresh on another of the TV's players
+   * (Samsung's <video> couldn't open it, so AVPlay does): the wait so far
+   * was the first player's, and the stall clock counts the new one's alone.
+   */
+  private onEngineRestarted(): void {
+    this.lastAdvanceAt = this.now();
+    this.lastAdvancePos = -1;
+  }
+
+  /**
+   * The TV's player didn't get to `target` (a seek, or the session's
+   * start): a new session starts there, once; when that one can't either,
+   * it plays on where it is. Not an error: the recovery ladder would end on
+   * the error screen for what still plays.
+   */
+  private onSeekFailed(target: number, slow = false): void {
+    const engine = this.engineRef;
+    if (!engine || !this.info || this.closed || this.stopped || this.ended || this.outage || this.sessionEnded) return;
+    if (this.state.value.phase.kind === "error") return;
+    const near = (a: number | null | undefined) => a != null && Math.abs(a - target) < SEEK_SAME_MS;
+    const asked = near(this.seekAsked?.target) ? this.seekAsked : null;
+    // Neither the last seek nor where this session started: an older seek's, of a session (or an item) gone since.
+    if (!asked && !near(this.sessionAtMs)) return;
+    if (near(this.seekRetryFor)) {
+      const at = engine.positionMs();
+      const from = asked?.from ?? null;
+      if (from !== null && at < from - SHORT_PLAY_MS) {
+        // It fell back before where the seek was asked from (a file's start): back there, once.
+        console.info("[player] seek failed again, back to where it was", target, from);
+        this.seekAsked = null;
+        this.seekRetryFor = from;
+        this.lastPositionMs = from;
+        this.setClock({ positionMs: from });
+        this.restart(from);
+        return;
+      }
+      console.info("[player] seek failed again, playing on", target, at);
+      this.lastPositionMs = at;
+      this.startedAtMs = at;
+      // A seek's place was never reached: the stop reports where it plays. A start's (the resume point) stays the least it reports.
+      if (asked) {
+        this.sessionAtMs = at;
+        this.passedStart = true;
+      }
+      this.setClock({ positionMs: at });
+      return;
+    }
+    // A file played as it is that the TV's player can't seek in (an index it
+    // doesn't read, say) is seekable as a remux: the server starts it at the
+    // place, and seeks after that are in its playlist. It stays a remux for
+    // this item.
+    if (this.info.method === "direct" && !this.info.hls) {
+      // The other player failing where AVPlay refused (it couldn't open the file there) isn't its refusal,
+      // nor is its failing before its first picture after a newer seek moved where it was asked to be.
+      const opening = this.elementTriedFor !== null && !this.mediaShown && engine.activePlayer?.() === "video";
+      const onElement = near(this.elementTriedFor) || opening;
+      // A seek, not the start, refused rather than still loading: remembered for this kind of file.
+      const kind = this.refusalKind();
+      if (asked && kind && this.item && !onElement && !slow) this.env.seekMemory?.refused(kind, this.item.id);
+      // The TV's other player may seek in it (by HTTP range), from the same address: tried once before the remux.
+      if (!onElement && this.seekOnElement(target, asked !== null)) return;
+    }
+    this.seekAsRemux(target, "seek failed, new session");
+  }
+
+  /**
+   * The same file on the TV's other player at `target` (`switchForSeek`),
+   * the session as it is; false when it has none that takes the file. A
+   * seek it gets to is remembered for this kind of file (`seek`: not the
+   * start) once it played on from there. Until its first picture the place
+   * shown is `target`, not the new player's time (0 before it reads the
+   * file), and a stop reports no less.
+   */
+  private seekOnElement(target: number, seek: boolean): boolean {
+    const engine = this.engineRef;
+    const seekedBefore = this.seekedAt;
+    // Before the switch, which says at once that the other player waits: that wait is the seek's, not a stall.
+    this.seekedAt = this.now();
+    if (!engine?.switchForSeek?.(target)) {
+      this.seekedAt = seekedBefore;
+      return false;
+    }
+    console.info("[player] seek refused, the file on the TV's other player", target);
+    this.elementTriedFor = target;
+    const kind = seekKind(this.file);
+    this.elementSeekKind = seek && kind && this.item ? { kind, itemId: this.item.id } : null;
+    const now = this.now();
+    this.mediaShown = false;
+    this.sessionAtMs = target;
+    this.passedStart = false;
+    this.seekedAt = now;
+    this.lastPositionMs = target;
+    this.startedAtMs = target;
+    this.lastAdvanceAt = now;
+    this.lastAdvancePos = -1;
+    this.recovery.onJump();
+    this.struggle.reset();
+    this.setClock({ positionMs: target });
+    return true;
+  }
+
+  /** What a refused seek is remembered by: the kind of file, and the TV's player when it has more than one. */
+  private refusalKind(): string | null {
+    const kind = seekKind(this.file);
+    const player = this.engineRef?.activePlayer?.() ?? null;
+    return kind && player && player !== "avplay" ? `${kind}@${player}` : kind;
+  }
+
+  /** A new session at `target`, a remux when the file played as it is: the TV's player can't seek in it. */
+  private seekAsRemux(target: number, why: string): void {
+    const info = this.info!;
+    if (info.method === "direct" && this.playingPreset.id === ORIGINAL.id && !this.guardMode) this.guardMode = "remux";
+    console.info(`[player] ${why}`, target, this.guardMode ?? info.method);
+    this.seekRetryFor = target;
+    this.lastPositionMs = target;
+    this.restart(target);
+  }
+
+  /** A file played as it is of a kind the TV's player refuses seeks in (`SeekMemory`): its seeks go straight to a remux. */
+  private get seeksRefused(): boolean {
+    const info = this.info;
+    if (!info || info.method !== "direct" || info.hls || this.playingPreset.id !== ORIGINAL.id || this.guardMode) return false;
+    const kind = this.refusalKind();
+    return !!kind && this.env.seekMemory?.known(kind) === true;
+  }
+
   private onEndedShort(): void {
     const info = this.info;
     if (!info) return;
@@ -1029,11 +1210,24 @@ export class PlaybackController {
     const now = this.now();
     const status = engine.status();
     const moving = this.mediaShown && status === "ready" && engine.playing() && !this.ended;
+    // Meant to play and said paused: the TV's player said ready before it played, or a seek left it paused.
+    if (this.wantPlay && this.mediaShown && status === "ready" && !this.ended && !this.outage && this.state.value.phase.kind === "paused") {
+      if (moving) this.phase({ kind: "playing" });
+      else engine.play();
+    }
     if (moving && this.movingAt !== null) this.titlePlayedMs += Math.min(now - this.movingAt, 2 * TICK_MS);
     this.movingAt = moving ? now : null;
     if (this.mediaShown && !this.ended) {
       const pos = engine.positionMs();
       this.lastPositionMs = pos;
+      if (!this.passedStart && pos >= this.sessionAtMs + SHORT_PLAY_MS) {
+        this.passedStart = true;
+        // It got there: a seek there that fails later is tried again.
+        this.seekRetryFor = null;
+        const element = this.elementSeekKind;
+        this.elementSeekKind = null;
+        if (element) this.env.seekMemory?.seekedViaElement(element.kind, element.itemId);
+      }
       if (moving) this.recovery.onPosition(pos);
       const marker = this.state.value.phase.kind === "error" ? null : activeMarker(this.markers, pos);
       const engineDuration = engine.durationMs();
@@ -1043,7 +1237,9 @@ export class PlaybackController {
         durationMs: info.duration_ms > 0 ? info.duration_ms : engineDuration > 0 ? engineDuration : this.clock.value.durationMs,
       });
       const label = marker ? skipLabel(marker) : null;
-      if (label !== this.state.value.skipLabel) this.update({ skipLabel: label });
+      // Skip's time on its own runs from when it appears: not under Up Next's card, which takes its place.
+      const alone = this.skipWindow.at(this.state.value.upNext ? null : marker, now);
+      if (label !== this.state.value.skipLabel || alone !== this.state.value.skipAlone) this.update({ skipLabel: label, skipAlone: alone });
       // The markers are this file's: its length, else the player's.
       if (marker && this.credits.enter(marker, this.file?.duration_ms || this.clock.value.durationMs)) this.onCredits();
     }
@@ -1065,7 +1261,11 @@ export class PlaybackController {
     // A stall: meant to play, not moving.
     const stalling = this.wantPlay && !this.ended && this.state.value.phase.kind !== "error" && status !== "idle";
     const pos = this.mediaShown ? engine.positionMs() : -1;
-    if (!stalling || pos !== this.lastAdvancePos) {
+    const pending = info.hls && engine.seekPending?.() === true;
+    if (!pending) this.seekPendingSince = null;
+    else if (this.seekPendingSince === null) this.seekPendingSince = now;
+    const seeking = pending && now - this.seekPendingSince! < SEEK_PENDING_MAX_MS;
+    if (!stalling || pos !== this.lastAdvancePos || seeking) {
       this.lastAdvanceAt = now;
       this.lastAdvancePos = pos;
     } else if (now - this.lastAdvanceAt >= STALL_MS) {
@@ -1368,6 +1568,16 @@ export class PlaybackController {
     return this.wantPlay;
   }
 
+  /**
+   * Meant to play, yet paused with the title not over: the TV's player said
+   * ready before it played. Its button shows Play, and pressing it plays.
+   * Not once the title ended (Up Next counting down): Play there would play
+   * it again from the start.
+   */
+  get waitsToPlay(): boolean {
+    return this.wantPlay && !this.ended && this.state.value.phase.kind === "paused";
+  }
+
   private setWantPlay(play: boolean): void {
     const was = this.wantPlay;
     this.wantPlay = play;
@@ -1393,15 +1603,30 @@ export class PlaybackController {
     const target = duration > 0 ? Math.max(0, Math.min(positionMs, Math.max(0, duration - SEEK_END_MARGIN_MS))) : Math.max(0, positionMs);
     this.hideUpNext();
     if (this.ended || !this.info || this.sessionEnded) {
+      this.seekAsked = { target, from: null };
       this.lastPositionMs = target;
       this.setClock({ positionMs: target });
       this.restart(target);
+      return;
+    }
+    // A seek elsewhere than one given up on is tried again if it fails.
+    if (this.seekRetryFor !== null && Math.abs(this.seekRetryFor - target) >= SEEK_SAME_MS) this.seekRetryFor = null;
+    this.seekAsked = { target, from: this.mediaShown ? this.livePosition() : null };
+    if (this.seeksRefused) {
+      this.setClock({ positionMs: target });
+      this.presenter.sought(target);
+      // The TV's other player seeks in such files: straight there, else to the remux.
+      const kind = seekKind(this.file);
+      if (kind && this.env.seekMemory?.seeksViaElement(kind) && this.seekOnElement(target, true)) return;
+      this.seekAsRemux(target, "seeks refused in such files, new session");
       return;
     }
     engine.seekTo(target);
     this.seekedAt = this.now();
     this.lastPositionMs = target;
     this.startedAtMs = target;
+    this.passedStart = true;
+    this.elementSeekKind = null;
     this.recovery.onJump();
     this.struggle.reset();
     this.auto?.interrupted();
@@ -1582,6 +1807,8 @@ export class PlaybackController {
   }
 
   cancelUpNext(): void {
+    // Skip Credits, hidden under the card, appears at once: its 8 s on its own start with the next tick.
+    if (this.state.value.upNext && this.state.value.skipLabel) this.update({ skipAlone: true });
     this.hideUpNext();
     if (this.ended) this.phase({ kind: "ended" });
   }
@@ -1738,13 +1965,15 @@ export class PlaybackController {
         () => undefined,
       );
     }
-    const image = found.thumb_url ?? found.backdrop_url ?? null;
+    // A countdown that goes on (the file ending while the credits' one runs) keeps its seconds:
+    // without them Play now would lose its count until the next step.
+    const shown = this.state.value.upNext;
+    const going = !restartCountdown && shown?.itemId === found.id;
     const card: UpNextCard = {
       itemId: found.id,
       title: found.title,
       heading: upNextHeading(labelOf(found)),
-      imageUrl: image ? this.env.api.url(withWidth(image, UP_NEXT_IMAGE_WIDTH)) : null,
-      secondsLeft: null,
+      secondsLeft: going ? shown.secondsLeft : null,
     };
     this.update({ upNext: card });
     if (!restartCountdown) return;
@@ -1785,6 +2014,7 @@ export class PlaybackController {
     this.next = null;
     this.recovery.newItem();
     this.credits.reset();
+    this.skipWindow.reset();
     this.guardMode = null;
     this.presenter.hide();
     this.ended = false;
@@ -2185,9 +2415,4 @@ export function isKeyed(url: string): boolean {
 function videoStreamOf(file: MediaFile | null): MediaStream | null {
   const videos = (file?.streams ?? []).filter((s) => s.kind === "video");
   return videos.filter((s) => s.default)[0] ?? videos[0] ?? null;
-}
-
-/** An image address asked for at `width` pixels (the server buckets it). */
-export function withWidth(url: string, width: number): string {
-  return url + (url.indexOf("?") >= 0 ? "&" : "?") + `w=${width}`;
 }

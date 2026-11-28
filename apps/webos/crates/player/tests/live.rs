@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 
 use pley_base::Waker;
 use pley_core::api::LiveBrowse;
+use pley_core::device::{CapsOverrides, lg_2022_caps};
 use pley_core::http::{Method, Streamed};
 use pley_core::media::MediaKind;
 use pley_core::model::*;
@@ -369,10 +370,15 @@ struct Live {
 
 impl Live {
     fn new(fake: Arc<LiveFake>) -> Live {
+        Live::reporting(fake, None)
+    }
+
+    /// A live player on a TV that reports `report` of what it plays.
+    fn reporting(fake: Arc<LiveFake>, report: Option<CapsReport>) -> Live {
         let clock = SimClock::manual();
         let (engine, sim) = SimEngine::new(clock.clone());
         let server: Arc<dyn PlayerServer> = fake.clone();
-        let caps = Arc::new(|| None::<CapsReport>);
+        let caps = Arc::new(move || report.clone());
         let env = PlayerEnv::new(server, Tasks::with_threads(2, Waker::noop()), Reporter::new(), caps, "webos-tv");
         let c = LiveSession::new(channel(1), &env, Box::new(engine), 0);
         Live { fake, clock, sim, c, now: 0 }
@@ -917,7 +923,7 @@ fn a_take_overs_card_stays_through_the_background_and_nothing_is_watched_until_w
     let shown = w.c.state().clone();
     w.c.suspend();
     w.settle();
-    w.c.resume();
+    w.c.resume(w.now);
     w.settle();
     w.advance(10_000);
     assert_eq!(w.c.state(), &shown);
@@ -1109,7 +1115,7 @@ fn lets_go_of_the_session_when_the_tv_hides_the_app_and_watches_again_when_it_sh
     w.c.suspend();
     w.settle();
     assert_eq!(w.fake.asked().last().map(String::as_str), Some("leave s1"));
-    w.c.resume();
+    w.c.resume(w.now);
     w.settle();
     let asked = w.fake.asked();
     assert_eq!(asked[asked.len() - 2..], ["watch 1 webos-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
@@ -1226,8 +1232,311 @@ fn a_plan_sent_as_it_is_or_with_sound_the_tv_decodes_plays_from_stream_ts() {
         ("copy", "aac", "truehd", false),
         ("h264_vaapi", "copy", "aac", false),
     ] {
-        assert_eq!(plays_as_sent(&plan(video, audio, codec)), direct, "{video} {audio} {codec}");
+        // What holds with no report from the TV.
+        assert_eq!(plays_as_sent(&plan(video, audio, codec), None), direct, "{video} {audio} {codec}");
     }
+}
+
+/// A 2022 LG TV's report: H.264 to 4K at 30 and to 1080p at 60, HEVC Main and Main 10 to 4K at
+/// 60, MPEG-2 to 1080p; AAC, AC-3, E-AC-3, MP2, MP3 and Opus decoded, no DTS.
+fn tv_report() -> CapsReport {
+    lg_2022_caps(&CapsOverrides::default())
+}
+
+/// A 1080p channel at 50 the server would transcode whole.
+fn converted(video_codec: &str, bit_depth: Option<i64>, audio_codec: &str) -> LivePlan {
+    LivePlan {
+        video_codec: Some(video_codec.into()),
+        width: Some(1920),
+        height: Some(1080),
+        frame_rate: Some(50.0),
+        bit_depth,
+        audio_codec: Some(audio_codec.into()),
+        audio_channels: Some(2),
+        video: "libx264".into(),
+        audio: "aac".into(),
+        out_height: Some(1080),
+        video_kbps: Some(6_000),
+        ..LivePlan::default()
+    }
+}
+
+#[test]
+fn a_channel_this_tv_decodes_plays_from_stream_ts() {
+    let caps = tv_report().caps;
+    let plays = |plan: &LivePlan| plays_as_sent(plan, Some(&caps));
+    // HEVC at 8 and 10 bits, and at 8 when the plan doesn't say; MPEG-2; sound the TV decodes.
+    assert!(plays(&converted("hevc", Some(8), "aac")));
+    assert!(plays(&converted("hevc", Some(10), "eac3")));
+    assert!(plays(&converted("hevc", None, "mp3")));
+    assert!(plays(&converted("mpeg2video", Some(8), "mp2")));
+    // Video the server copies, with sound it converts that the TV's report decodes.
+    assert!(plays(&LivePlan { video: "copy".into(), ..converted("h264", Some(8), "mp3") }));
+    // A radio channel in MP3.
+    assert!(plays(&LivePlan { video: "none".into(), video_codec: None, ..converted("", None, "mp3") }));
+
+    // Beyond the TV's decoders: 12 bits, and H.264 in 4K at 50 (its decoder takes 30).
+    assert!(!plays(&converted("hevc", Some(12), "aac")));
+    assert!(!plays(&LivePlan { width: Some(3840), height: Some(2160), ..converted("h264", Some(8), "aac") }));
+    assert!(plays(&LivePlan { width: Some(3840), height: Some(2160), ..converted("hevc", Some(10), "aac") }));
+    // Interlaced video is the server's to make progressive, while it does.
+    assert!(!plays(&LivePlan { interlaced: true, ..converted("mpeg2video", Some(8), "mp2") }));
+    let kept = LivePlan { interlaced: true, deinterlace: Some(false), ..converted("mpeg2video", Some(8), "mp2") };
+    assert!(plays(&kept), "Deinterlace off: it would come out interlaced all the same");
+    // Sound the TV doesn't decode, or decodes but doesn't read from an MPEG-TS.
+    assert!(!plays(&converted("hevc", Some(8), "dts")));
+    assert!(!plays(&converted("hevc", Some(8), "truehd")));
+    assert!(!plays(&converted("hevc", Some(8), "opus")));
+    // Video it decodes from a file, but doesn't read from an MPEG-TS.
+    assert!(!plays(&converted("av1", Some(8), "aac")));
+    assert!(!plays(&converted("vp9", Some(8), "aac")));
+    // A codec the plan doesn't name, and a channel with nothing to play.
+    assert!(!plays(&LivePlan { video_codec: None, ..converted("", Some(8), "aac") }));
+    assert!(!plays(&LivePlan { audio_codec: None, video: "copy".into(), ..converted("h264", Some(8), "") }));
+
+    // A TV with no report yet plays only what is sent as it is.
+    assert!(!plays_as_sent(&converted("hevc", Some(8), "aac"), None));
+}
+
+#[test]
+fn hevc_needs_a_decoder_of_its_bit_depth() {
+    let hevc = |depth| converted("hevc", Some(depth), "aac");
+    // No HEVC decoder.
+    let mut none = tv_report().caps;
+    none.video.retain(|d| d.codec != "hevc");
+    none.video_codecs.retain(|c| c != "hevc");
+    assert!(!plays_as_sent(&hevc(8), Some(&none)));
+    assert!(!plays_as_sent(&hevc(10), Some(&none)));
+    // One of 8 bits only (Main).
+    let mut main = tv_report().caps;
+    for d in main.video.iter_mut().filter(|d| d.codec == "hevc") {
+        d.max_bit_depth = Some(8);
+        d.profiles = Some(vec!["Main".into()]);
+    }
+    assert!(plays_as_sent(&hevc(8), Some(&main)));
+    assert!(!plays_as_sent(&hevc(10), Some(&main)));
+    // A report that only names codecs (version 1) is taken at 8 bits.
+    let named = ClientCaps {
+        video_codecs: vec!["h264".into(), "hevc".into()],
+        audio_codecs: vec!["aac".into()],
+        ..ClientCaps::default()
+    };
+    assert!(plays_as_sent(&hevc(8), Some(&named)));
+    assert!(!plays_as_sent(&hevc(10), Some(&named)));
+    assert!(!plays_as_sent(&converted("mpeg2video", Some(8), "aac"), Some(&named)));
+}
+
+#[test]
+fn an_older_server_s_plan_is_taken_at_8_bits() {
+    // No bit depth, no transcode's size and bitrate, no provider's bitrate.
+    let json = |video: &str| {
+        format!(
+            r#"{{"video_codec":"hevc","width":1920,"height":1080,"frame_rate":50.0,"interlaced":false,
+                "audio_codec":"aac","audio_channels":2,"video":"{video}","audio":"copy"}}"#
+        )
+    };
+    let plan: LivePlan = serde_json::from_str(&json("libx264")).unwrap();
+    assert_eq!((plan.kbps, plan.bit_depth, plan.out_height, plan.video_kbps), (0, None, None, None));
+    // The TV's report decides, as for any plan: its HEVC decoder takes 8 bits.
+    let caps = tv_report().caps;
+    assert!(plays_as_sent(&plan, Some(&caps)));
+    assert_eq!(pley_player::live::details::why_not_as_sent(&plan, Some(&caps)), None);
+    // A TV whose HEVC decoder stops at 1080p at 30 leaves it to the server's transcode.
+    let mut slow = caps.clone();
+    for d in slow.video.iter_mut().filter(|d| d.codec == "hevc") {
+        d.max_fps = Some(30.0);
+    }
+    assert!(!plays_as_sent(&plan, Some(&slow)));
+    assert!(!plays_as_sent(&plan, None));
+    let copied: LivePlan = serde_json::from_str(&json("copy")).unwrap();
+    assert!(plays_as_sent(&copied, None));
+    // The new fields sent as `null` read the same way.
+    let nulls = r#"{"video":"libx264","audio":"aac","kbps":null,"bit_depth":null}"#;
+    let plan: LivePlan = serde_json::from_str(nulls).unwrap();
+    assert_eq!((plan.kbps, plan.bit_depth), (0, None));
+}
+
+#[test]
+fn a_channel_the_server_would_transcode_plays_from_stream_ts_on_a_tv_that_decodes_it() {
+    let fake = LiveFake::new();
+    fake.set_plan(converted("hevc", Some(10), "eac3"));
+    let mut w = Live::reporting(fake, Some(tv_report()));
+    w.c.tune(channel(1));
+    w.settle();
+    // No playlist asked for: the server makes no transcode.
+    assert_eq!(w.fake.asked(), ["watch 1 webos-tv"]);
+    assert_eq!(w.kinds(), [MediaKind::LiveTs]);
+    assert!(w.c.direct());
+    assert_eq!(w.c.plan().and_then(|p| p.video_codec.as_deref()), Some("hevc"));
+    // Failing, it is watched as its HLS, as any stream.ts.
+    w.sim.fail(2, "no such format");
+    w.settle();
+    assert_eq!(w.kinds(), [MediaKind::LiveTs, MediaKind::LiveHls]);
+    assert!(!w.c.direct());
+}
+
+#[test]
+fn a_channel_this_tv_doesn_t_decode_plays_its_hls() {
+    for (plan, report) in [
+        // 12-bit HEVC; no report from the TV.
+        (converted("hevc", Some(12), "aac"), Some(tv_report())),
+        (converted("hevc", Some(10), "aac"), None),
+    ] {
+        let fake = LiveFake::new();
+        fake.set_plan(plan.clone());
+        let mut w = Live::reporting(fake, report);
+        w.c.tune(channel(1));
+        w.settle();
+        assert_eq!(w.kinds(), [MediaKind::LiveHls]);
+        assert!(!w.c.direct());
+        // What the tune learned is kept for Playback details.
+        assert_eq!(w.c.plan(), Some(&plan));
+    }
+}
+
+#[test]
+fn playback_details_ask_the_plan_again_for_what_the_provider_sends_now() {
+    let fake = LiveFake::new();
+    fake.set_plan(converted("hevc", Some(10), "eac3"));
+    let mut w = Live::reporting(fake, Some(tv_report()));
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    assert_eq!((w.c.plan().map(|p| p.kbps), w.fake.plans()), (Some(0), 1));
+    assert!(w.c.caps().is_some());
+    w.fake.set_plan(LivePlan { kbps: 12_300, ..converted("hevc", Some(10), "eac3") });
+    let before = w.c.version();
+    w.c.ask_plan();
+    w.settle();
+    assert_eq!((w.c.plan().map(|p| p.kbps), w.fake.plans()), (Some(12_300), 2));
+    assert!(w.c.version() > before, "what shows didn't change with the plan");
+    // The same answer changes nothing.
+    let before = w.c.version();
+    w.c.ask_plan();
+    w.settle();
+    assert_eq!((w.c.version(), w.fake.plans()), (before, 3));
+    // A plan that doesn't come leaves what is known, and the channel playing.
+    w.fake.end("s1", "The channel was stopped.");
+    w.c.ask_plan();
+    w.settle();
+    assert_eq!(w.c.plan().map(|p| p.kbps), Some(12_300));
+    assert_eq!((w.c.state().phase, w.kinds()), (LivePhase::Playing, vec![MediaKind::LiveTs]));
+    // Another channel's plan is its own: nothing is known of it until the server says.
+    w.fake.plans_held.store(true, Ordering::SeqCst);
+    w.c.tune(channel(2));
+    w.c.tick(w.now);
+    assert_eq!(w.c.plan(), None);
+    w.fake.plans_held.store(false, Ordering::SeqCst);
+    w.settle();
+    assert_eq!(w.c.plan().map(|p| p.kbps), Some(12_300));
+}
+
+#[test]
+fn a_channel_back_on_its_hls_learns_its_plan_when_playback_details_ask() {
+    // Its stream.ts failed: watched as HLS, the tune asks no plan.
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "copy", "aac"));
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    w.sim.fail(2, "no such format");
+    w.settle();
+    assert_eq!((w.kinds().last().copied(), w.c.plan()), (Some(MediaKind::LiveHls), None));
+    w.c.ask_plan();
+    w.settle();
+    assert_eq!(w.c.plan(), Some(&plan("copy", "copy", "aac")));
+    // Leaving doesn't wait for a plan still asked for.
+    w.fake.plans_held.store(true, Ordering::SeqCst);
+    w.c.ask_plan();
+    assert!(w.c.busy());
+    w.c.close();
+    w.until(|w| !w.c.busy());
+    w.fake.plans_held.store(false, Ordering::SeqCst);
+}
+
+#[test]
+fn a_channel_on_hls_whose_tune_learned_no_plan_asks_it_once_as_its_picture_starts() {
+    // Its stream.ts failed: watched as HLS, the tune asks no plan.
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "copy", "aac"));
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    w.advance(200);
+    w.sim.fail(2, "no such format");
+    w.settle();
+    let asked = w.fake.plans();
+    assert_eq!((w.kinds().last().copied(), w.c.plan()), (Some(MediaKind::LiveHls), None));
+    // Its picture starts: the badge that says how it plays needs the plan.
+    w.first_frame();
+    assert_eq!((w.c.plan(), w.fake.plans()), (Some(&plan("copy", "copy", "aac")), asked + 1));
+    // Its first frame from the tune: the stream.ts that failed was part of it.
+    assert_eq!(w.c.state().first_frame_ms, Some(200 + SIM_LOAD_MS));
+    // Known now: nothing more is asked while it plays.
+    w.advance(10_000);
+    assert_eq!(w.fake.plans(), asked + 1);
+    // A channel whose tune learned its plan asks nothing as its picture starts, on HLS or not.
+    for report in [None, Some(tv_report())] {
+        let fake = LiveFake::new();
+        fake.set_plan(converted("hevc", Some(10), "aac"));
+        let mut w = Live::reporting(fake, report);
+        w.c.tune(channel(1));
+        w.settle();
+        w.first_frame();
+        assert_eq!(w.fake.plans(), 1);
+    }
+}
+
+#[test]
+fn stalls_are_counted_for_the_channel_and_its_first_frame_timed_from_each_tune() {
+    let mut w = Live::new(LiveFake::new());
+    w.advance(4_000);
+    w.c.tune(channel(1));
+    w.settle();
+    assert_eq!((w.c.state().stalls, w.c.state().first_frame_ms), (0, None));
+    w.first_frame();
+    // From the tune, not from when the player opened.
+    assert_eq!(w.c.state().first_frame_ms, Some(SIM_LOAD_MS));
+    // It played, and stops to wait for more: a stall, counted once while it lasts.
+    w.sim.wait(true);
+    w.settle();
+    w.sim.wait(true);
+    w.settle();
+    assert_eq!((w.c.state().phase, w.c.state().stalls), (LivePhase::Buffering, 1));
+    w.sim.wait(false);
+    w.settle();
+    w.sim.wait(true);
+    w.settle();
+    assert_eq!(w.c.state().stalls, 2);
+    // The same channel watched anew (Try again, a recovery) keeps its stalls, and times its
+    // first frame again.
+    w.advance(3_000);
+    w.c.retry();
+    w.settle();
+    assert_eq!((w.c.state().stalls, w.c.state().first_frame_ms), (2, None));
+    // Waiting for its first picture is no stall.
+    w.sim.wait(true);
+    w.settle();
+    w.sim.wait(false);
+    w.settle();
+    assert_eq!(w.c.state().stalls, 2);
+    w.first_frame();
+    assert_eq!(w.c.state().first_frame_ms, Some(SIM_LOAD_MS));
+    // Another channel's stalls say nothing of this one.
+    w.c.tune(channel(2));
+    w.settle();
+    assert_eq!((w.c.state().stalls, w.c.state().first_frame_ms), (0, None));
+    // Shown again after the TV hid the app: timed from then, however long it was hidden with
+    // no tick.
+    w.first_frame();
+    w.c.suspend();
+    w.settle();
+    w.now += 3_600_000;
+    w.clock.set(w.now);
+    w.c.resume(w.now);
+    w.settle();
+    w.first_frame();
+    assert_eq!(w.c.state().first_frame_ms, Some(SIM_LOAD_MS));
 }
 
 #[test]

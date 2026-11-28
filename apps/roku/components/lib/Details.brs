@@ -1,7 +1,8 @@
 ' What the player's menu says of the playing file, as the other apps' do
 ' (packages/tv/src/player/details.ts, the Android app's PlaybackDetails):
 ' how it plays and why, its video and audio as they are and as the server
-' converts them; and its chapters.
+' converts them; and its chapters. A Live TV channel's are the live
+' player's (detLive).
 
 ' ffprobe's codec name as people know it: "h264" is "H.264"; others in
 ' capitals.
@@ -177,6 +178,11 @@ function detPlayback(info as object, file as dynamic, audioIndex as integer, liv
         bitrate = fmtBitrate(file.bitrate)
         if bitrate <> "" then rows.Push({ label: t("titles.playback.bitrate"), value: bitrate })
     end if
+    ' What converts the video, where the server says: an older one, or a
+    ' conversion still starting, names no encoder.
+    if transcode <> invalid and httpString(transcode.video) = "transcode" and httpString(transcode.encoder) <> ""
+        rows.Push({ label: t("titles.playback.encoder"), value: detEncoder(transcode) })
+    end if
     shown = httpSentence(info.video_range)
     if transcode <> invalid and httpString(transcode.tonemap) <> "" then shown = t("titles.playback.toneMapped", { method: httpSentence(transcode.tonemap) })
     if video <> invalid and shown <> "" then rows.Push({ label: t("titles.playback.shownAs"), value: shown })
@@ -194,6 +200,131 @@ function detPlayback(info as object, file as dynamic, audioIndex as integer, liv
         end if
     end if
     return { method: detMethod(info), why: why, rows: rows }
+end function
+
+' The codec an encoder makes, by FFmpeg's name for it ("h264_nvenc",
+' "libx264"): "H.264"; "" for one whose name doesn't say.
+function detEncoded(encoder as string) as string
+    if Instr(1, encoder, "264") > 0 then return "H.264"
+    if Instr(1, encoder, "265") > 0 or Instr(1, encoder, "hevc") > 0 then return "HEVC"
+    if Instr(1, encoder, "av1") > 0 then return "AV1"
+    return ""
+end function
+
+' An encoder by the name people know, as the other apps say it:
+' "h264_nvenc" is "NVIDIA NVENC", "libx264" "x264"; one not known as it is.
+function detEncoderName(encoder as string) as string
+    names = {
+        "libx264": "x264", "libx265": "x265",
+        "h264_nvenc": "NVIDIA NVENC", "hevc_nvenc": "NVIDIA NVENC",
+        "h264_qsv": "Intel Quick Sync", "hevc_qsv": "Intel Quick Sync",
+        "h264_amf": "AMD AMF", "hevc_amf": "AMD AMF",
+        "h264_vaapi": "VA-API", "hevc_vaapi": "VA-API",
+        "h264_videotoolbox": "VideoToolbox", "hevc_videotoolbox": "VideoToolbox",
+        "h264_vulkan": "Vulkan", "hevc_vulkan": "Vulkan",
+        "h264_rkmpp": "Rockchip MPP", "hevc_rkmpp": "Rockchip MPP",
+        "h264_v4l2m2m": "V4L2"
+    }
+    known = names[encoder]
+    if known = invalid then return encoder
+    return known
+end function
+
+' A conversion's encoder, its preset and where it runs, as the other apps
+' say them: "NVIDIA NVENC (GPU)", "x264 veryfast (CPU)". transcode is the
+' session's TranscodeInfo.
+function detEncoder(transcode as object) as string
+    parts = [detEncoderName(httpSentence(transcode.encoder))]
+    preset = httpSentence(transcode.preset)
+    if preset <> "" then parts.Push(preset)
+    ' "copy" converts no video: there is nowhere to name.
+    pipeline = httpSentence(transcode.pipeline)
+    if pipeline <> "" and pipeline <> "copy" then parts.Push("(" + detPipeline(pipeline) + ")")
+    return parts.Join(" ")
+end function
+
+' Where the transcoder works: "GPU", "CPU", or both ("GPU and CPU"); one
+' not known as the server names it.
+function detPipeline(pipeline as string) as string
+    if pipeline = "gpu" then return "GPU"
+    if pipeline = "cpu" then return "CPU"
+    if pipeline = "hybrid" then return t("titles.playback.pipeline.hybrid")
+    return pipeline
+end function
+
+' A Live TV channel's details, as detPlayback's: plan is the session's
+' SessionPlan (GET /api/live/sessions/{session}/plan). The Roku plays the
+' server's HLS stream: a direct stream while the video is copied (or the
+' channel has none), saying as a file's does when the sound is converted,
+' else a transcode, with nothing to say why (it reads no MPEG-TS, so the
+' provider's stream is never played as it is). The video and audio are
+' the provider's, then what the server makes of them; kind is the method
+' as a file's PlaybackInfo names it ("remux", "transcode"), for the badge's
+' color.
+' An older server sends no bit depth, transcode size or bitrates: those go
+' unsaid.
+function detLive(plan as object) as object
+    made = LCase(httpString(plan.video))
+    converted = made <> "" and made <> "copy" and made <> "none"
+    rows = []
+    codec = detCodec(plan.video_codec)
+    height = Int(httpNumber(plan.height, 0))
+    if codec <> ""
+        bits = Int(httpNumber(plan.bit_depth, 8))
+        if bits > 8 then codec = codec + " " + t("player.media.bits", { n: bits })
+        parts = [codec]
+        width = Int(httpNumber(plan.width, 0))
+        if width > 0 and height > 0 then parts.Push(urlValue(width) + "×" + urlValue(height))
+        ' The frame rate in a file's Media info's words ("25 fps, interlaced").
+        frames = httpNumber(plan.frame_rate, 0)
+        if frames > 0 and httpTrue(plan.interlaced)
+            parts.Push(t("player.media.fpsInterlaced", { fps: fmtThreeDecimals(frames) }))
+        else if frames > 0
+            parts.Push(t("player.media.fps", { fps: fmtThreeDecimals(frames) }))
+        end if
+        value = parts.Join(" · ")
+        if converted
+            out = detEncoded(made)
+            lines = Int(httpNumber(plan.out_height, 0))
+            ' A transcode keeps the channel's lines unless it says otherwise.
+            if lines <= 0 then lines = height
+            ' Its size by the name a file's goes by ("4K", "1080p"), from
+            ' its lines alone: the plan doesn't give its width.
+            out = (out + " " + detResolution(0, lines)).Trim()
+            if out = "" then out = "…"
+            value = value + " → " + out
+        end if
+        rows.Push({ label: t("titles.playback.video"), value: value })
+    end if
+    ' The server makes any other sound AAC stereo.
+    sound = (LCase(httpString(plan.audio)) = "aac")
+    if httpString(plan.audio_codec) <> ""
+        value = detAudio({ codec: plan.audio_codec, channels: plan.audio_channels })
+        if sound then value = value + " → " + detAudio({ codec: "aac", channels: 2 })
+        rows.Push({ label: t("titles.playback.audio"), value: value })
+    end if
+    ' What the provider sends now (0 until it is measured), then the
+    ' transcode's video.
+    bitrate = fmtBitrate(detBps(plan.kbps))
+    if bitrate <> ""
+        out = ""
+        if converted then out = fmtBitrate(detBps(plan.video_kbps))
+        if out <> "" then bitrate = bitrate + " → " + out
+        rows.Push({ label: t("titles.playback.bitrate"), value: bitrate })
+    end if
+    if converted then rows.Push({ label: t("titles.playback.encoder"), value: detEncoderName(httpSentence(plan.video)) })
+    ' The method in a file's words.
+    way = { method: "remux", audio_converted: sound }
+    if converted then way = { method: "transcode" }
+    return { method: detMethod(way), kind: way.method, why: "", rows: rows }
+end function
+
+' kbit/s as bit/s, for fmtBitrate; 0 for none, or for more than any
+' stream's (which wouldn't fit a 32-bit integer).
+function detBps(kbps as dynamic) as integer
+    value = httpNumber(kbps, 0)
+    if value <= 0 or value > 2000000 then return 0
+    return Int(value) * 1000
 end function
 
 ' The playback's details as a FactSheet's lines: the method as a heading,

@@ -3,7 +3,9 @@ import { navigatorLanguages, t } from "pley-tv/i18n";
 import type { DeviceFacts, Platform, Probe } from "pley-tv/platform";
 import { standardKey, type Key } from "pley-tv/ui/keys";
 import { tierOf, tizenCaps } from "./caps";
+import { VideoEngine } from "pley-tv/player/video-engine";
 import { AvplayEngine } from "./engine";
+import { SelectingEngine } from "./engine-select";
 import { readFacts, type TizenFacts } from "./facts";
 
 /** pley for Samsung TV's built-in OAuth client (apps/server/src/oauth/builtin/tizen.json). */
@@ -106,7 +108,7 @@ export function keyMap(supported: TizenKey[] | null): Record<number, Key> {
 }
 
 /**
- * pley for Samsung TVs: AVPlay for video, Samsung's Product API for what
+ * pley for Samsung TVs: <video> and AVPlay for video, Samsung's Product API for what
  * the TV is, the remote's keys by Tizen's names.
  */
 export function tizenPlatform(): Platform {
@@ -148,7 +150,16 @@ export function tizenPlatform(): Platform {
         // Not on a TV.
       }
     },
-    createEngine: (host) => new AvplayEngine(host, getFacts().uhd),
+    // <video> for a file played as it is on sets before 2020 (their AVPlay refuses seeks in such files), and on later
+    // sets at a seek AVPlay refused; AVPlay for the rest, or for everything as Settings › Playback says.
+    createEngine: (host, options) => {
+      const tizen5 = getFacts().year < 2020;
+      return new SelectingEngine(
+        { video: () => new VideoEngine(host), avplay: () => new AvplayEngine(host, getFacts().uhd, tizen5) },
+        () => options?.player?.() ?? "auto",
+        { videoFirst: tizen5, hlsFromFirstSegment: tizen5 },
+      );
+    },
     async probe(overrides): Promise<Probe> {
       // Its lines are a getter, in the language shown when Diagnostics reads them.
       return tizenCaps(getFacts(), overrides);

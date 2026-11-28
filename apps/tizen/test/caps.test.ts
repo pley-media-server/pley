@@ -94,6 +94,9 @@ describe("Samsung capabilities, rules", () => {
   it("keeps fMP4 HLS for 2020 sets and later", () => {
     expect(tizenCaps(tv({ year: 2019, tizen: 5 })).caps.hls.segments).toEqual(["ts"]);
     expect(tizenCaps(tv({ year: 2020, tizen: 5.5 })).caps.hls.segments).toEqual(["ts", "fmp4"]);
+    // Dolby audio plays from the file on a 2019 set but not from its MPEG-TS segments: a stream's audio is AAC stereo.
+    expect(tizenCaps(tv({ year: 2019, tizen: 5 })).caps.hls).toMatchObject({ audio: ["aac", "mp3"], audio_channels: 2 });
+    expect(tizenCaps(tv({ year: 2020, tizen: 5.5 })).caps.hls.audio).toBeUndefined();
   });
 
   it("rates sets by year", () => {

@@ -90,4 +90,42 @@ class MarkersTest {
         // Turned down, they are still announced once known to run to the end.
         assertSame(credits, gate.entered(credits, 1_310_000))
     }
+
+    @Test
+    fun `Skip shows by itself for 8 s from when it appears, then only with the controls`() {
+        val window = SkipWindow()
+        assertEquals(8_000L, Markers.SKIP_ALONE_MS)
+        assertFalse(window.alone(null, 0))
+        assertTrue(window.alone(intro, 100_000))
+        assertTrue(window.alone(intro, 107_999))
+        assertFalse(window.alone(intro, 108_000))
+        // Still in the intro, on the wall clock: it stays with the controls only.
+        assertFalse(window.alone(intro, 160_000))
+    }
+
+    @Test
+    fun `seeking inside the segment keeps its window, entering it again starts a fresh one`() {
+        val window = SkipWindow()
+        assertTrue(window.alone(intro, 0))
+        // A seek inside the same intro is the same segment: the 8 s go on from when it appeared.
+        assertTrue(window.alone(intro, 5_000))
+        assertFalse(window.alone(intro, 9_000))
+        // Out of it and back in.
+        assertFalse(window.alone(null, 10_000))
+        assertTrue(window.alone(intro, 11_000))
+        assertTrue(window.alone(intro, 18_999))
+        assertFalse(window.alone(intro, 19_000))
+        // The next segment, straight from this one.
+        assertTrue(window.alone(credits, 20_000))
+        assertFalse(window.alone(credits, 28_000))
+    }
+
+    @Test
+    fun `a new item starts a fresh window, even for a segment named the same`() {
+        val window = SkipWindow()
+        assertTrue(window.alone(intro, 0))
+        assertFalse(window.alone(intro, 8_000))
+        window.reset()
+        assertTrue(window.alone(intro, 9_000))
+    }
 }

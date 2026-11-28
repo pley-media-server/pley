@@ -118,7 +118,13 @@
     "joinHint": "A channel already being watched can be joined, or try again once one is stopped.",
     "watchAgain": "Watch again",
     "otherChannels": "Other channels",
-    "backToGuide": "Back to the guide"
+    "backToGuide": "Back to the guide",
+    "details": {
+      "interlacedWhy": "Interlaced video is made progressive.",
+      "noVideo": "This device doesn't play {{codec}} video.",
+      "noAudio": "This device doesn't play {{codec}} audio.",
+      "interlaced": "interlaced"
+    }
   },
   "panel": {
     "changeGroup": "Change group",

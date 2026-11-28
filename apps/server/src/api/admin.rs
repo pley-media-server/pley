@@ -93,6 +93,13 @@ pub async fn put_settings(
             }
         }
     }
+    // Scans find what `.strm` files' media is from now on: what is listed
+    // and not known yet is looked at, without waiting for a scan (one is
+    // coming for the libraries, when they were just turned on).
+    if !before.strm_probe && after.strm_probe && before.strm_files {
+        let state = state.clone();
+        tokio::spawn(async move { crate::strm::walk_all(&state).await });
+    }
     // Requests turned on or off, other limits, another TMDB key: every app
     // fetches its summary again.
     if before.requests != after.requests

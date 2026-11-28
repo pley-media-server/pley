@@ -45,7 +45,7 @@ internal sealed interface PlayerKey {
 
 /** Where focus goes when the controls show. */
 internal enum class ControlFocus {
-    /** Skip while a marker runs, else the scrubber. */
+    /** Skip while it shows by itself (a marker's first 8 s), else the scrubber. */
     Default,
     Scrubber,
 
@@ -79,8 +79,8 @@ internal object TvPlayerKeys {
     }
 
     /**
-     * A key with the controls hidden; `null` leaves it to focus (a showing
-     * Skip button takes Center) or to the system (Back, volume). Center
+     * A key with the controls hidden; `null` leaves it to focus (Skip,
+     * showing by itself with focus, takes Center) or to the system (Back, volume). Center
      * shows the controls rather than pausing, as Up does: OK on the
      * scrubber plays and pauses.
      */

@@ -528,7 +528,7 @@ jobs:
           cache-to: ${{ github.ref == 'refs/heads/master' && format('type=gha,mode=max,scope=docker-{0}', matrix.arch) || '' }}
       # What the transcoder's hardware paths use (apps/transcoder/src/ffmpeg.rs):
       # an FFmpeg update that drops one would quietly leave pley on the CPU.
-      # NVIDIA's and Intel's are built for amd64 only.
+      # NVIDIA's and Intel's are built for amd64 only, Rockchip's for arm64.
       - name: Check the image's FFmpeg
         env:
           ARCH: ${{ matrix.arch }}
@@ -540,10 +540,21 @@ jobs:
           hw=(vaapi vulkan opencl) hw_filters=(scale_vaapi) hw_encoders=(h264_vaapi hevc_vaapi)
           if [ "$ARCH" = amd64 ]; then
             hw+=(cuda qsv) hw_filters+=(scale_cuda vpp_qsv) hw_encoders+=(h264_nvenc hevc_nvenc h264_qsv hevc_qsv)
+          else
+            hw+=(rkmpp) hw_filters+=(scale_rkrga) hw_encoders+=(h264_rkmpp hevc_rkmpp)
           fi
           for name in "${hw[@]}"; do
             grep -qx "$name" <<<"$hwaccels" || fail "FFmpeg has no $name hardware acceleration"
           done
+          # Rockchip's decoders are jellyfin-ffmpeg's (deploy/ffmpeg/rockchip),
+          # which `-hwaccel rkmpp` picks; FFmpeg's own have no such device.
+          if [ "$ARCH" = arm64 ]; then
+            for name in h264_rkmpp hevc_rkmpp vp9_rkmpp av1_rkmpp; do
+              grep -qw "$name" <<<"$decoders" || fail "FFmpeg has no $name decoder"
+            done
+            rkmpp=$(ff -h decoder=h264_rkmpp)
+            grep -qw afbc <<<"$rkmpp" || fail "FFmpeg's h264_rkmpp decoder isn't jellyfin-ffmpeg's"
+          fi
           for name in "${hw_filters[@]}" libplacebo tonemap_opencl zscale subtitles; do
             grep -qw "$name" <<<"$filters" || fail "FFmpeg has no $name filter"
           done
@@ -596,9 +607,10 @@ jobs:
         working-directory: deploy/docker
         env:
           PLEY_RENDER_GID: "44"
+          PLEY_ROCKCHIP_GID: "44"
         run: |
           python3 -c 'import xml.etree.ElementTree as e; e.parse("../unraid/pley.xml")'
-          for addon in vaapi nvidia proxy plex jellyfin; do
+          for addon in vaapi nvidia rockchip proxy plex jellyfin; do
             docker compose -f compose.yaml -f "compose.$addon.yaml" config --quiet
           done
           ports=$(docker compose -f compose.yaml -f compose.proxy.yaml config --format json | jq '.services.pley.ports // [] | length')

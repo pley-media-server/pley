@@ -387,11 +387,11 @@ internal fun methodColors(type: PlaybackMethod?): BadgeColors = PlayerLook.badge
 
 /** "Direct play", "Direct stream" or "Transcoding" in its color; it opens Playback details. */
 @Composable
-internal fun MethodBadge(method: String, type: PlaybackMethod?, onClick: () -> Unit) {
+internal fun MethodBadge(method: String, type: PlaybackMethod?, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = methodColors(type)
     val description = stringResource(R.string.player_method_hint, method)
     Box(
-        Modifier
+        modifier
             .heightIn(min = 48.dp)
             .clip(PleyShape.Badge)
             .clickable(role = Role.Button, onClick = onClick)

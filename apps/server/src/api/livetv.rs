@@ -9,12 +9,11 @@ use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use pley_transcoder_api::LivePlan;
 use serde::{Deserialize, Serialize};
 
 use crate::auth::{AdminUser, AuthUser, CurrentToken};
 use crate::error::{ApiResult, AppError};
-use crate::livetv::tuner::{Tune, TunerStatus, ViewerKind, WatchAs, Watching};
+use crate::livetv::tuner::{SessionPlan, Tune, TunerStatus, ViewerKind, WatchAs, Watching};
 use crate::livetv::{
     AdminChannel, AdminGroup, AdminPage, Category, Channel, ChannelPage, ChannelPatch, Groups, Guide, LineupFilter,
     LiveSettings, Source, SourceInput, SourceTest,
@@ -391,13 +390,14 @@ async fn session_media(state: &AppState, user: &AuthUser, session: &str, file: &
 }
 
 /// What the channel a session watches is made into (`null` when not known
-/// within a few seconds): a player that reads MPEG-TS plays a copied channel
-/// from `stream.ts` instead of waiting for its first segments.
+/// within a few seconds): a player that reads MPEG-TS plays a copied channel,
+/// or one it decodes, from `stream.ts` instead of waiting for its first
+/// segments.
 pub async fn session_plan(
     State(state): State<AppState>,
     user: AuthUser,
     Path(session): Path<String>,
-) -> ApiResult<Json<Option<LivePlan>>> {
+) -> ApiResult<Json<Option<SessionPlan>>> {
     let settings = state.live.settings();
     let hwaccel = state.settings.get().hwaccel;
     let plan = state.live.tuners.plan(&session, &user, &settings, hwaccel, Duration::from_secs(3)).await?;

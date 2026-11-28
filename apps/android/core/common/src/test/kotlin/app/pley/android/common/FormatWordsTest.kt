@@ -97,7 +97,7 @@ class FormatWordsTest {
             assertEquals(plain.f("5.1"), english.f("5.1"))
         }
         for (f in listOf<FormatWords.() -> String>(
-            { never }, { seasonUnnumbered }, { specials }, { watched }, { unknown }, { stereo }, { forced }, { external },
+            { never }, { seasonUnnumbered }, { specials }, { watched }, { finished }, { unknown }, { stereo }, { forced }, { external },
             { bitrateUnknown }, { anyHdr }, { videoTranscode }, { video }, { burnIn }, { dvNoBaseLayer }, { dvFullLayer },
             { dvMinimalLayer },
         )) {
@@ -148,6 +148,18 @@ class FormatWordsTest {
             .copy(userState = UserState(positionMs = 1_920_000))
         assertEquals("Severance, Glasshouse, Saison 2 Épisode 5, il reste 26 minutes", tileDescription(episode, french))
         assertEquals("Severance, Glasshouse, Temporada 2 Episodio 5, quedan 26 minutos", tileDescription(episode, spanish))
+    }
+
+    @Test
+    fun aBookHeardToItsEndIsFinishedInEveryLanguage() {
+        val book = item(ItemKind.Audiobook).copy(title = "Harbor Lights", authors = listOf("Ilse Brandt"), userState = UserState(watched = true))
+        assertEquals("Harbor Lights, Ilse Brandt, finished", tileDescription(book, english))
+        assertEquals("Harbor Lights, Ilse Brandt, terminé", tileDescription(book, french))
+        assertEquals("Harbor Lights, Ilse Brandt, terminado", tileDescription(book, spanish))
+        assertEquals("Harbor Lights, Ilse Brandt, 已听完", tileDescription(book, wordsIn("zh-CN")))
+        assertEquals("Harbor Lights, Ilse Brandt, 已聽完", tileDescription(book, wordsIn("zh-TW")))
+        // A video is still watched.
+        assertEquals("Harbor Lights, vu", tileDescription(book.copy(kind = ItemKind.Movie, authors = emptyList()), french))
     }
 
     @Test

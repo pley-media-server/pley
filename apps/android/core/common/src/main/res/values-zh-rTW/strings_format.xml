@@ -108,11 +108,12 @@
     <plurals name="format_albums">
         <item quantity="other">%1$s 張專輯</item>
     </plurals>
-    <!-- A tile's state, for screen readers: "Severance, 2 seasons, 6 unwatched". -->
+    <!-- A tile's state, for screen readers: "Severance, 2 seasons, 6 unwatched"; a book heard to its end, "Harbor Lights, Ilse Brandt, finished". -->
     <string name="format_watched">已觀看</string>
     <plurals name="format_unwatched">
         <item quantity="other">%1$d 未觀看</item>
     </plurals>
+    <string name="format_finished">已聽完</string>
 
     <!-- Tracks and files: "English (AAC Stereo)", "Unknown (5ch)", "French (SRT, Forced, External)", "10-bit". -->
     <string name="format_unknown">未知</string>

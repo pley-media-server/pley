@@ -1253,6 +1253,53 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun aBookPlaysThroughOnceWhateverRepeatedForTheMusicBeforeIt() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        music.setRepeat(MusicRepeat.One)
+        // A book started while the music repeats its track: Now Playing has no Repeat for a book, to turn it off.
+        music.play(book, startIndex = 1, startMs = 600_000)
+        runCurrent()
+        assertEquals(MusicRepeat.Off, music.queueState.value.repeat)
+        assertEquals(MusicRepeat.Off, music.nowPlaying.value?.repeat)
+        output.startPlaying()
+        output.end()
+        settle()
+        // The part after it, not the same one again.
+        assertEquals(listOf(1L, 12L, 13L), starts().map { it.itemId })
+
+        // Asked to repeat or to shuffle while it plays, as a controller can: it does neither.
+        music.setRepeat(MusicRepeat.All)
+        music.setShuffle(true)
+        assertEquals(MusicRepeat.Off, music.queueState.value.repeat)
+        assertFalse(music.queueState.value.shuffle)
+        assertEquals(listOf(11L, 12L, 13L), music.queueState.value.tracks.map { it.id })
+        // Its last part ends it: the book doesn't start over.
+        output.startPlaying()
+        output.end()
+        settle()
+        assertTrue(music.nowPlaying.value!!.ended)
+        assertEquals(3, starts().size)
+
+        // Music after it doesn't repeat by itself: what repeated ended as the book started, as when music stops.
+        music.play(album)
+        runCurrent()
+        assertEquals(MusicRepeat.Off, music.nowPlaying.value?.repeat)
+    }
+
+    @Test
+    fun aBookKeptWithRepeatOnComesBackToPlayThroughOnce() = runTest {
+        val music = music()
+        // Kept as the queue repeated: it waits where it was all the same, and on its last part Next has nowhere to go.
+        music.cue(SavedMusic(book, index = 2, positionMs = 60_000, repeat = MusicRepeat.All))
+        assertEquals(MusicRepeat.Off, music.queueState.value.repeat)
+        assertEquals(13L, music.queueState.value.current?.id)
+        assertEquals(60_000L, music.position().positionMs)
+        assertFalse(music.nowPlaying.value!!.hasNext)
+    }
+
+    @Test
     fun betweenTracksThePositionIsTheNextTracksStartNotWhereTheLastOneWas() = runTest {
         val music = music()
         music.play(album)
@@ -1312,6 +1359,27 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun aSeekWhileATrackIsStillAskedForChangesNothingAndOneAskedForAtAPlaceStartsThere() = runTest {
+        val music = music()
+        // Sought as soon as it is asked to play, the server not having answered: the output doesn't hold the track
+        // yet, and it starts at its start.
+        music.play(album)
+        music.seekTo(30_000)
+        settle()
+        assertEquals(listOf<Long?>(null), starts().map { it.startMs })
+        assertEquals(listOf(0L), output.startPositions)
+        assertEquals(emptyList<Long>(), output.seeks)
+        assertEquals(0L, music.position().positionMs)
+
+        // Asked for at the place, as a cast that says where its track starts asks: it starts there.
+        music.play(album, startMs = 30_000)
+        settle()
+        assertEquals(30_000L, starts().last().startMs)
+        assertEquals(30_000L, output.startPositions.last())
+        assertEquals(emptyList<Long>(), output.seeks)
+    }
+
+    @Test
     fun aQueueMadeReadyWaitsWhereItWasAndPlayStartsItThere() = runTest {
         val music = music()
         music.cue(album, startIndex = 2, startMs = 61_000)
@@ -1351,6 +1419,27 @@ class MusicPlaybackTest {
         music.play()
         runCurrent()
         assertEquals(5_000L, starts().single().startMs)
+    }
+
+    @Test
+    fun aTrackTheQueueHasTwiceWaitsAtTheOnePicked() = runTest {
+        val music = music()
+        // A playlist with a track twice: the second of the two picked in a car, then the first, the queue the same.
+        val twice = listOf(album[1], album[0], album[1], album[2])
+        music.cue(twice, startIndex = 2)
+        assertEquals(2, music.queueState.value.index)
+        music.cue(twice, startIndex = 0)
+        assertEquals(0, music.queueState.value.index)
+        // Made ready, then asked to play (as a car asks): it plays from the one picked, and goes on from there.
+        music.cue(twice, startIndex = 2)
+        music.cue(twice, startIndex = 2)
+        music.play()
+        runCurrent()
+        assertEquals(2L, starts().single().itemId)
+        assertEquals(2, music.nowPlaying.value?.index)
+        music.next()
+        runCurrent()
+        assertEquals(3L, starts().last().itemId)
     }
 
     @Test

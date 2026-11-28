@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Marker } from "../../src/api/types";
-import { CreditsGate, reachesEnd } from "../../src/player/markers";
+import { activeMarker, CreditsGate, reachesEnd, SKIP_SHOWN_MS, skipShows, SkipWindow } from "../../src/player/markers";
 // Shared with the native Samsung app's tests, which must answer the same.
 import fixture from "../fixtures/markers.json";
+import shown from "../fixtures/skip-shown.json";
+
+/** A step of skip-shown.json: where the playhead is at `ms`, whether Up Next's card and the controls show, with what shows. */
+type SkipStep = { ms: number; position_ms: number; up_next?: boolean; controls: boolean; skip: string | null; on_its_own: boolean };
 
 const marker = (kind: Marker["kind"], start_ms: number, end_ms: number, file_id = 7): Marker => ({ file_id, kind, start_ms, end_ms, source: "chapter" });
 
@@ -32,5 +36,34 @@ describe("the credits gate", () => {
     expect(gate.enter(marker("credits", 2_520_000, 2_640_000), 2_700_000)).toBe(false);
     expect(gate.enter(marker("credits", 2_600_000, 2_700_000), null)).toBe(false);
     expect(gate.enter(marker("credits", 2_600_000, 2_700_000), 0)).toBe(false);
+  });
+});
+
+describe("when Skip shows, as the shared fixture has it", () => {
+  it("is on its own for 8 s", () => {
+    expect(SKIP_SHOWN_MS).toBe(shown.shown_ms);
+  });
+
+  for (const c of shown.cases) {
+    it(c.name, () => {
+      const rule = new SkipWindow();
+      const markers = shown.markers as Marker[];
+      for (const step of c.steps as SkipStep[]) {
+        // Up Next's card takes Skip's place: no marker offers it meanwhile.
+        const m = step.up_next ? null : activeMarker(markers, step.position_ms);
+        const alone = rule.at(m, step.ms);
+        const what = skipShows(m !== null, alone, step.controls) ? m!.kind : null;
+        expect([step.ms, step.controls, what, alone]).toEqual([step.ms, step.controls, step.skip, step.on_its_own]);
+      }
+    });
+  }
+
+  it("starts afresh for a new item, even in the same marker", () => {
+    const rule = new SkipWindow();
+    const intro = marker("intro", 10_000, 70_000);
+    expect(rule.at(intro, 0)).toBe(true);
+    expect(rule.at(intro, 9_000)).toBe(false);
+    rule.reset();
+    expect(rule.at(intro, 10_000)).toBe(true);
   });
 });

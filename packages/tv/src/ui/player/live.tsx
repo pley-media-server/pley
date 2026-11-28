@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import type { LiveBusyConnection, LiveChannel, LiveGroups } from "../../api/types";
+import type { LiveBusyConnection, LiveChannel, LiveGroups, PlaybackInfo, SessionPlan } from "../../api/types";
 import { categoryKey, categoryName, channelByNumber, channelName, formatSpan, formatTime, nowAndNext, parseCategory, programProgress, timeLeft, type LiveCategory } from "../../live/data";
+import { liveFacts, liveMethod } from "../../live/details";
 import { ChannelPages } from "../../live/pages";
 import { holders, LiveController } from "../../live/session";
 import { t } from "../../i18n";
+import { methodText } from "../../player/details";
 import { initMusic } from "../../player/music";
 import type { Key } from "../keys";
 import { useUi } from "../context";
@@ -15,7 +17,8 @@ import { Toast } from "../kit/toast";
 import { failedTitle, problem, sentence, useApp, useLoad } from "../screens/common";
 import { CategoryPanel } from "../screens/live-categories";
 import { ChannelLogo, NumberBox, ProgramMarks, ProgressLine, useNow, useNumberEntry } from "../screens/live-kit";
-import { PlayerButton, TimeOfDay } from "./player";
+import { deviceFacts, LiveCompactReadout, Readout } from "./panels";
+import { MethodBadge, PlayerButton, TimeOfDay } from "./player";
 
 /** Controls hide this long after the last key while a channel plays. */
 const HIDE_MS = 5_000;
@@ -39,6 +42,10 @@ const MEDIA_KEYS: Key[] = ["playPause", "play", "pause", "stop", "fastForward", 
  * ended on the server (its connection taken over, or stopped from another
  * device, say) stops the picture for the server's words, with Watch again.
  * The user's remote, on another device, changes channel as CH+ and CH− do.
+ * Info, in the controls, opens Playback info as a title's player does: how
+ * the channel plays, and what this TV says of it. The controls say the way
+ * in a title's badge, beside Live, and Settings → Playback details keeps
+ * the compact readout over the picture, as over a title.
  */
 export function LivePlayerScreen(p: { channelId: number; category: string; pressedAt: number }) {
   const app = useApp();
@@ -106,7 +113,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
     () =>
       new LiveController(p.first, {
         server: ui.api,
-        engine: () => app.platform.createEngine(host.current!),
+        engine: () => app.platform.createEngine(host.current!, { player: () => app.settings.value.player }),
         clientId: app.installId(),
         events: (l) => app.onEvent(l),
         step: (by) => remoteStep.current(by),
@@ -123,6 +130,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
   const hours24 = app.platform.clock24();
   const [controls, setControls] = useState(false);
   const [list, setList] = useState(false);
+  const [details, setDetails] = useState(false);
   const [banner, setBanner] = useState(false);
   const [ring, setRing] = useState(false);
   const [toast, setToast] = useState<{ text: string; n: number; error: boolean } | null>(null);
@@ -190,14 +198,14 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
     return () => clearTimeout(t);
   }, [waiting]);
 
-  // Controls hide 5 s after the last key while it plays.
+  // Controls hide 5 s after the last key while it plays; Playback info, opened from them, keeps them up.
   useEffect(() => {
-    if (!controls || list || s.phase !== "playing") return;
+    if (!controls || list || details || s.phase !== "playing") return;
     const t = setInterval(() => {
       if (Date.now() - lastInput.current >= HIDE_MS) setControls(false);
     }, 250);
     return () => clearInterval(t);
-  }, [controls, list, s.phase]);
+  }, [controls, list, details, s.phase]);
 
   useEffect(() => {
     if (!toast) return;
@@ -290,7 +298,8 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
           if (!list) zap(-1);
           break;
         case "channelList":
-          if (down) setList((l) => !l);
+          // Not over Playback info: one panel at a time.
+          if (down && !details) setList((l) => !l);
           break;
         case "info":
           if (down) setBanner((b) => !b);
@@ -299,7 +308,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
       return true;
     }
     const st = c.state.value;
-    if (list) return false;
+    if (list || details) return false;
     if (st.phase === "error") {
       if (key === "back") {
         if (down) leave();
@@ -374,16 +383,24 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
     const takeable = s.trouble?.connections?.find((x) => x.can_take_over);
     focusFid(s.phase === "error" ? (takeable ? `take/${takeable.channel_id}` : s.trouble?.canRetry ? "retry" : "back") : "video");
   }, [controls, list, s.phase === "error", s.trouble]);
-  // An error closes the controls.
+  // An error closes the controls, and Playback info with them: its card takes the focus.
   useEffect(() => {
-    if (s.phase === "error") setControls(false);
+    if (s.phase !== "error") return;
+    setControls(false);
+    setDetails(false);
   }, [s.phase === "error"]);
+  const closeDetails = () => {
+    setDetails(false);
+    focusFid("info");
+  };
 
   const { on, next } = nowAndNext(channel, now);
   const trouble = s.phase === "error" ? s.trouble : null;
   const busy = trouble?.connections ?? [];
   const infoShown = (controls || banner) && !trouble && !(s.phase === "tuning" && !s.shown);
   const name = channelName(channel, category);
+  // The compact readout over the picture while nothing else shows, as over a title.
+  const readoutShown = app.settings.value.playbackDetails && !controls && !list && !details && !trouble;
   return (
     <div class="player live-player">
       {/* The picture and its controls; beside the channel list while it is open, rather than under it. */}
@@ -422,9 +439,10 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
             </div>
             <div class="row-centre" />
             <div class="row-right">
-              <LiveChip />
+              <LiveChip method={s.plan ? liveMethod(s.plan) : null} />
               <PlayerButton fid="chdown" icon="chevron-down" label={t("livetv.player.previousChannel")} onSelect={() => zap(-1)} />
               <PlayerButton fid="chup" icon="chevron-up" label={t("livetv.player.nextChannel")} onSelect={() => zap(1)} />
+              <PlayerButton fid="info" icon="info" label={t("player.controls.info")} onSelect={() => setDetails(true)} />
             </div>
           </G>
         </div>
@@ -433,6 +451,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
             <div />
           </div>
         )}
+        {readoutShown && <LiveCompactReadout facts={s.plan ? liveFacts(s.plan) : null} controller={c} stats={() => c.engine?.stats() ?? null} />}
       </div>
       {trouble && (
         <div class="player-error live-error">
@@ -481,16 +500,50 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
           }}
         />
       )}
+      {details && <LiveInfoPanel controller={c} plan={s.plan} onClose={closeDetails} />}
       <NumberBox digits={digits} missing={missing} />
       <Toast toast={toast ? { text: toast.text, error: toast.error, id: toast.n } : null} low={controls} />
     </div>
   );
 }
 
-/** "LIVE" in red, with the buttons: a live channel has no position bar, and no going back in it. */
-function LiveChip() {
+/**
+ * Playback info for a channel (a title's panel, with what a channel has to
+ * say): how it plays as the server says it, asked again every few seconds
+ * while the panel is open, then what the TV's player says, read each second.
+ * It stays open over a change of channel, and says the new channel's.
+ */
+function LiveInfoPanel(p: { controller: LiveController; plan: SessionPlan | null; onClose: () => void }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    p.controller.setDetailsOpen(true);
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => {
+      clearInterval(t);
+      p.controller.setDetailsOpen(false);
+    };
+  }, []);
+  const engine = p.controller.engine;
+  const sections = p.plan ? [liveFacts(p.plan)] : [];
+  if (engine) {
+    // This TV's lines, with its stalls and first frame, as a film's.
+    const { stalls, firstFrameMs } = p.controller.state.value;
+    const tv = deviceFacts(engine.stats(), engine.name, stalls);
+    if (firstFrameMs !== null) tv.facts.push({ label: t("player.info.firstFrame"), value: `${firstFrameMs} ms` });
+    sections.push(tv);
+  }
+  return <Readout sections={sections} asking={!p.plan} onClose={p.onClose} />;
+}
+
+/**
+ * "LIVE" in red, with the buttons: a live channel has no position bar, and
+ * no going back in it. How the channel plays is left of it, in a title's
+ * badge, as on Android TV; none until the server has said (`method`).
+ */
+function LiveChip(p: { method: Pick<PlaybackInfo, "method" | "audio_converted"> | null }) {
   return (
     <div class="live-chip-box">
+      {p.method && <MethodBadge method={p.method.method} text={methodText(p.method)} />}
       <span class="live-badge t-badge at-live" aria-label={t("livetv.live")}>
         <span class="live-dot" />
         {t("livetv.marks.live")}

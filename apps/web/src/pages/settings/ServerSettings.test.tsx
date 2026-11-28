@@ -134,6 +134,34 @@ describe("ServerSettings", () => {
     expect(screen.queryByRole("switch", { name: "Read .strm files" })).not.toBeInTheDocument();
   });
 
+  it("finds what .strm files play after a scan, once .strm files are read", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, strm_files: true, strm_probe: false }),
+      "GET /api/system": () => ({}),
+      "PUT /api/settings": (req) => ({ ...SETTINGS, strm_files: true, strm_probe: false, ...(req.body as Partial<Settings>) }),
+    });
+    const first = renderWithProviders(<ServerSettings />);
+    const toggle = await screen.findByRole("switch", { name: "Preload media info from .strm files" });
+    expect(toggle).toBeEnabled();
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ strm_probe: true }));
+    first.unmount();
+
+    // .strm files not read: nothing to find, so no switch for it, until they are.
+    mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, strm_files: false, strm_probe: false }),
+      "GET /api/system": () => ({}),
+    });
+    renderWithProviders(<ServerSettings />);
+    const reading = await screen.findByRole("switch", { name: "Read .strm files" });
+    expect(screen.queryByRole("switch", { name: "Preload media info from .strm files" })).not.toBeInTheDocument();
+    await user.click(reading);
+    expect(await screen.findByRole("switch", { name: "Preload media info from .strm files" })).not.toBeChecked();
+  });
+
   it("requires two-step sign-in only from an administrator who uses it", async () => {
     mockApi({ "GET /api/settings": () => ({ ...SETTINGS, require_two_step: false }), "GET /api/system": () => ({}), "GET /api/users": () => [] });
     renderWithProviders(<ServerSettings />, { user: { ...testUser, two_step: false } });

@@ -63,7 +63,7 @@ class CarLivePlayerSizesTest {
         }
         compose.waitForIdle()
         CarScreenChecks.save(compose, "live-$screen")
-        val controls = listOf("Back", favorite(), "Channels", "Channel down", "Channel up")
+        val controls = listOf("Back", favorite(), "Channels", "Playback details", "Channel down", "Channel up")
         CarScreenChecks.controls(compose, "Live TV, $screen", controls)
         CarScreenChecks.apart(compose, "Live TV, $screen", controls)
     }

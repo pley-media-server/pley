@@ -118,6 +118,7 @@ internal fun TvPlayerScreen(
     val handoff by remember(state) { derivedStateOf { state.value.handoff } }
     val card by remember(state) { derivedStateOf { state.value.upNextCard } }
     val skipLabel by remember(state) { derivedStateOf { state.value.skipLabel } }
+    val skipAlone by remember(state) { derivedStateOf { state.value.skipAlone } }
     val playing by remember(state) { derivedStateOf { state.value.phase.wantsToPlay() } }
     val options by remember(state) {
         derivedStateOf {
@@ -134,8 +135,10 @@ internal fun TvPlayerScreen(
     }
     val previewing by remember(seeker) { derivedStateOf { seeker.target != null } }
     val chaptersOpen by remember(ui) { derivedStateOf { ui.chapter != null } }
-    // Skip shows while its marker runs, unless a seek preview, the chapters' cards, Up Next or an error is on screen.
-    val skipShown = skipLabel != null && card == null && error == null && !switching && !(ui.controls && (previewing || chaptersOpen))
+    // Skip shows while its marker runs: by itself for its first 8 s, then only with the controls. Never over a seek
+    // preview, the chapters' cards, Up Next or an error.
+    val skipShown = skipLabel != null && (skipAlone || ui.controls) && card == null && error == null && !switching &&
+        !(ui.controls && (previewing || chaptersOpen))
     val sleepNotice by remember(state) { derivedStateOf { state.value.sleep.secondsLeft != null } }
     val sleepFired by remember(state) { derivedStateOf { state.value.sleep.fired } }
     val stopped by remember(state) { derivedStateOf { state.value.stoppedByServer } }
@@ -184,10 +187,21 @@ internal fun TvPlayerScreen(
         playPause()
     }
 
+    /**
+     * Skip stays on screen with the controls hidden: in its first 8 s, by
+     * itself. Read when asked, as the controls open or close, not when composed.
+     */
+    fun skipStaysAlone(): Boolean =
+        skipLabel != null && skipAlone && card == null && state.value.phase !is PlayerPhase.Error && !switching
+
+    /** Where focus goes as the controls hide: Skip while it stays by itself, else the video. */
+    fun focusOnHide(): PlayerFocus = if (skipStaysAlone()) PlayerFocus.Skip else PlayerFocus.Video
+
     fun focusFor(focus: ControlFocus): PlayerFocus = when (focus) {
         ControlFocus.Scrubber -> PlayerFocus.Scrubber
         ControlFocus.PlayPause -> PlayerFocus.PlayPause
-        ControlFocus.Default -> if (skipShown) PlayerFocus.Skip else PlayerFocus.Scrubber
+        // After Skip's first 8 s, the controls open on the scrubber; Up reaches Skip from there.
+        ControlFocus.Default -> if (skipStaysAlone()) PlayerFocus.Skip else PlayerFocus.Scrubber
     }
 
     /**
@@ -375,7 +389,7 @@ internal fun TvPlayerScreen(
                 seeker.cancel()
                 ui.touch()
             }
-            ui.controls -> ui.hideControls(if (skipShown) PlayerFocus.Skip else PlayerFocus.Video)
+            ui.controls -> ui.hideControls(focusOnHide())
             else -> exit()
         }
     }
@@ -390,7 +404,8 @@ internal fun TvPlayerScreen(
             if (runCatching { requester.requestFocus() }.getOrDefault(false)) return@LaunchedEffect
         }
     }
-    // Skip takes focus while its marker runs; when it goes, focus goes back to the video or the scrubber.
+    // Skip takes focus while it shows by itself; when it goes, focus goes back to the video or the scrubber. Showing
+    // with the controls after its first 8 s, it doesn't: they open on the scrubber.
     LaunchedEffect(skipShown) {
         when {
             skipShown && !ui.controls && ui.panel == null -> ui.ask(PlayerFocus.Skip)
@@ -448,7 +463,7 @@ internal fun TvPlayerScreen(
         if (ui.controls && ui.panel == null && hides && !chaptersOpen) {
             delay(TvPlayerUi.HIDE_AFTER_MS)
             snapshotFlow { seeker.target == null }.first { it }
-            ui.hideControls(if (skipShown) PlayerFocus.Skip else PlayerFocus.Video)
+            ui.hideControls(focusOnHide())
         }
     }
     // Presses in a row seek once they stop, OK sooner: Left and Right after 5 s, the jumps after 400 ms.

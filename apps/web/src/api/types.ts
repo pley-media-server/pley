@@ -1034,7 +1034,7 @@ export type ServerEvent =
 type TitleKindName = "movie" | "show";
 
 /** `vulkan` (h264_vulkan) isn't offered: it can only be set through the API. */
-export type HwAccel = "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
+export type HwAccel = "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan" | "rkmpp";
 /** `auto`: the transcoder picks one from its load and how far ahead of the player it is, and changes it as they change. */
 export type TranscodePreset = "auto" | "ultrafast" | "superfast" | "veryfast" | "faster" | "fast" | "medium";
 export type ToneMapping = "auto" | "libplacebo" | "opencl" | "zscale" | "none";
@@ -1073,6 +1073,12 @@ export interface Settings {
    * name. Off: scans leave them out. Absent from servers before it.
    */
   strm_files?: boolean;
+  /**
+   * After a scan, find what each `.strm` file's media is (its size, its
+   * tracks) before anyone opens it. Of no use while `strm_files` is off.
+   * Absent from servers before it.
+   */
+  strm_probe?: boolean;
   hwaccel: HwAccel;
   hardware_decoding: boolean;
   tonemapping: ToneMapping;

@@ -11,19 +11,16 @@ describes how they are made.
 
 ### Added
 
-- Audiobooks in apps that show them: an app's request with
-  `X-Pley-Features: audiobooks` gets audiobook libraries as the web app
-  does. Pley for Android asks for them.
-- A player can ask for the next track ahead (`ahead`), to play it
-  without a gap: it isn't shown as playing on the dashboard, to remotes
-  or in Tautulli until it plays.
 - The dashboard shows the quality a transcode's HDR is tone mapped at
   (high, balanced or fast).
 
 ### Changed
 
-- Where Dolby Vision needs another FFmpeg, the transcoder settings name
-  Pley's own first: the one its Windows installer and Docker image bring.
+- The web player's Up Next card shows the next title's name without its
+  picture, so it covers less of the credits.
+- Skip Intro and Skip Credits show on their own for 8 seconds as the intro
+  or credits begin, then only with the player's controls, so they don't sit
+  over the picture the whole time.
 - With the software encoder's preset on automatic, a transcode starts and
   seeks on a quick preset, so the picture comes sooner, then moves to the
   best-looking one the computer is measured to encode at twice real time,
@@ -32,6 +29,53 @@ describes how they are made.
   well ahead of their players pause for that moment.
 - A skip forward to just past what a transcode has made starts at once,
   rather than waiting for the transcode to get there.
+
+### Fixed
+
+- A software transcode at 50 or 60 frames a second starts quickly on a
+  small computer.
+- A transcode tone mapping HDR on the GPU goes back to its best quality
+  once the others beside it end.
+- The dashboard shows no speed for a transcode paused ahead of its player,
+  and the frames a second it makes now.
+- A transcode whose bitrate changes as it plays (Samsung, LG, Kodi and Roku
+  on Automatic) shows the bitrate it is made at.
+- A transcode moving to another preset or tone mapping as it plays no
+  longer, now and then, writes again a segment a player is fetching.
+
+## [0.1.18] - 2026-11-27
+
+### Added
+
+- Live TV plays a channel as the provider sends it when the device decodes
+  it (HEVC and 10-bit included), and transcodes only for players that need it.
+- Playback details in the web app's Live TV player.
+- Settings → Server can preload media info from `.strm` files after each
+  scan (tracks, length, size), so listings show it before they play; off
+  by default.
+- The web app's sidebar can be narrowed to its icons by the button at its
+  foot, beside Settings; each browser remembers how it was left. Narrowed,
+  its icons show their names in a tip on hover, as the remote's button and
+  Sort libraries now do.
+- Hardware transcoding on Rockchip chips (RK3588, RK3568 and the like)
+  with Rockchip's own kernel: Rockchip MPP in Settings → Transcoder; the
+  arm64 Docker image has it, with `compose.rockchip.yaml`.
+
+## [0.1.17] - 2026-11-25
+
+### Added
+
+- Audiobooks in apps that show them: an app's request with
+  `X-Pley-Features: audiobooks` gets audiobook libraries as the web app
+  does. Pley for Android asks for them.
+- A player can ask for the next track ahead (`ahead`), to play it
+  without a gap: it isn't shown as playing on the dashboard, to remotes
+  or in Tautulli until it plays.
+
+### Changed
+
+- Where Dolby Vision needs another FFmpeg, the transcoder settings name
+  Pley's own first: the one its Windows installer and Docker image bring.
 
 ### Fixed
 
@@ -48,16 +92,6 @@ describes how they are made.
   credits do is kept, rather than thrown away as cut short.
 - Apps and tools that edit through the Plex- or Jellyfin-compatible API, such
   as Kometa, can no longer change audiobooks, which those APIs don't show.
-- A software transcode at 50 or 60 frames a second starts quickly on a
-  small computer.
-- A transcode tone mapping HDR on the GPU goes back to its best quality
-  once the others beside it end.
-- The dashboard shows no speed for a transcode paused ahead of its player,
-  and the frames a second it makes now.
-- A transcode whose bitrate changes as it plays (Samsung, LG, Kodi and Roku
-  on Automatic) shows the bitrate it is made at.
-- A transcode moving to another preset or tone mapping as it plays no
-  longer, now and then, writes again a segment a player is fetching.
 
 ## [0.1.16] - 2026-11-24
 
@@ -1304,7 +1338,9 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.18]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
+[0.1.17]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25
 [0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20

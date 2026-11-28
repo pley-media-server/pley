@@ -175,7 +175,7 @@ class MusicLibrary(
         MusicId.LiveTv, is MusicId.LiveList, is MusicId.Channel -> live?.item(id)
         is MusicId.Artist -> source.item(id.id)?.takeIf { it.kind == ItemKind.Artist }?.let(::artist)
         is MusicId.Album -> source.item(id.id)?.takeIf { it.kind == ItemKind.Album }?.let(::album)
-        is MusicId.Track -> source.item(id.id)?.takeIf { it.kind == ItemKind.Track || it.kind == ItemKind.Part }?.let { track(it, id.from, numbered = id.from is MusicId.Album) }
+        is MusicId.Track -> source.item(id.id)?.takeIf { it.kind == ItemKind.Track || it.kind == ItemKind.Part }?.let { track(it, id.from, numbered = id.from is MusicId.Album, at = id.at) }
         is MusicId.Playlist -> musicPlaylists().firstOrNull { it.id == id.id }?.let(::playlist)
         is MusicId.LibraryArtists, is MusicId.ShuffleArtist -> null
     }
@@ -184,7 +184,7 @@ class MusicLibrary(
     suspend fun children(id: MusicId, page: Int, pageSize: Int): List<MediaItem> {
         val size = pageSize.coerceIn(1, MAX_PAGE)
         val all: List<MediaItem> = when (id) {
-            MusicId.Root -> tabs()
+            MusicId.Root -> tabs(given = true)
             MusicId.Recent -> recent()
             MusicId.Artists -> {
                 // A row among the artists, its icon at an icon's size rather than a picture's.
@@ -210,7 +210,11 @@ class MusicLibrary(
                 listOf(shuffle(id, albums).styled(GRID)) + albums.map { album(it, onArtist = true).let { row -> if (row.mediaMetadata.isPlayable == true) row.styled(GRID) else row } }
             }
             is MusicId.Album -> albumTracks(id)
-            is MusicId.Playlist -> source.playlist(id.id).entries.map { it.item }.filter { it.kind == ItemKind.Track }.map { track(it, from = id) }
+            is MusicId.Playlist -> {
+                // A track the playlist has again says where it is: picked, the playlist plays on from there.
+                val seen = HashSet<Long>()
+                tracksIn(source.playlist(id.id)).mapIndexed { at, it -> track(it, from = id, at = if (seen.add(it.id)) null else at) }
+            }
             MusicId.LiveTv, is MusicId.LiveList -> live?.children(id).orEmpty()
             is MusicId.ShuffleArtist, is MusicId.Track, is MusicId.Channel, is MusicId.Book -> emptyList()
         }
@@ -407,7 +411,8 @@ class MusicLibrary(
             else -> null to null
         }
         if (tracks != null) {
-            val at = tracks.indexOfFirst { it.id == id.id }
+            // Where the row picked said it is, while it is still there: a playlist may have the track before that too.
+            val at = id.at?.takeIf { tracks.getOrNull(it)?.id == id.id } ?: tracks.indexOfFirst { it.id == id.id }
             if (at >= 0) return MusicSelection(tracks, at, title = title)
         }
         // A search's track, or one no longer where it was: its album plays on from it; a book's part, its book.
@@ -451,8 +456,12 @@ class MusicLibrary(
      * heard. What can't be read now (the server out of reach) is shown, but
      * books, which a server may not give the car at all. Cars show four
      * tabs: with five, Playlists goes first in the artists' tab, named Music.
+     * [given] to a car as its tabs, they say where Playlists is listed from
+     * then on ([playlistsInArtists]); read for one tab's node alone, they
+     * leave that as the car was last shown it, and name the artists' tab
+     * as it was shown then.
      */
-    private suspend fun tabs(): List<MediaItem> = coroutineScope {
+    private suspend fun tabs(given: Boolean = false): List<MediaItem> = coroutineScope {
         val l = look()
         val music = async { known { source.libraries() } }
         val playlists = async { known { musicPlaylists() } }
@@ -471,8 +480,9 @@ class MusicLibrary(
             liveTab.await(),
         )
         val fold = all.size > MAX_TABS && hasMusic && hasPlaylists
-        playlistsInArtists = fold
-        if (!fold) return@coroutineScope all
+        if (given) playlistsInArtists = fold
+        // A tab's node read alone is the tab as the car was last given it: named Music while Playlists is in it.
+        if (!(if (given) fold else playlistsInArtists)) return@coroutineScope all
         all.filter { it.mediaId != MusicId.Playlists.text }.map { tab ->
             if (tab.mediaId != MusicId.Artists.text) return@map tab
             tab.buildUpon().setMediaMetadata(tab.mediaMetadata.buildUpon().setTitle(l.music).setDisplayTitle(l.music).build()).build()
@@ -701,9 +711,10 @@ class MusicLibrary(
      * and [numbered], its number before its title ("1. Make Them Cry") when
      * it has one, as the album's page lists it. Elsewhere (a playlist,
      * search, the queue), its artist and cover, and its title alone: what
-     * plays is named by its title.
+     * plays is named by its title. [at] is where it is in a playlist that
+     * has it more than once ([MusicId.Track.at]).
      */
-    private fun track(item: ItemSummary, from: MusicId?, numbered: Boolean = false): MediaItem {
+    private fun track(item: ItemSummary, from: MusicId?, numbered: Boolean = false, at: Int? = null): MediaItem {
         // A book's part, in the queue: under its book's title.
         val part = item.kind == ItemKind.Part
         val artist = if (part) item.parentTitle else item.grandparentTitle
@@ -726,7 +737,7 @@ class MusicLibrary(
             .setIsPlayable(true)
             .setMediaType(if (part) MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER else MediaMetadata.MEDIA_TYPE_MUSIC)
             .build()
-        return MediaItem.Builder().setMediaId(MusicId.Track(item.id, from).text).setMediaMetadata(metadata).build()
+        return MediaItem.Builder().setMediaId(MusicId.Track(item.id, from, at).text).setMediaMetadata(metadata).build()
     }
 
     /**

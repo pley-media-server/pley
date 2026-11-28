@@ -8,6 +8,22 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-11-27
+
+### Added
+
+- Live TV plays HEVC and 10-bit channels as the provider sends them when
+  the computer decodes them, and has Playback details.
+- The sidebar can be narrowed to its icons by the button at its foot,
+  beside Settings, and stays as it was left. Narrowed, its icons show their
+  names in a tip on hover, as the remote's button and Sort libraries now do.
+
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
+## [0.1.9] - 2026-11-25
+
 ### Changed
 
 - Where Dolby Vision needs another FFmpeg, the transcoder settings name
@@ -137,7 +153,9 @@ On a Mac:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
+[0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25
 [0.1.8]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20

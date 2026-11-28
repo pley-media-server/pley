@@ -477,19 +477,33 @@ behind it.
   what's on with its progress and what's next, the star, channel up and
   down (through the category it was opened in, round its ends; Recently
   watched in the order it had when the player opened), Channels (the
-  category's list, and Other channels for another), Watch on… while
-  another of the profile's devices takes channels
+  category's list, and Other channels for another), Details,
+  Watch on… while another of the profile's devices takes channels
   ([Remote control](#remote-control)), AirPlay and "Live". A
   keyboard's digits tune a number (up to five, 1.4 seconds after the last,
   or Return), and ↑ and ↓ change channel; on the Mac, F fills the screen,
   ⌘W leaves, and the Playback menu has Channel Up (⌘↑) and Channel Down
   (⌘↓). On Apple TV a banner with the channel and what's on shows for 5
   seconds after each change; up and down change channel, Select opens
-  Channels, Channel number, Favorite and Back to the guide, Play/Pause
+  Channels, Channel number, Favorite and Back to the guide, with Details
+  under them, Play/Pause
   shows the banner, and Menu hides the overlay, then leaves. The number
   pad (1 to 9, Delete, 0 and OK, each named for VoiceOver) tunes on OK,
   since moving to the next key can take longer than a keyboard's wait;
-  "No channel 123" shows for 2 seconds when none has it. When every
+  "No channel 123" shows for 2 seconds when none has it. **Details** (a
+  sheet on iPhone, iPad and Mac, a panel beside the picture on Apple TV,
+  named and laid out as the player's Details) say how the channel plays,
+  in the player's words: Direct stream while the server copies its video
+  into the HLS stream ("Direct stream · Audio transcoding" when it
+  converts the sound) and Transcoding otherwise; the provider's video and
+  audio, and
+  what the server makes of them (a transcode's size named as a file's is:
+  "→ H.264 4K", "→ H.264 1080p"); what the provider sends now, with the
+  transcode's video bitrate; and the encoder, by the name people know
+  ("NVIDIA NVENC"). They come from the session's
+  plan (`GET /api/live/sessions/{session}/plan`), asked for again every 2
+  seconds while they show; until the server knows it they say "Starting…",
+  and another channel closes them. When every
   connection of the channel's source is in use, the player says so, lists
   what they watch, and offers **Watch here instead** on one it may take. A stall shows a spinner after 0.7
   seconds; a channel with no picture shows its logo and "Sound only".
@@ -977,11 +991,20 @@ starts producing there). Watched items, and Play from start, start at 0.
 **Skip Intro and Skip Credits** come from the item's markers for the file
 playing (the server finds them from chapters, shared audio or the
 credits' pictures: [Intro and credits
-detection](API.md#intro-and-credits-detection)). The button shows
-from a segment's start until a second before its end. Skip Intro lands
+detection](API.md#intro-and-credits-detection)). The button is offered
+from a segment's start until a second before its end. Entering a segment
+(playing into it, seeking into it, or starting inside it), it shows by
+itself for 8 seconds on the clock (`SkipWindow`), then fades; after that
+it shows only while the player's controls show, where it sits with them,
+and hides with them. Entering a segment again, or the next one, starts a
+fresh 8 seconds; seeking inside the same one doesn't. Credits that bring
+up the Up Next card show the card instead; after Cancel, Skip Credits
+shows by itself for 8 seconds from then. Skip Intro lands
 750 ms before the intro ends (or half-way into a very short one), so its
 last moment plays; Skip Credits goes to the credits' end. Nothing is
-skipped by itself.
+skipped, paused or changed by itself. The remote panel's Skip, for what
+another device plays, isn't over the picture and is offered for the whole
+segment.
 
 **Up Next** follows an episode with the next one
 (`GET /api/items/{id}/next`, looked up at 90 % of the episode, or when its
@@ -995,8 +1018,8 @@ player's; with no length known, they don't. Credits that something else
 follows (an after-credits scene, the last minutes of a show whose music
 every episode shares) only offer Skip Credits, and the card waits for the
 end, so its countdown doesn't skip what follows.
-The card shows the next episode's picture, "Up
-next · S1 E2", its title, and counts 10 seconds down while it plays (the
+The card shows "Up next · S1 E2" and the next
+episode's title, without a picture, and counts 10 seconds down while it plays (the
 countdown waits while paused), then plays it; Play Next plays it at once,
 Cancel hides the card. With Play the next episode automatically off
 (Settings), the card shows without its countdown and nothing plays by
@@ -1318,7 +1341,9 @@ are drawn by the app in the player's content overlay, under the controls
   the file plays (Direct play, Direct stream or Transcoding, and whether
   the audio is converted), why, the video, and the subtitles shown.
   Skip Intro, Skip Credits and the Up Next card show at the bottom right,
-  and the sleep timer's last seconds at the top, with Keep watching.
+  and the sleep timer's last seconds at the top, with Keep watching. After
+  its 8 seconds, Skip shows with Options: for 3 seconds after a tap on the
+  video, and while paused.
   Picture in Picture is the system's button.
 - **Apple TV**: full screen, with Quality, Subtitles, Speed, Sleep Timer
   and Audio in the transport bar (Subtitles holding Subtitle sync, which
@@ -1327,7 +1352,13 @@ are drawn by the app in the player's content overlay, under the controls
   picture's size fitted to the screen. Skip Intro, Skip
   Credits, Up Next ("Play Next (8)", Cancel) and the sleep timer's Keep
   Watching are the player's own contextual buttons, and the chapters its chapter markers, with their
-  pictures. The player's notices ("Reconnecting…", "Playing from …")
+  pictures. In its 8 seconds Skip is the one contextual button, with the
+  focus, so Select skips; then it goes, and the focus goes back to the
+  video, so Select, the arrows and the rest act as they do with nothing on
+  screen. After them it comes back as the transport bar shows (the
+  player's delegate is told) and goes as it hides. The system's player
+  places the focus when the transport bar shows; Up reaches the
+  contextual button. The player's notices ("Reconnecting…", "Playing from …")
   show at the top for 4 seconds, as on the other devices, without taking
   the focus. Menu closes the player when the transport bar isn't showing.
   The display's frame rate and dynamic range follow the video when the
@@ -1337,14 +1368,18 @@ are drawn by the app in the player's content overlay, under the controls
   closes it. The controls float over the picture, with Quality, Audio,
   Subtitles (Find Subtitles… last), Subtitle Sync, Subtitle Style, Speed,
   Sleep Timer, Chapters and Details in their menu, and Picture in Picture; Skip
-  Intro, Skip Credits and the Up Next card at the bottom right, and a
+  Intro, Skip Credits and the Up Next card at the bottom right (after its
+  8 seconds, Skip shows with the floating controls: while the pointer is
+  over the picture, for 3 seconds after it last moved, or as long as it
+  stays there while paused), and a
   Playback menu in the menu bar (Play or Pause, Back and Forward 10
   Seconds, Skip, Play Next, Quality, Audio, Subtitles, Find Subtitles…,
   Subtitle Sync, Subtitle Style, Speed, Sleep Timer, Chapters) acts on the window in
   front. The keys are the web player's:
   Space or K plays and pauses, ← or J and → or L go back and forward 10
   seconds, ↑ and ↓ change the volume, M mutes, F goes full screen and Esc
-  leaves it, S skips the intro or the credits, and C goes to the next
+  leaves it, S skips the intro or the credits (all the while Skip is
+  offered, as the menu's Skip does, shown or not), and C goes to the next
   subtitles (Off after the last). The Mac going to sleep
   pauses, a move to another screen reads the device's caps again (an
   HDR video starts again for it, [What each device plays](#what-each-device-plays)), and
@@ -2337,7 +2372,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
 | `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, Live TV (`LivePlayback`, with the `AVLiveEngine` behind a protocol), music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
 | `PleyDownloads` | Downloads (iPhone, iPad and Mac): `Downloads` (the screens' `DownloadsService` and the player's `LocalMedia`), `DownloadStore` (the folders and `index.json`), `DownloadPlanner` (the rules), `DownloadRunner` (one download at a time, conversions, pieces), `PieceTransfer` (the background `URLSession`) and `NetworkGate` (Wi-Fi or mobile data, from `NWPathMonitor`) |
-| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Find Subtitles…, Speed, Sleep Timer, Chapters, Details), Picture in Picture's keeper (`PictureInPictureKeeper`), Live TV's video (`LiveVideoSurface`, an `AVPlayerLayer`), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
+| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Find Subtitles…, Speed, Sleep Timer, Chapters, Details), Picture in Picture's keeper (`PictureInPictureKeeper`), Live TV's video (`LiveVideoSurface`, an `AVPlayerLayer`) and its Details (`LiveDetails`), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
 | `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), Live TV (`LiveTvModel`, `LivePlayerModel`, `ChannelPaging`, and `LiveTvRules` and `GuideLayout`, the Android app's rules), Find Subtitles… (`SubtitleSearchModel`), requests (`DiscoverModel`, `DiscoverResultsModel`, `DiscoverTitleModel`, `RequestsListModel`, the cards' words in `RequestCards`, the actions and Approve… in `RequestActions`, and `RequestRules`, the Android app's), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`), smart filters in words (`SmartFilter`, the Android app's), the remote (`RemoteModel`), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`), Apple TV's start (`StartGate`) and its Top Shelf row (`TopShelfWriter`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens and the server's proofs, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, Live TV's lineup and guide, music to play, downloads and conversions, subtitle search, requests and Discover from the Android app's fixtures (`FixtureServer+Requests`), an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
@@ -2498,6 +2533,8 @@ Delete the folder afterwards.
   frame rate or range, as on Android: its player is Pley's own view of the
   video, with no pause or seeking, not the system's player, which brings
   both.
+- Live TV never plays as the provider sends it (Direct play): AVPlayer
+  plays no MPEG-TS as it comes, so the apps take the server's HLS stream.
 - Events aren't read while the app is in the background, except while
   music or a video in Picture in Picture plays there; back in front, what
   shows is read again. So Apple TV obeys a remote only while Pley is open

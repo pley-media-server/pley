@@ -56,7 +56,8 @@
     "title": "À suivre",
     "episode": "À suivre · {{episode}}",
     "playNow": "Regarder",
-    "nextIn": "Dans {{seconds}} s"
+    "playNowIn": "Regarder ({{seconds}})",
+    "nextIn": "Suivant dans {{seconds}}"
   },
   "speed": {
     "normal": "Normale"
@@ -172,6 +173,7 @@
     "drawnHere": "Affichés par cette TV",
     "thisTv": "Cette TV",
     "player": "Lecteur",
+    "videoElement": "Vidéo HTML5",
     "decoded": "Décodé",
     "decoder": "Décodeur vidéo",
     "hardware": "{{decoder}} (matériel)",

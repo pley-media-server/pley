@@ -795,15 +795,26 @@ class TvPlayerScreenTest {
         compose.onNodeWithText("Asking the server…").assertDoesNotExist()
     }
 
+    /** In an intro, Skip offered and showing by itself ([PlayerUiState.skipAlone]) as in its first 8 s. */
+    private fun inIntro() = playing {
+        it.copy(
+            positionMs = 3_000,
+            skipLabel = "Skip Intro",
+            skipAlone = true,
+            markers = listOf(Marker(1, MarkerKind.Intro, 2_000, 60_000, MarkerSource.Fingerprint)),
+        )
+    }
+
+    /** Skip's first 8 s are over: [PlayerUiState.skipAlone] goes, and its fade with it. */
+    private fun skipAloneEnds(controller: FakePlaybackController) {
+        controller.update { it.copy(skipAlone = false) }
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+    }
+
     @Test
-    fun `Skip takes focus while its marker runs and Centre skips`() {
-        val controller = playing {
-            it.copy(
-                positionMs = 3_000,
-                skipLabel = "Skip Intro",
-                markers = listOf(Marker(1, MarkerKind.Intro, 2_000, 60_000, MarkerSource.Fingerprint)),
-            )
-        }
+    fun `Skip takes focus while it shows by itself and Centre skips`() {
+        val controller = inIntro()
         show(controller)
         focusedOn(TAG_SKIP)
         // Left and Right still seek; Center is Skip's.
@@ -817,6 +828,74 @@ class TvPlayerScreenTest {
         press(Key.DirectionCenter)
         assertEquals(listOf("skip"), controller.calls.map { it.name })
         focusedOn(TAG_SCRUBBER)
+    }
+
+    @Test
+    fun `after its first 8 s Skip hides, focus goes back to the video, and it comes back with the controls`() {
+        val controller = inIntro()
+        show(controller)
+        focusedOn(TAG_SKIP)
+        skipAloneEnds(controller)
+        compose.onNodeWithTag(TAG_SKIP).assertDoesNotExist()
+        // Center is the video's: it shows the controls, on the scrubber rather than on Skip, which is back with them.
+        press(Key.DirectionCenter)
+        assertTrue("nothing skipped by itself", controller.calls.isEmpty())
+        focusedOn(TAG_SCRUBBER)
+        compose.onNodeWithTag(TAG_SKIP).assertExists()
+        // The controls hidden, Skip goes with them, and focus to the video: Center shows them again.
+        back()
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_SKIP).assertDoesNotExist()
+        press(Key.DirectionCenter)
+        assertTrue(controller.calls.isEmpty())
+        focusedOn(TAG_SCRUBBER)
+        // Up from the scrubber reaches Skip, and Center there skips.
+        press(Key.DirectionUp)
+        focusedOn(TAG_SKIP)
+        press(Key.DirectionCenter)
+        assertEquals(listOf("skip"), controller.calls.map { it.name })
+    }
+
+    @Test
+    fun `the controls open on Skip during its first 8 s and give it focus back as they hide, on the scrubber after them`() {
+        val controller = inIntro()
+        show(controller)
+        focusedOn(TAG_SKIP)
+        press(Key.Menu)
+        compose.onNodeWithTag(TAG_SCRUBBER).assertExists()
+        focusedOn(TAG_SKIP)
+        back()
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
+        focusedOn(TAG_SKIP)
+
+        // The 8 s over while the controls show: Skip stays with them, focused, and goes as they hide.
+        press(Key.Menu)
+        focusedOn(TAG_SKIP)
+        skipAloneEnds(controller)
+        focusedOn(TAG_SKIP)
+        back()
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_SKIP).assertDoesNotExist()
+        press(Key.Menu)
+        focusedOn(TAG_SCRUBBER)
+        assertTrue(controller.calls.isEmpty())
+    }
+
+    @Test
+    fun `Skip shown by itself again, on entering a marker again, takes focus again`() {
+        val controller = inIntro()
+        show(controller)
+        skipAloneEnds(controller)
+        compose.onNodeWithTag(TAG_SKIP).assertDoesNotExist()
+        // Out of the intro, and back in: a fresh 8 s.
+        controller.update { it.copy(skipLabel = null, positionMs = 61_000) }
+        compose.waitForIdle()
+        controller.update { it.copy(skipLabel = "Skip Intro", skipAlone = true, positionMs = 10_000) }
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        focusedOn(TAG_SKIP)
     }
 
     @Test
@@ -838,7 +917,7 @@ class TvPlayerScreenTest {
         val controller = playing()
         show(controller)
         press(Key.DirectionUp)
-        controller.update { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7)) }
+        controller.update { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7)) }
         compose.waitForIdle()
         focusedOn(TAG_PLAY_NOW)
         compose.onNodeWithText("Up next · S1 · E2").assertExists()
@@ -848,6 +927,35 @@ class TvPlayerScreenTest {
         back()
         assertEquals("cancelUpNext", controller.calls.last().name)
         assertEquals(0, exits)
+    }
+
+    @Test
+    fun `Play now holds Up Next's countdown, as on phones, and keeps its width as the count shortens`() {
+        val controller = playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 10)) }
+        show(controller)
+        compose.onNodeWithText("Play now (10)").assertExists()
+        val wide = compose.onNodeWithTag(TAG_PLAY_NOW).getBoundsInRoot()
+        controller.update { it.copy(upNextCard = it.upNextCard?.copy(secondsLeft = 9)) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Play now (9)").assertExists()
+        assertEquals(wide, compose.onNodeWithTag(TAG_PLAY_NOW).getBoundsInRoot())
+        // No countdown (autoplay off): the words alone.
+        controller.update { it.copy(upNextCard = it.upNextCard?.copy(secondsLeft = null)) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Play now").assertExists()
+    }
+
+    @Test
+    fun `with reduced motion Play now counts down as Next in 7`() {
+        val controller = playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7)) }
+        compose.setContent {
+            TvTheme(reducedMotion = true) {
+                TvPlayerScreen(controller, onExit = { exits++ }, now = { 0L })
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText("Next in 7").assertExists()
+        compose.onNodeWithText("Play now (7)").assertDoesNotExist()
     }
 
     @Test

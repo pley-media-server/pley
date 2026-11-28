@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Api } from "../../src/api/client";
 import type { ItemSummary } from "../../src/api/types";
-import { hasNext, nextAfter } from "../../src/player/nextup";
+import { CountdownFill, hasNext, nextAfter } from "../../src/player/nextup";
+// Shared with the native Samsung app's tests, which must answer the same.
+import countdown from "../fixtures/countdown-fill.json";
 
 const item = (id: number, kind: ItemSummary["kind"] = "movie") => ({ id, kind }) as ItemSummary;
+
+/** A step of the fixture: the countdown shows `set` at `ms`, or the fill there is `fill` (and moving or not). */
+type CountdownStep = { ms: number; set?: number; fill?: number; moving?: boolean };
 
 describe("what plays next through a merged collection", () => {
   it("is the next movie in the row's order, across its libraries", async () => {
@@ -22,5 +27,28 @@ describe("what plays next through a merged collection", () => {
       [12, 31],
       [12, 31],
     ]);
+  });
+});
+
+describe("how full Up Next's countdown is between its whole seconds, as the shared fixture has it", () => {
+  for (const c of countdown.cases as { name: string; smooth?: boolean; steps: CountdownStep[] }[]) {
+    it(c.name, () => {
+      const fill = new CountdownFill(countdown.total);
+      for (const step of c.steps) {
+        if (step.set !== undefined) {
+          fill.set(step.set, step.ms, c.smooth ?? true);
+          continue;
+        }
+        expect([step.ms, Number(fill.at(step.ms).toFixed(3))]).toEqual([step.ms, step.fill]);
+        if (step.moving !== undefined) expect([step.ms, fill.moving(step.ms)]).toEqual([step.ms, step.moving]);
+      }
+    });
+  }
+
+  it("is empty again once the countdown stops", () => {
+    const fill = new CountdownFill(countdown.total);
+    fill.set(4, 0);
+    fill.reset();
+    expect([fill.at(100), fill.moving(100)]).toEqual([0, false]);
   });
 });
