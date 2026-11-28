@@ -320,7 +320,7 @@ class App : NUIApplication
     {
         // Outside a profile (the servers, signing in, Who's watching?) the app is in Midnight; its pages
         // in the profile's own pick. Set before the screen is made, which draws in it.
-        state.ShowingOutside(key is PageKey.Servers or PageKey.Link or PageKey.Profiles);
+        state.ShowingOutside(key.OutsideProfile);
         switch (key)
         {
             case PageKey.Servers:

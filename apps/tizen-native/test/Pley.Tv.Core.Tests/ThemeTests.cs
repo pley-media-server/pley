@@ -391,3 +391,86 @@ public class ThemePickTests
         Assert.Equal(new ThemePick("twilight", null), Inside(store).Theme.Value);
     }
 }
+
+/// <summary>
+/// The pick drawn and kept, as the web TV app draws and keeps it: packages/tv/test/fixtures/appearance.json,
+/// which both Samsung apps answer alike.
+/// </summary>
+public class AppearanceFixtureTests
+{
+    static readonly JsonElement Fixture = Fixtures.Load("appearance");
+
+    static AppState State(MemoryKeyValue store) =>
+        new AppState(new AppPlatform("tizen", "client", store) { Version = "0.1.0", OsVersion = "9.0", Model = "QE55" }, new FakeServer().Transport,
+            (_, _, _, _, _) => Task.FromResult(new EventEnd(0, false)), new FakeScheduler());
+
+    static MemoryKeyValue Kept(JsonElement c)
+    {
+        var store = new MemoryKeyValue();
+        foreach (var kept in c.GetProperty("kept").EnumerateObject()) store.Values[kept.Name] = kept.Value.GetString()!;
+        return store;
+    }
+
+    /// <summary>A case's pick, as the fixture writes it.</summary>
+    static ThemePick Pick(JsonElement pick) => new ThemePick(pick.GetProperty("theme").GetString()!, pick.GetProperty("accent").GetString());
+
+    /// <summary>The TV signed in to the case's profile's server, its pages or a screen outside a profile on, that profile watching once known.</summary>
+    static AppState Showing(MemoryKeyValue store, JsonElement profile, bool outside)
+    {
+        var state = State(store);
+        if (profile.ValueKind != JsonValueKind.Null) state.Use(profile.GetProperty("server").GetString()!);
+        state.ShowingOutside(outside);
+        state.Me.Value = profile.ValueKind == JsonValueKind.Null ? null : new User { Id = profile.GetProperty("id").GetInt64(), Name = "P" };
+        return state;
+    }
+
+    [Fact]
+    public void It_is_Midnight_outside_a_profile_and_the_profiles_own_inside_it_once_known()
+    {
+        foreach (var c in Fixture.GetProperty("shown").EnumerateArray())
+        {
+            var state = Showing(Kept(c), c.GetProperty("profile"), c.GetProperty("outside").GetBoolean());
+            Assert.Equal((c.GetProperty("name").GetString(), Pick(c.GetProperty("out"))), (c.GetProperty("name").GetString(), state.Theme.Value));
+        }
+    }
+
+    /// <summary>The fixture's screens as this app's pages; the player isn't one here (it opens over a page, in the dark twin of its pick).</summary>
+    static IEnumerable<PageKey> Pages(string screen) => screen switch
+    {
+        "servers" => new PageKey[] { new PageKey.Servers() },
+        "link" => new PageKey[] { new PageKey.Link("http://pley.local:7539") },
+        "profiles" => new PageKey[] { new PageKey.Profiles(), new PageKey.Profiles(Pin: true) },
+        "home" => new PageKey[] { new PageKey.Home() },
+        "settings" => new PageKey[] { new PageKey.Settings(), new AppearancePage(), new AppearancePage(Accents: true) },
+        "player" => Array.Empty<PageKey>(),
+        _ => throw new ArgumentException($"appearance.json names a screen this test doesn't know: {screen}"),
+    };
+
+    [Fact]
+    public void It_knows_the_screens_outside_a_profile()
+    {
+        foreach (var c in Fixture.GetProperty("screens").EnumerateArray())
+        {
+            var outside = c.GetProperty("outside").GetBoolean();
+            foreach (var page in Pages(c.GetProperty("screen").GetString()!)) Assert.Equal((page, outside), (page, page.OutsideProfile));
+        }
+    }
+
+    [Fact]
+    public void It_is_kept_for_the_profile_alone()
+    {
+        foreach (var c in Fixture.GetProperty("picks").EnumerateArray())
+        {
+            var store = Kept(c);
+            var state = Showing(store, c.GetProperty("profile"), outside: false);
+            var pick = c.GetProperty("pick");
+            state.ChooseTheme(pick.GetProperty("theme").GetString()!);
+            state.ChooseAccent(pick.GetProperty("accent").GetString());
+            // What is kept of the picks, "key=value" in the keys' order.
+            var picks = string.Join("; ", store.Values.Where(v => v.Key.StartsWith("pley.theme.", StringComparison.Ordinal) || v.Key.StartsWith("pley.accent.", StringComparison.Ordinal))
+                .OrderBy(v => v.Key, StringComparer.Ordinal).Select(v => $"{v.Key}={v.Value}"));
+            var expected = string.Join("; ", c.GetProperty("out").EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal).Select(p => $"{p.Name}={p.Value.GetString()}"));
+            Assert.Equal((c.GetProperty("name").GetString(), expected), (c.GetProperty("name").GetString(), picks));
+        }
+    }
+}

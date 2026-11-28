@@ -8,6 +8,13 @@ namespace Pley.Tv.Core.Ui;
 /// <summary>The app's pages, as the back stack holds them (the Android app's PleyKey).</summary>
 public abstract record PageKey
 {
+    /// <summary>
+    /// Whether the page is outside a profile (the servers, signing in, Who's watching? and its PIN),
+    /// where the app draws Midnight in its own accent whoever was watching
+    /// (packages/tv/test/fixtures/appearance.json).
+    /// </summary>
+    public bool OutsideProfile => this is Servers or Link or Profiles;
+
     public sealed record Servers : PageKey;
     public sealed record Link(string Server) : PageKey;
     /// <summary>"Who's watching?"; <paramref name="Pin"/>: a start as the profile the TV was left on, its PIN pad first.</summary>
