@@ -641,9 +641,11 @@ A segment that exists is served from disk or memory. Otherwise:
   longer than this job's last start-to-first-segment time for a waiting
   request plus stopping the old process. A restart skips the segments
   before the one asked for (a skip forward), and starts at a quick preset
-  on the automatic one; for the segment being made, only a process held to
-  the read rate ([Throttling](#throttling)) is restarted. Not while another
-  request waits for a segment the old process is about to make.
+  on the automatic one; for the segment being made and the one after it,
+  only a process held to the read rate ([Throttling](#throttling)) is
+  restarted: a player fetching two segments at once may ask for the later
+  one first. Not while another request waits for a segment the old process
+  is about to make.
 - **Else start a new process** at that segment, with `-ss`,
   `-output_ts_offset`, `-segment_times` and `-segment_start_number`, so
   timestamps stay on the absolute timeline (`avoid_negative_ts` disabled).

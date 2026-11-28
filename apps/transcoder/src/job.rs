@@ -2252,14 +2252,16 @@ impl Job {
 
     /// The wait for segment `n` from process `p`, which will produce it, when
     /// restarting at `n` is quicker, so the request doesn't wait. A restart
-    /// skips the segments before `n` (a skip forward), and starts quick on
-    /// the automatic preset; for the segment being made, it is quicker only
-    /// when the read rate holds the process back: past its burst, going at
-    /// that rate (the encoder isn't what limits it), so slower than a new
-    /// process with a burst of its own. And only when the wait is longer
-    /// than a restart costs this job, and no other request waits for a
-    /// segment the process is about to make (players that fetch several at
-    /// once).
+    /// skips the segments before `n` (a skip forward, past a whole segment
+    /// at least), and starts quick on the automatic preset; for the segment
+    /// being made and the one after, it is quicker only when the read rate
+    /// holds the process back: past its burst, going at that rate (the
+    /// encoder isn't what limits it), so slower than a new process with a
+    /// burst of its own. A player that fetches two at once may ask for the
+    /// one after first, and would have the process restarted for it and
+    /// again for the one before. And only when the wait is longer than a
+    /// restart costs this job, and no other request waits for a segment the
+    /// process is about to make (players that fetch several at once).
     fn restart_wait(&self, p: &Proc, n: u32) -> Option<Duration> {
         let bounds = &self.plan.boundaries;
         let next = p.next.load(Relaxed) as usize;
@@ -2271,7 +2273,7 @@ impl Job {
         let held = self.plan.throttle
             && bounds[next] - bounds[p.start as usize] >= READRATE_BURST_MS
             && (speed - READRATE).abs() <= READRATE * 0.1;
-        if n == next && !held {
+        if n <= next + 1 && !held {
             return None;
         }
         // Up to the end of `n`, from halfway through the one being made.
@@ -3651,15 +3653,19 @@ mod tests {
         job.runtime.lock().start_cost = Some(Duration::from_millis(500));
         assert!(job.restart_wait(&p, 70).is_some(), "a quick start beats the read rate");
         job.runtime.lock().start_cost = Some(Duration::from_millis(1_100));
+        // Held to the read rate, the one after it too: 1.5 segments, 3 s.
+        assert!(job.restart_wait(&p, 71).is_some());
         // Where the encoder is what limits it, in its burst (100 s made of
         // 120) or slower than the read rate: a restart skips the segments
-        // before, and is quicker only past the one being made.
+        // before, and is quicker only past the one being made and the next,
+        // which a player fetching two at once may ask for first.
         p.next.store(50, Relaxed);
         assert!(job.restart_wait(&p, 52).is_some());
         p.next.store(70, Relaxed);
         going(0.7);
         assert!(job.restart_wait(&p, 72).is_some());
         assert_eq!(job.restart_wait(&p, 70), None);
+        assert_eq!(job.restart_wait(&p, 71), None, "4.3 s to wait, but a skip passes a segment at least");
         going(8.0);
         assert_eq!(job.restart_wait(&p, 72), None, "0.6 s to wait at 8× real time");
         going(1.05);
