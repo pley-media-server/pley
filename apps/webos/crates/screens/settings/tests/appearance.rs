@@ -1,16 +1,17 @@
 //! Appearance against the fake server: Settings' rows open it, a theme or an accent picked shows
 //! in the next frame and is kept on the TV for the profile, each profile shows its own and the
-//! pages outside a profile Midnight, and the player draws a light theme's dark twin.
+//! pages outside a profile Midnight, the player draws a light theme's dark twin, and what has
+//! focus has one outline.
 
 mod common;
 
 use common::TestApp;
-use pley_base::Key;
+use pley_base::{Cmd, Color, Key};
 use pley_core::store::ThemePick;
 use pley_fixtures::ids;
 use pley_settings::{AppearanceScreen, SettingsScreen};
 use pley_shell::{Route, SettingsSection};
-use pley_ui::theme::{self, Accent, Palette, Theme};
+use pley_ui::theme::{self, Accent, Palette, Theme, focus};
 
 fn theme_card(app: &TestApp, t: Theme) -> pley_ui::Id {
     AppearanceScreen::theme_id(app.page(), t)
@@ -170,4 +171,33 @@ fn a_player_draws_a_light_theme_in_its_dark_twin() {
     app.press(Key::Back);
     app.settle();
     assert_eq!(theme::palette(), Palette::of(Theme::Starlight, Some(Accent::Mint)));
+}
+
+/// How many outlines of `color` and `width` the last frame drew.
+fn strokes(app: &TestApp, color: Color, width: f32) -> usize {
+    let drawn = |c: &&Cmd| matches!(c, Cmd::Stroke { color: c, width: w, .. } if *c == color && *w == width);
+    app.list.cmds.iter().filter(drawn).count()
+}
+
+#[test]
+fn what_has_focus_has_one_outline_the_ring_in_place_of_its_edge() {
+    let mut app = TestApp::open_on(Route::Appearance { accents: false });
+    app.settle();
+    let ring = |app: &TestApp| strokes(app, focus::ring_color(), focus::RING_STROKE);
+    let picked = |app: &TestApp| strokes(app, theme::accent(), 2.0);
+    let edges = |app: &TestApp| strokes(app, theme::surface4(), 1.0);
+    // On Midnight, the theme in force: the ring, without the accent edge beside it.
+    assert_eq!(app.focused(), Some(theme_card(&app, Theme::Midnight)));
+    assert_eq!((ring(&app), picked(&app)), (1, 0));
+    let all = edges(&app);
+    // On Midday: Midnight's edge is back, and Midday's gives way to the ring.
+    app.press(Key::Right);
+    app.settle();
+    assert_eq!((ring(&app), picked(&app), edges(&app)), (1, 1, all - 1));
+    // On Sky's chip, the same.
+    app.press_n(Key::Down, 2);
+    app.press(Key::Right);
+    app.settle();
+    assert_eq!(app.focused(), Some(accent_chip(&app, Some(Accent::Sky))));
+    assert_eq!((ring(&app), picked(&app), edges(&app)), (1, 1, all - 1));
 }

@@ -206,7 +206,8 @@ fn section_line(ui: &mut Ui, y: f32, label: &str, hint: &str) {
 
 /// A theme's card at `at`: its edge, the preview, its name and caption under it. The theme in
 /// force has an accent edge over a tint of the accent and the check on its preview's corner. The
-/// card grows as focus comes, with the ring around it, as a chip does.
+/// card grows as focus comes, with the ring around it in place of its edge, so one outline shows,
+/// as on a chip.
 fn theme_card(ui: &mut Ui, id: Id, at: Point, t: Theme, accent: Option<Accent>, current: bool) -> Response {
     let card = Rect::new(at.x, at.y, CARD_W, CARD_H);
     let r = ui.focusable(id, card);
@@ -215,12 +216,15 @@ fn theme_card(ui: &mut Ui, id: Id, at: Point, t: Theme, accent: Option<Accent>, 
     let p = focus_progress(ui, id, r.focused);
     let q = press_progress(ui, id, r.pressed);
     let scale = 1.0 + (focus::chip().focus_scale - 1.0) * p * (1.0 - q);
+    let edge = 1.0 - p;
     ui.transform(Point::ZERO, scale, card.center(), |ui| {
         if current {
             ui.fill(card, theme::accent().alpha(0.06), radius::CARD);
-            ui.stroke(card.expand(-1.0), theme::accent(), radius::CARD - 1.0, 2.0);
-        } else {
-            ui.stroke(card.expand(-0.5), theme::surface4(), radius::CARD, 1.0);
+            if edge > 0.0 {
+                ui.stroke(card.expand(-1.0), theme::accent().alpha(edge), radius::CARD - 1.0, 2.0);
+            }
+        } else if edge > 0.0 {
+            ui.stroke(card.expand(-0.5), theme::surface4().alpha(edge), radius::CARD, 1.0);
         }
         let preview = Rect::new(card.x + CARD_PAD, card.y + CARD_PAD, PREVIEW_W, PREVIEW_H);
         draw_preview(ui, preview, Palette::of(t, accent));
@@ -299,8 +303,8 @@ fn check(ui: &mut Ui, center: Point) {
 
 /// An accent's chip at `at`: its swatch, the color it gives `shown`, then its name, in a 1 dp
 /// edge. The accent in force is filled with the accent, its words in AccentFg and a check in
-/// place of its swatch. The chip grows as focus comes, with the ring around it. Its response and
-/// width.
+/// place of its swatch. The chip grows as focus comes, with the ring around it in place of its
+/// edge. Its response and width.
 fn accent_chip(ui: &mut Ui, id: Id, at: Point, shown: Theme, accent: Option<Accent>, current: bool) -> (Response, f32) {
     let name = accent_name(accent);
     let layout = ui.layout(name, &theme::LABEL, &TextOpts::default());
@@ -320,7 +324,9 @@ fn accent_chip(ui: &mut Ui, id: Id, at: Point, shown: Theme, accent: Option<Acce
             ui.icon(swatch.place(Size::new(12.0, 12.0), 0.5, 0.5), Icon::Check, on);
             on
         } else {
-            ui.stroke(rect.expand(-0.5), theme::surface4(), radius::CONTROL, 1.0);
+            if p < 1.0 {
+                ui.stroke(rect.expand(-0.5), theme::surface4().alpha(1.0 - p), radius::CONTROL, 1.0);
+            }
             ui.fill(swatch.expand(1.0), theme::fg().alpha(0.2), SWATCH / 2.0 + 1.0);
             ui.fill(swatch, Palette::of(shown, accent).accent, SWATCH / 2.0);
             theme::fg()
