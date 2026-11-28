@@ -51,7 +51,7 @@ export function AppearanceScreen(p: { accent?: boolean }) {
   );
 }
 
-/** A theme to pick: its preview over its name and caption; the one shown has the accent's border and a tick at its top right. */
+/** A theme to pick: its preview over its name and caption; the one shown has the accent's border and a tick at its preview's bottom right. */
 function ThemeCard(p: { theme: ThemeId; accent: AccentId | null; current: boolean; initial: boolean; onPick: () => void }) {
   const name = t(`settings.theme.names.${p.theme}`);
   const about = t(`settings.theme.about.${p.theme}`);

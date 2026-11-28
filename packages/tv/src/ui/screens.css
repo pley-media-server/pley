@@ -587,10 +587,15 @@
 .theme-card.current { background: rgba(var(--accent-rgb), 0.08); box-shadow: inset 0 0 0 2px var(--accent); }
 .theme-name { margin: 8px 2px 0; }
 .theme-about { margin: 0 2px; color: var(--muted); }
+/*
+ * The tick at the preview's bottom right, 5 px in from its right edge and
+ * its foot (the preview spans 5 to 145 across the card, 5 to 83 down), as
+ * on every TV app: at the top right it covered the preview's accent pill.
+ */
 .theme-tick {
   position: absolute;
-  right: 8px;
-  top: 8px;
+  right: 11px;
+  top: 56px;
   width: 22px;
   height: 22px;
   border-radius: 50%;

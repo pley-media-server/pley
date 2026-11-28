@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
@@ -118,6 +121,26 @@ describe("Appearance", () => {
     expect(Array.from(card.children).map((c) => c.className)).toEqual(["theme-preview", "t-body one-line theme-name", "t-caption lines-2 theme-about", "theme-tick", "theme-ring"]);
   });
 
+  it("geometry: screens.css puts the tick at the preview's bottom right, clear of its accent pill", () => {
+    const card = css(".theme-card");
+    const preview = css(".theme-preview");
+    const tick = css(".theme-tick");
+    const pill = css(".tp-button");
+    // The card's box, the preview at its padding's corner (the page side of the preview is its right).
+    const inset = px(card.padding);
+    const left = inset;
+    const top = inset;
+    const right = left + px(preview.width);
+    const bottom = top + px(preview.height);
+    const size = px(tick.width);
+    const tickRight = px(card.width) - px(tick.right);
+    const tickTop = px(tick.top);
+    expect([right - tickRight, bottom - (tickTop + size)]).toEqual([5, 5]);
+    expect(tickRight - size).toBeGreaterThan(left);
+    // The pill sits at the preview's top right; the tick starts below it.
+    expect(tickTop).toBeGreaterThan(top + px(pill.top) + px(pill.height));
+  });
+
   it("shows a pick at once and keeps it on the TV", () => {
     const { root, app, kept, select } = setup();
     select("theme-starlight");
@@ -136,3 +159,24 @@ describe("Appearance", () => {
     expect(kept.has("pley.accent.http://pley.local:7539.1")).toBe(false);
   });
 });
+
+/** screens.css's declarations for `selector`, from every rule that names it (alone or in a list). */
+function css(selector: string): Record<string, string | undefined> {
+  const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../src/ui/screens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const out: Record<string, string> = {};
+  for (const m of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!m[1]!.split(",").some((s) => s.trim() === selector)) continue;
+    for (const d of m[2]!.split(";")) {
+      const at = d.indexOf(":");
+      if (at > 0) out[d.slice(0, at).trim()] = d.slice(at + 1).trim();
+    }
+  }
+  return out;
+}
+
+/** "40px" → 40; anything else fails the test. */
+function px(v: string | undefined): number {
+  const m = /^(-?\d+(?:\.\d+)?)px$/.exec(v ?? "");
+  if (!m) throw new Error(`not a length in px: ${v}`);
+  return Number(m[1]);
+}
