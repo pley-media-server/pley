@@ -4,7 +4,7 @@ package app.pley.android.designsystem.theme
  * Each theme's colors and the tokens an accent replaces in it, and each
  * accent's colors for the dark themes and the light ones: a copy of
  * packages/themes/themes.json, where every app reads them from, which
- * ThemeTableTest holds this file to. Colors are ARGB; a light theme's
+ * PleyPaletteTest holds this file to. Colors are ARGB; a light theme's
  * `shade` is translucent, as the file's `rgb(… / alpha)`.
  */
 internal object ThemeTable {
