@@ -12,6 +12,7 @@ on:
       - apps/tizen/**
       - packages/tv/**
       - packages/placeholder/**
+      - packages/themes/**
       - package.json
       - bun.lock
       - bunfig.toml
@@ -24,6 +25,7 @@ on:
       - apps/tizen/**
       - packages/tv/**
       - packages/placeholder/**
+      - packages/themes/**
       - package.json
       - bun.lock
       - bunfig.toml

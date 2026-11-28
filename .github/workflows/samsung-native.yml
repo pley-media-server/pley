@@ -14,6 +14,7 @@ on:
       - apps/tizen-native/**
       - packages/tv/test/fixtures/**
       - packages/placeholder/**
+      - packages/themes/**
       - apps/android/core/testing/src/main/resources/fixtures/discover/**
       - apps/android/core/testing/src/main/resources/fixtures/requests/**
       - scripts/check-nuget-licenses.mjs
@@ -25,6 +26,7 @@ on:
       - apps/tizen-native/**
       - packages/tv/test/fixtures/**
       - packages/placeholder/**
+      - packages/themes/**
       - apps/android/core/testing/src/main/resources/fixtures/discover/**
       - apps/android/core/testing/src/main/resources/fixtures/requests/**
       - scripts/check-nuget-licenses.mjs
