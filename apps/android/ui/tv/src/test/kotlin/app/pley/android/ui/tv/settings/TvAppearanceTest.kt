@@ -9,9 +9,12 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.Tier
 import app.pley.android.designsystem.theme.Appearance
@@ -39,7 +42,8 @@ import org.robolectric.annotation.GraphicsMode
  * Settings → Appearance with the D-pad: focus starts on the theme shown
  * (on its accent from the Accent row), Select on another shows it at once,
  * the themes are five to a row, Up and Down between the themes and the
- * accents land on what is in use, and what has focus has one outline.
+ * accents land on what is in use, what has focus has one outline, and the
+ * theme in use has its check at its preview's bottom right.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -140,5 +144,26 @@ class TvAppearanceTest {
         compose.press(Key.DirectionLeft)
         val border = accent(PleyAccent.Sky).edge()
         assertFalse(near(focused, border))
+    }
+
+    private fun assertNear(expected: Dp, actual: Dp) = assertTrue("expected about $expected, got $actual", abs((expected - actual).value) < 1f)
+
+    @Test
+    fun theThemeInUseHasItsCheckAtItsPreviewsBottomRight() {
+        show()
+        // The preview is the card's width less 5 dp each side, at 16:9; the check is 5 dp in from its right and bottom,
+        // clear of the preview's accent pill at its top right.
+        fun assertAtTheCorner() {
+            val card = theme(PleyTheme.Midnight).getUnclippedBoundsInRoot()
+            val check = compose.onNodeWithTag(TV_APPEARANCE_CHECK, useUnmergedTree = true).getUnclippedBoundsInRoot()
+            val previewBottom = card.top + 5.dp + (card.right - card.left - 10.dp) * 9f / 16f
+            assertNear(card.right - 10.dp, check.right)
+            assertNear(previewBottom - 5.dp, check.bottom)
+            assertNear(20.dp, check.bottom - check.top)
+        }
+        assertAtTheCorner()
+        compose.press(Key.DirectionRight)
+        theme(PleyTheme.Midday).assertIsFocused()
+        assertAtTheCorner()
     }
 }

@@ -158,7 +158,11 @@ private fun ThemeCard(theme: PleyTheme, palette: PleyPalette, picked: Boolean, i
             .testTag("$TV_APPEARANCE_THEME.${theme.id}"),
     ) {
         Column(Modifier.padding(5.dp)) {
-            ThemePreview(palette, Modifier.fillMaxWidth(), corner = PleyShape.FieldRadius)
+            Box(Modifier.fillMaxWidth()) {
+                ThemePreview(palette, Modifier.fillMaxWidth(), corner = PleyShape.FieldRadius)
+                // At the preview's bottom right: at its top right it covered the preview's accent pill.
+                if (picked) PickedMark(Modifier.align(Alignment.BottomEnd).padding(end = 5.dp, bottom = 5.dp))
+            }
             Spacer(Modifier.height(6.dp))
             Column(Modifier.padding(horizontal = 3.dp)) {
                 BasicText(stringResource(theme.nameRes), style = PleyType.Tv.Body.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -171,15 +175,15 @@ private fun ThemeCard(theme: PleyTheme, palette: PleyPalette, picked: Boolean, i
                 )
             }
         }
-        if (picked) PickedMark(Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp))
     }
 }
 
-/** The check on the theme in use: the accent's, as the web's. */
+/** The check on the theme in use, at its preview's bottom right: the accent's, as the web's. */
 @Composable
 private fun PickedMark(modifier: Modifier = Modifier) {
     Box(
         modifier
+            .testTag(TV_APPEARANCE_CHECK)
             .size(20.dp)
             .background(PleyColors.Accent, CircleShape)
             .border(1.5.dp, PleyColors.Surface, CircleShape),
@@ -230,3 +234,4 @@ private val GAP = 15.dp
 internal const val TV_APPEARANCE_PAGE = "pley.tv.appearance"
 internal const val TV_APPEARANCE_THEME = "pley.tv.appearance.theme"
 internal const val TV_APPEARANCE_ACCENT = "pley.tv.appearance.accent"
+internal const val TV_APPEARANCE_CHECK = "pley.tv.appearance.check"
