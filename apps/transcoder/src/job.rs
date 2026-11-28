@@ -527,6 +527,10 @@ struct Runtime {
     /// The preset it last left for a faster one beside other software
     /// encodes, which it stays off while as many run ([`adaptive::Left`]).
     left: Option<adaptive::Left>,
+    /// What kind of software encode its process is ([`Plan::encode_kind`]),
+    /// as the GPU's load and failed decoders left it: what its preset's
+    /// speeds are kept under.
+    kind: Option<String>,
     /// What the latest process does on the GPU, when libplacebo tone maps
     /// (see [`crate::share`]).
     share: Option<Share>,
@@ -1212,14 +1216,14 @@ impl JobManager {
     }
 
     /// The preset the next process of `job` starts with at segment `start`,
-    /// on the automatic preset: by what jobs alike were measured to make,
-    /// or the load's before any was (see [`adaptive::start`]); and whether
-    /// it is one quick for a waiting player. An fMP4 job keeps its first
-    /// process's (see [`InitEncoder`]), which never moves: the steady one.
-    fn start_preset(&self, job: &Job, start: u32) -> (usize, bool) {
+    /// on the automatic preset: by what jobs of its `kind` were measured to
+    /// make, or the load's before any was (see [`adaptive::start`]); and
+    /// whether it is one quick for a waiting player. An fMP4 job keeps its
+    /// first process's (see [`InitEncoder`]), which never moves: the steady
+    /// one.
+    fn start_preset(&self, job: &Job, start: u32, kind: Option<&str>) -> (usize, bool) {
         let now = Instant::now();
-        let kind = job.plan.encode_kind(&job.media);
-        let speeds = kind.and_then(|kind| self.preset_speeds.lock().get(&kind).cloned()).unwrap_or_default();
+        let speeds = kind.and_then(|kind| self.preset_speeds.lock().get(kind).cloned()).unwrap_or_default();
         let (current, left) = {
             let rt = job.runtime.lock();
             (rt.preset.map(|(preset, _)| preset), rt.left)
@@ -1258,16 +1262,15 @@ impl JobManager {
             return;
         }
         for job in &jobs {
-            let Some(kind) = job.plan.encode_kind(&job.media) else { continue };
             let Ok(mut guard) = job.process.try_lock() else { continue };
             let Some(proc) = guard.as_ref().filter(|p| p.running()) else { continue };
             // Read under the process's lock: a seek may have just started
             // another one.
-            let (preset, quick, left) = {
+            let (preset, quick, left, kind) = {
                 let rt = job.runtime.lock();
-                (rt.preset, rt.quick, rt.left)
+                (rt.preset, rt.quick, rt.left, rt.kind.clone())
             };
-            let Some((current, moved_at)) = preset else { continue };
+            let (Some((current, moved_at)), Some(kind)) = (preset, kind) else { continue };
             let next = proc.next.load(Relaxed);
             if next >= proc.end {
                 continue;
@@ -1703,31 +1706,6 @@ impl JobManager {
             _ => {}
         }
 
-        // The software encoder's preset: the planned one, or the automatic
-        // one, which starts fast enough for the player to wait little when
-        // nothing is ready ahead.
-        let software = planned.is_some() && (!want_hw || fallback.is_some());
-        let auto = job.plan.video.as_ref().is_some_and(|v| v.preset == adaptive::AUTO);
-        let (chosen, quick) = match preset {
-            _ if !(software && auto) => (None, false),
-            Some(preset) => (Some(preset), false),
-            None => {
-                let (preset, quick) = self.start_preset(job, start);
-                (Some(preset), quick)
-            }
-        };
-        let preset_name = match chosen {
-            Some(i) => Some(adaptive::LADDER[i].to_owned()),
-            None if software => job.plan.video.as_ref().map(|v| v.preset.clone()),
-            None => None,
-        };
-        let ctx = ArgsContext {
-            input: &job.input,
-            encoder: fallback,
-            relative_split_times: self.ff.segment_times_relative,
-            preset: preset_name.as_deref(),
-            shader_cache: self.shader_cache.as_deref(),
-        };
         // What the GPU's load leaves it, and a bitrate the player asked for
         // since: the same plan with them.
         let share = self.gpu_share(job, hw && fallback.is_none());
@@ -1751,6 +1729,34 @@ impl JobManager {
             }
             plan
         });
+        // What kind of encode it is, as it runs: what its preset's speeds
+        // are kept under.
+        let kind = adjusted.as_ref().unwrap_or(plan).encode_kind(&job.media);
+        // The software encoder's preset: the planned one, or the automatic
+        // one, which starts fast enough for the player to wait little when
+        // nothing is ready ahead.
+        let software = planned.is_some() && (!want_hw || fallback.is_some());
+        let auto = job.plan.video.as_ref().is_some_and(|v| v.preset == adaptive::AUTO);
+        let (chosen, quick) = match preset {
+            _ if !(software && auto) => (None, false),
+            Some(preset) => (Some(preset), false),
+            None => {
+                let (preset, quick) = self.start_preset(job, start, kind.as_deref());
+                (Some(preset), quick)
+            }
+        };
+        let preset_name = match chosen {
+            Some(i) => Some(adaptive::LADDER[i].to_owned()),
+            None if software => job.plan.video.as_ref().map(|v| v.preset.clone()),
+            None => None,
+        };
+        let ctx = ArgsContext {
+            input: &job.input,
+            encoder: fallback,
+            relative_split_times: self.ff.segment_times_relative,
+            preset: preset_name.as_deref(),
+            shader_cache: self.shader_cache.as_deref(),
+        };
         let args = adjusted.as_ref().unwrap_or(plan).ffmpeg_args(&ctx, start, end);
         tracing::debug!(job = %job.id, "ffmpeg {}", args.iter().map(|a| a.to_string_lossy()).collect::<Vec<_>>().join(" "));
         // It writes its segments where it runs.
@@ -1792,6 +1798,7 @@ impl JobManager {
             rt.encoder_override = fallback.cloned();
             rt.preset = chosen.map(|i| (i, Instant::now()));
             rt.quick = quick;
+            rt.kind = kind;
             rt.share = share;
             rt.process = Some(ProcessStatus {
                 pid: child.id(),

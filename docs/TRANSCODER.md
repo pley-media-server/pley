@@ -795,8 +795,9 @@ N of them use the slowest that makes 2 N times real time alone.
   - A process the read rate holds shows that its preset still makes that
     much, which keeps what is known from expiring.
   - Speeds are kept for each kind of job (the same codecs, sizes, frame
-    rate, decoder, tone mapper and burned-in subtitles), for 10 minutes
-    after a process last measured or showed them.
+    rate, decoder, tone mapper and burned-in subtitles, as its process runs
+    them where the GPU's load moves its decoding), for 10 minutes after a
+    process last measured or showed them.
   - A preset measured under twice real time is forgotten 2 minutes after a
     process last went as fast as it could at it, and a process the read
     rate holds neither keeps nor raises it. That is most often another
