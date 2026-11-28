@@ -84,10 +84,6 @@ public struct PlayerState: Equatable, Sendable {
     public var canFindSubtitles = false
     /// The playback speed, 1 normal (`PlaybackController.setSpeed`), for this title.
     public var speed: Double = 1
-    /// The sleep timer (`PlaybackController.setSleep`).
-    public var sleep = SleepState()
-    /// What the sleep timer's "End of this …" names: "episode", "movie".
-    public var sleepItem = "movie"
 
     public init() {}
 
@@ -99,14 +95,6 @@ public struct PlayerState: Equatable, Sendable {
 
     /// "1.5×", for the menu's second line.
     public var speedLabel: String { PlaybackSpeeds.label(speed) }
-
-    /// The Sleep Timer menu, the choice running selected; ids are `SleepChoice.id`.
-    public var sleepChoices: [MenuChoice] {
-        SleepChoice.all.map { MenuChoice(id: $0.id, label: $0.label(item: sleepItem), selected: $0 == sleep.choice) }
-    }
-
-    /// What the Sleep Timer menu says beside its name: "15 min left", "Pausing in 12 s"; `nil` when off.
-    public var sleepSummary: String? { sleep.summary(item: sleepItem) }
 
     /// "Off", or the subtitles shown ("English (SRT)").
     public var subtitleLabel: String { subtitles.first(where: \.selected)?.label ?? PlayerTexts.subtitlesOff }
@@ -249,7 +237,7 @@ enum PlayerTexts {
     static var automaticHint: String { localized("Dynamically adjust to conditions") }
     static var lastEpisode: String { localized("This is the last episode") }
     static var nothingNext: String { localized("Nothing plays next") }
-    /// The Subtitles menu's Off (Spanish "Desactivados": los subtítulos), not the sleep timer's.
+    /// The Subtitles menu's Off (Spanish "Desactivados": los subtítulos).
     static var subtitlesOff: String {
         localized(keyed: LocalizedStringResource("subtitles.off", defaultValue: "Off",
                                                  bundle: .atURL(Bundle.module.bundleURL)))

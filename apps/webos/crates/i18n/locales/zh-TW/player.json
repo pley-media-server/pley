@@ -1,7 +1,6 @@
 {
   "controls": {
     "chapters": "章節",
-    "sleep": "睡眠定時",
     "speed": "倍速",
     "previous": "上一個",
     "play": "播放",
@@ -11,7 +10,6 @@
     "audio": "音訊",
     "quality": "畫質",
     "info": "資訊",
-    "endsAt": "{{time}} 結束",
     "intro": "片頭",
     "credits": "片尾"
   },
@@ -38,20 +36,6 @@
     "qualityLowered": "畫質已降為 {{quality}}",
     "lastEpisode": "這是最後一集",
     "lastInQueue": "這是最後一個"
-  },
-  "sleep": {
-    "title": "睡眠定時",
-    "off": "關閉",
-    "minutes": "{{minutes}} 分鐘",
-    "minutesLeft_other": "剩餘 {{count}} 分鐘",
-    "end": {
-      "episode": "本集結束時",
-      "movie": "本片結束時",
-      "track": "本曲目結束時",
-      "video": "本影片結束時"
-    },
-    "pausingIn": "{{seconds}} 秒後暫停",
-    "keepWatching": "繼續觀看"
   },
   "upNext": {
     "title": "接下來播放",

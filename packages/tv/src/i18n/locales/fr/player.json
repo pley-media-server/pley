@@ -4,7 +4,6 @@
     "chapters": "Chapitres",
     "speed": "Vitesse",
     "speedAt": "Vitesse {{speed}}",
-    "sleep": "Minuteur de veille",
     "previous": "Précédent",
     "pause": "Pause",
     "next": "Suivant",
@@ -13,7 +12,6 @@
     "quality": "Qualité",
     "info": "Infos",
     "seekValue": "{{time}} sur {{duration}}",
-    "endsAt": "Se termine à {{time}}",
     "intro": "Intro",
     "credits": "Générique"
   },
@@ -36,21 +34,6 @@
     "qualityLowered": "Qualité réduite à {{quality}}",
     "lastEpisode": "C’est le dernier épisode",
     "lastInQueue": "C’est le dernier de la liste"
-  },
-  "sleep": {
-    "pausingIn": "Mise en pause dans {{seconds}} s",
-    "keepWatching": "Continuer à regarder",
-    "off": "Désactivé",
-    "minutes": "{{minutes}} min",
-    "minutesLeft_one": "Il reste {{count}} min",
-    "minutesLeft_many": "Il reste {{count}} min",
-    "minutesLeft_other": "Il reste {{count}} min",
-    "end": {
-      "episode": "Fin de cet épisode",
-      "movie": "Fin de ce film",
-      "track": "Fin de ce titre",
-      "video": "Fin de cette vidéo"
-    }
   },
   "upNext": {
     "title": "À suivre",

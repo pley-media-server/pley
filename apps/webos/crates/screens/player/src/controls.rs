@@ -93,12 +93,9 @@ pub struct TopBar<'a> {
     pub line: Option<&'a str>,
     pub method: Option<&'a str>,
     pub clock: &'a str,
-    /// "Ends at 22:14", while paused.
-    pub ends: Option<&'a str>,
 }
 
-/// The title and episode line at the top left; how it plays, the clock and "Ends at" at the top
-/// right.
+/// The title and episode line at the top left; how it plays and the clock at the top right.
 pub fn top_bar(ui: &mut Ui, bar: &TopBar) {
     let left = theme::SAFE_X;
     let right = theme::CANVAS_W - theme::SAFE_X;
@@ -116,11 +113,6 @@ pub fn top_bar(ui: &mut Ui, bar: &TopBar) {
     ui.draw_text(Point::new(right - clock_w, top + (row_h - clock_h) / 2.0), clock, theme::muted());
     if let Some(method) = bar.method {
         method_badge(ui, method, right - clock_w - 12.0, top + row_h / 2.0);
-    }
-    if let Some(ends) = bar.ends {
-        let l = ui.layout(ends, &theme::LABEL, &TextOpts::default());
-        let w = l.size.w;
-        ui.draw_text(Point::new(right - w, top + row_h), l, theme::muted());
     }
 }
 
@@ -348,7 +340,6 @@ pub fn letterbox(rect: Rect, w: f32, h: f32) -> Rect {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Btn {
     Chapters,
-    Sleep,
     Speed,
     Previous,
     PlayPause,
@@ -364,7 +355,6 @@ impl Btn {
     pub fn label(self, playing: bool) -> &'static str {
         match self {
             Btn::Chapters => t!("player.controls.chapters"),
-            Btn::Sleep => t!("player.controls.sleep"),
             Btn::Speed => t!("player.controls.speed"),
             Btn::Previous => t!("player.controls.previous"),
             Btn::PlayPause if playing => t!("player.controls.pause"),
@@ -389,14 +379,14 @@ pub struct RowOptions {
 }
 
 impl RowOptions {
-    /// The row's three groups, left to right: [Chapters] Sleep Speed · [Previous] Play/Pause
-    /// [Next] · [Subtitles] [Audio] [Quality] Info, as the Android TV app's (Left and Right seek).
+    /// The row's three groups, left to right: [Chapters] Speed · [Previous] Play/Pause [Next] ·
+    /// [Subtitles] [Audio] [Quality] Info, as the Android TV app's (Left and Right seek).
     pub fn groups(&self) -> [Vec<Btn>; 3] {
         let mut left = Vec::new();
         if self.chapters {
             left.push(Btn::Chapters);
         }
-        left.extend([Btn::Sleep, Btn::Speed]);
+        left.push(Btn::Speed);
         let mut centre = Vec::new();
         if self.previous_next {
             centre.push(Btn::Previous);
@@ -515,7 +505,6 @@ fn button(ui: &mut Ui, id: Id, rect: Rect, b: Btn, playing: bool) -> Response {
 fn glyph(ui: &mut Ui, rect: Rect, b: Btn, playing: bool, color: Color) {
     let (icon, size) = match b {
         Btn::Chapters => (Icon::ListVideo, theme::ICON_SIZE),
-        Btn::Sleep => (Icon::Moon, theme::ICON_SIZE),
         Btn::Speed => (Icon::FastForward, theme::ICON_SIZE),
         Btn::Previous => (Icon::SkipBack, TRANSPORT_ICON),
         Btn::Next => (Icon::SkipForward, TRANSPORT_ICON),
@@ -568,14 +557,14 @@ mod tests {
         let row = layout_row(&all());
         let at = |b: Btn| row.iter().find(|(x, _)| *x == b).unwrap().1;
         assert_eq!(at(Btn::Chapters), Rect::new(48.0, 445.0, 36.0, 36.0));
-        assert_eq!(at(Btn::Sleep).x, 94.0);
+        assert_eq!(at(Btn::Speed).x, 94.0);
         assert_eq!(at(Btn::PlayPause), Rect::new(458.0, 441.0, 44.0, 44.0));
         assert_eq!(at(Btn::Info).right(), 912.0);
         assert_eq!(at(Btn::Previous).x, 480.0 - 74.0);
         assert_eq!(at(Btn::Next).right(), 480.0 + 74.0);
         let bare = layout_row(&RowOptions::default());
         let names: Vec<Btn> = bare.iter().map(|(b, _)| *b).collect();
-        assert_eq!(names, [Btn::Sleep, Btn::Speed, Btn::PlayPause, Btn::Info]);
+        assert_eq!(names, [Btn::Speed, Btn::PlayPause, Btn::Info]);
     }
 
     #[test]

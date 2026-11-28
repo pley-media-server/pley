@@ -65,7 +65,6 @@ pub enum Icon {
     Lock,
     LogOut,
     Monitor,
-    Moon,
     Music,
     Palette,
     Pause,

@@ -9,13 +9,11 @@
     "quality": "畫質",
     "chapters": "章節",
     "info": "資訊",
-    "sleep": "睡眠定時",
     "speed": "速度"
   },
   "status": {
     "loading": "載入中",
-    "reconnecting": "重新連線中…",
-    "endsAt": "於 {{time}} 結束"
+    "reconnecting": "重新連線中…"
   },
   "markers": {
     "intro": "片頭",
@@ -165,16 +163,6 @@
     "word": "章節",
     "numbered": "第 {{number}} 章",
     "named": "第 {{number}} 章 · {{name}}"
-  },
-  "sleep": {
-    "off": "關閉",
-    "minutes": "{{minutes}} 分鐘",
-    "minutesLeft_other": "剩餘 {{count}} 分鐘",
-    "endOfEpisode": "本集結束時",
-    "endOfTrack": "本曲目結束時",
-    "pausingIn": "{{seconds}} 秒後暫停",
-    "keepWatching": "繼續觀看",
-    "keepListening": "繼續收聽"
   },
   "spoken": {
     "position": "{{elapsed}} / {{duration}}",

@@ -205,6 +205,9 @@ describes how they are made.
 
 - The player's Back 10 seconds and Forward 10 seconds buttons. Left and
   Right still seek.
+- The player's controls no longer say "Ends at" with a time under the
+  clock while paused: the time left stays by the scrubber.
+- The sleep timer is gone, from videos and music.
 
 ### Fixed
 

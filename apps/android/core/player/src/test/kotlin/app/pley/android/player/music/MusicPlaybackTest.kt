@@ -24,7 +24,6 @@ import app.pley.android.player.MusicError
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.music.library.MusicSelection
 import app.pley.android.player.session.SessionReporter
-import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.testing.network.FakePleyApi
 import java.io.IOException
 import kotlin.random.Random
@@ -366,22 +365,6 @@ class MusicPlaybackTest {
     }
 
     @Test
-    fun theSleepTimersNextTrackWaitingPausedStaysPausedAfterTheTvAppIsLeft() = runTest {
-        val music = music()
-        music.play(album)
-        runCurrent()
-        output.startPlaying()
-        music.setSleep(SleepChoice.EndOfItem)
-        output.end()
-        // The next track is being asked for, to wait paused.
-        music.pauseForLeave(playOnReturn = true)
-        music.returnAfterLeave(playOn = true)
-        settle()
-        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
-        assertFalse(output.playWhenReady)
-    }
-
-    @Test
     fun musicPlayedAndPausedAgainWhileAwayStaysPaused() = runTest {
         val music = music()
         music.play(album)
@@ -417,6 +400,22 @@ class MusicPlaybackTest {
         assertNull(starts().last().startMs)
         assertEquals(0L, output.startPositions.last())
         assertTrue(output.playWhenReady)
+    }
+
+    @Test
+    fun theNextTrackPausedWhileItIsAskedForStaysPausedAfterTheTvAppIsLeft() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        music.next()
+        // Paused before the server answered for track 2: it comes in to wait paused.
+        music.pause()
+        music.pauseForLeave(playOnReturn = true)
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertFalse(output.playWhenReady)
     }
 
     @Test
@@ -634,21 +633,10 @@ class MusicPlaybackTest {
         assertEquals(listOf(1L, 2L, 1L), starts().map { it.itemId })
         assertEquals("http://127.0.0.1:7539/api/files/601/stream", output.next?.url)
 
-        // The sleep timer ending with this track: the next waits, so nothing waits in the output.
-        music.setSleep(SleepChoice.EndOfItem)
-        runCurrent()
-        assertNull(output.next)
-        assertEquals(listOf("next", "again"), api.calls("stopPlayback").map { it.args[0] })
-        advanceTimeBy(10_000)
-        runCurrent()
-        assertEquals(3, starts().size)
-
-        // Off again: asked for again. Next pressed meanwhile: asked for as it comes, as before.
-        music.setSleep(SleepChoice.Off)
-        runCurrent()
-        assertEquals(4, starts().size)
+        // Next pressed: the one asked ahead is let go, and the next is asked for as it comes.
         music.next()
         settle()
+        assertTrue("again" in api.calls("stopPlayback").map { it.args[0] })
         assertNull(output.next)
         assertEquals(null, starts().last().keepPrevious)
         assertEquals(2L, starts().last().itemId)

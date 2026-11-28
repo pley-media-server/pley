@@ -24,8 +24,8 @@ extension Admin {
 }
 
 /// The music steps: an album played from its page, the mini player, Next,
-/// Now Playing with Shuffle and the sleep timer, and a music playlist
-/// played from an entry, each checked on the server.
+/// Now Playing with Shuffle, and a music playlist played from an entry,
+/// each checked on the server.
 extension Walk {
     static let musicPlaylist = "UI Music"
 
@@ -77,7 +77,7 @@ extension Walk {
             return sessions.map(\.title) == ["Second"] && !sessions.contains { $0.id == first }
         }
 
-        // Now Playing: Shuffle and the sleep timer.
+        // Now Playing: Shuffle.
         mini.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
         wait(element("music.nowPlaying.title"), "Now Playing")
         XCTAssertEqual(element("music.nowPlaying.title").label, "Second", "Now Playing says the track playing")
@@ -85,13 +85,6 @@ extension Walk {
         let shuffle = wait(element("music.shuffle"), "Shuffle")
         shuffle.tap()
         await eventually("Shuffle is on") { shuffle.isSelected || (shuffle.value as? String) == "1" }
-        let sleepTimer = wait(element("music.sleep"), "the sleep timer")
-        sleepTimer.tap()
-        wait(app.buttons["15 minutes"].firstMatch, "15 minutes in the sleep timer").tap()
-        await eventually("the sleep timer says 15 min left") { (sleepTimer.value as? String) == "15 min left" }
-        shot("32-now-playing-sleep")
-        sleepTimer.tap()
-        wait(app.buttons["Off"].firstMatch, "Off in the sleep timer").tap()
         tap("music.nowPlaying.done", "Done")
 
         // A music playlist of the artist's tracks: an entry plays from there.

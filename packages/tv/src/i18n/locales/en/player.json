@@ -4,7 +4,6 @@
     "chapters": "Chapters",
     "speed": "Speed",
     "speedAt": "Speed {{speed}}",
-    "sleep": "Sleep timer",
     "previous": "Previous",
     "pause": "Pause",
     "next": "Next",
@@ -13,7 +12,6 @@
     "quality": "Quality",
     "info": "Info",
     "seekValue": "{{time}} of {{duration}}",
-    "endsAt": "Ends at {{time}}",
     "intro": "Intro",
     "credits": "Credits"
   },
@@ -36,20 +34,6 @@
     "qualityLowered": "Quality lowered to {{quality}}",
     "lastEpisode": "This is the last episode",
     "lastInQueue": "This is the last one"
-  },
-  "sleep": {
-    "pausingIn": "Pausing in {{seconds}} s",
-    "keepWatching": "Keep watching",
-    "off": "Off",
-    "minutes": "{{minutes}} min",
-    "minutesLeft_one": "{{count}} min left",
-    "minutesLeft_other": "{{count}} min left",
-    "end": {
-      "episode": "End of this episode",
-      "movie": "End of this movie",
-      "track": "End of this track",
-      "video": "End of this video"
-    }
   },
   "upNext": {
     "title": "Up next",

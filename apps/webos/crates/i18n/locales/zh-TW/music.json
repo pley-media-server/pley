@@ -40,13 +40,5 @@
     "signedOut": "重新登入後再播放。",
     "stopped": "播放已被伺服器停止。",
     "unplayable": "此曲目無法播放。"
-  },
-  "sleep": {
-    "timer": "睡眠定時",
-    "pausingIn": "{{seconds}} 秒後暫停",
-    "keepListening": "繼續收聽",
-    "minutesLeft_other": "睡眠定時：剩餘 {{count}} 分鐘",
-    "minutes": "睡眠定時：{{minutes}} 分鐘",
-    "endOfTrack": "睡眠定時：本曲目結束時"
   }
 }

@@ -4,7 +4,6 @@ import type { ItemSummary, PlaybackInfo, PlaybackMode } from "../api/types";
 import { SignedOutError } from "../auth/tokens";
 import { NetworkError } from "../net/transport";
 import type { AppState } from "../state";
-import { SLEEP_CHOICES, SLEEP_OFF, SleepTimer, type SleepChoice, type SleepState } from "./sleep";
 import { emptyCaps } from "./plan";
 import { MUSIC_CONTROLS, remoteAction, restartsTrack, type PlayerCommand } from "./remote";
 import { audioKind, storedAudioSeekMemory, type AudioSeekMemory, type AudioSeekStep } from "./seekmemory";
@@ -80,7 +79,6 @@ export function shuffled<T>(list: T[], first: number, random: () => number = Mat
  */
 export class MusicPlayer {
   readonly now = signal<NowPlaying | null>(null);
-  readonly sleep = signal<SleepState>(SLEEP_OFF);
   private readonly app: AppState;
   private readonly audio: HTMLAudioElement;
   private queue: ItemSummary[] = [];
@@ -120,7 +118,6 @@ export class MusicPlayer {
   private readonly seeks: AudioSeekMemory;
   private reportTimer: ReturnType<typeof setInterval> | null = null;
   private lastReportAt = 0;
-  private readonly timer: SleepTimer;
 
   constructor(app: AppState, seeks: AudioSeekMemory = storedAudioSeekMemory(app.store, AUDIO_SEEKS_KEY)) {
     this.app = app;
@@ -165,12 +162,6 @@ export class MusicPlayer {
     audio.addEventListener("waiting", () => this.update({ loading: true }));
     audio.addEventListener("ended", () => this.trackEnded());
     audio.addEventListener("error", () => this.failed());
-    this.timer = new SleepTimer({
-      itemLeftMs: () => (this.audio.duration ? Math.max(0, this.audio.duration - this.audio.currentTime) * 1000 : null),
-      itemKey: () => this.order[this.index]?.id ?? null,
-      onFire: () => this.audio.pause(),
-      onChange: (s) => (this.sleep.value = s),
-    });
     // A profile switch, signing out, another server or the app closing: the music's session ends with them.
     app.onLeave(() => this.stop());
   }
@@ -209,7 +200,6 @@ export class MusicPlayer {
     this.generation++;
     this.audio.pause();
     this.endSession();
-    this.timer.cancel();
     this.queue = [];
     this.order = [];
     this.index = 0;
@@ -265,7 +255,7 @@ export class MusicPlayer {
     const now = this.now.value;
     console.info("[music] seek", { target, method: s?.method ?? null, hls: s?.hls ?? null, readyState: a.readyState });
     if (!s && now && !now.playing && !now.ended && !now.error) {
-      // Paused with no session (a video took it, the sleep timer stopped), or one starting: held, and played from when asked.
+      // Paused with no session (a video took it), or one starting: held, and played from when asked.
       this.pendingMs = target;
       return true;
     }
@@ -311,19 +301,6 @@ export class MusicPlayer {
       this.index = Math.max(0, this.order.indexOf(current));
     }
     this.update({ shuffle: on, index: this.index });
-  }
-
-  /** The sleep timer steps through its choices: Off, 15 … 90 min, end of this track. */
-  stepSleep(): void {
-    const s = this.sleep.value;
-    if (s.secondsLeft !== null) {
-      this.timer.extend();
-      return;
-    }
-    const at = SLEEP_CHOICES.findIndex((c) => c.kind === s.choice.kind && (c.kind !== "minutes" || c.minutes === (s.choice as { minutes: number }).minutes));
-    const next: SleepChoice = SLEEP_CHOICES[(at + 1) % SLEEP_CHOICES.length]!;
-    if (!this.order.length && next.kind !== "off") return;
-    this.timer.set(next);
   }
 
   /**
@@ -685,20 +662,9 @@ export class MusicPlayer {
   }
 
   private trackEnded(): void {
-    const track = this.order[this.index];
     this.report("stopped");
     this.endSession();
     this.newTrack();
-    if (track && this.timer.itemEnded(track.id)) {
-      // The timer ends with this track: the next one waits, paused.
-      if (this.index + 1 < this.order.length) {
-        this.index++;
-        // From its start, not where the last track's stream ended.
-        this.pendingMs = 0;
-        this.now.value = { ...this.now.value!, track: this.order[this.index]!, index: this.index, playing: false, loading: false };
-      }
-      return;
-    }
     if (this.index + 1 < this.order.length) {
       this.index++;
       void this.start(0, null);

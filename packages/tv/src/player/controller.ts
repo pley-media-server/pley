@@ -3,7 +3,6 @@ import { ApiError, errorMessage, isApiError, SessionStoppedError, unreachable, t
 import type {
   ClientCaps,
   ItemDetail,
-  ItemKind,
   ItemSummary,
   Marker,
   MediaFile,
@@ -63,7 +62,6 @@ import { qualityAction, remoteAction, trackAction, videoControls, type PlayerCom
 import type { Reporter } from "./reporter";
 import { badgeText } from "./seeker";
 import { seekKind, type SeekMemory } from "./seekmemory";
-import { SLEEP_OFF, SleepTimer, type SleepChoice, type SleepState } from "./sleep";
 import { SPEEDS } from "./speed";
 
 export type Phase =
@@ -114,8 +112,6 @@ export interface UpNextCard {
 export interface PlayerState {
   phase: Phase;
   itemId: number;
-  /** What plays: a movie, an episode, an extra; `null` until its details come. */
-  kind: ItemKind | null;
   /** A movie's "Title (Year)", an episode's show. */
   title: string;
   /** An episode's "S1 · E2 · Title", as it reads everywhere. */
@@ -154,7 +150,6 @@ export interface PlayerState {
   /** How fast it plays (1: normal), for this title; `speeds`: what the TV's player plays at, empty when only normal. */
   speed: number;
   speeds: readonly number[];
-  sleep: SleepState;
   stoppedByServer: boolean;
   /** The server stopped answering mid-playback: the player keeps its place and asks again ("Reconnecting…"). */
   reconnecting: boolean;
@@ -180,7 +175,6 @@ export interface PlayerClock {
 const initial = (): PlayerState => ({
   phase: { kind: "preparing" },
   itemId: 0,
-  kind: null,
   title: "",
   subtitle: null,
   audio: [],
@@ -207,7 +201,6 @@ const initial = (): PlayerState => ({
   subtitleSync: false,
   speed: 1,
   speeds: [],
-  sleep: SLEEP_OFF,
   stoppedByServer: false,
   reconnecting: false,
   firstFrameMs: null,
@@ -315,8 +308,8 @@ interface Outage {
  *   for streams; subtitles always drawn by the TV (the server's WebVTT, or
  *   its .mks of a picture track), burned in only when the server can't
  *   make the .mks. Choices are saved with PUT /api/items/{id}/streams.
- * - **Markers, Up Next, the sleep timer**, and a session the server
- *   stopped: it says so and plays no more.
+ * - **Markers, Up Next**, and a session the server stopped: it says so
+ *   and plays no more.
  * - **The remote** on the user's other devices: play, pause, seek, skip,
  *   next, and the audio, subtitles and quality, through the menus' own
  *   paths; every report says which tracks play and which quality is picked
@@ -407,7 +400,6 @@ export class PlaybackController {
   /** When Skip shows on its own: its first 8 s in each marker the playhead enters. */
   private readonly skipWindow = new SkipWindow();
   private readonly presenter: SubtitlePresenter;
-  private readonly sleep: SleepTimer;
 
   private lastAdvanceAt = 0;
   private lastAdvancePos = -1;
@@ -449,12 +441,6 @@ export class PlaybackController {
       onShown: (shown) => (this.subs.value = shown),
       onFailed: () => this.notice(t("player.toasts.subtitlesNotLoaded")),
       onPicturesUnavailable: () => this.picturesFailed(),
-    });
-    this.sleep = new SleepTimer({
-      itemLeftMs: () => this.itemLeftMs(),
-      itemKey: () => this.item?.id ?? null,
-      onFire: () => this.onSleep(),
-      onChange: (s) => this.update({ sleep: s }),
     });
   }
 
@@ -548,7 +534,6 @@ export class PlaybackController {
     const episode = detail.kind === "episode";
     this.update({
       itemId: detail.id,
-      kind: detail.kind,
       title: episode ? detail.grandparent_title || detail.title : detail.year != null ? `${detail.title} (${detail.year})` : detail.title,
       subtitle: episode ? [episodeLabel(detail.parent_index, detail.index), detail.title].filter(Boolean).join(" · ") : null,
       markers: this.markers,
@@ -1177,7 +1162,6 @@ export class PlaybackController {
   private onEnded(): void {
     if (this.ended) return;
     this.ended = true;
-    const sleeping = this.sleep.itemEnded(this.item?.id ?? null);
     const engineDuration = this.engineRef?.durationMs() ?? 0;
     const duration = (this.info?.duration_ms || 0) > 0 ? this.info!.duration_ms : engineDuration > 0 ? engineDuration : this.lastPositionMs;
     this.lastPositionMs = duration;
@@ -1192,12 +1176,12 @@ export class PlaybackController {
     this.phase({ kind: "paused" });
     const known = this.next;
     if (known) {
-      this.showUpNext(known, !sleeping && this.countdownTimer === null);
+      this.showUpNext(known, this.countdownTimer === null);
       return;
     }
     this.lookUpNext((found) => {
       if (!found) this.phase({ kind: "ended" });
-      else this.showUpNext(found, !sleeping);
+      else this.showUpNext(found, true);
     });
   }
 
@@ -1364,22 +1348,6 @@ export class PlaybackController {
     return this.mediaShown && engine && this.info && !this.sessionEnded && !this.ended ? engine.positionMs() : this.lastPositionMs;
   }
 
-  /** How long the item playing has left, for the sleep timer; `null` while unknown. */
-  private itemLeftMs(): number | null {
-    if (!this.info || !this.mediaShown || this.ended) return null;
-    const duration = this.clock.value.durationMs;
-    return duration > 0 ? duration - this.livePosition() : null;
-  }
-
-  /** The sleep timer ended: it pauses, and what plays next doesn't start by itself. */
-  private onSleep(): void {
-    this.stopCountdown();
-    const card = this.state.value.upNext;
-    if (card) this.update({ upNext: { ...card, secondsLeft: null } });
-    this.engineRef?.pause();
-    this.setWantPlay(false);
-  }
-
   /**
    * The server ended the session: the engine stops, nothing more is asked
    * of the server (only `stopped`, for the resume point), and the screen
@@ -1404,7 +1372,6 @@ export class PlaybackController {
     this.nextLookup++;
     this.hideUpNext();
     this.presenter.hide();
-    this.sleep.cancel();
     this.engineRef?.stop();
     this.update({ phase: { kind: "error", message: stoppedText(message, byAdmin), canRetry: false }, skipLabel: null, stoppedByServer: true });
   }
@@ -1581,7 +1548,6 @@ export class PlaybackController {
   private setWantPlay(play: boolean): void {
     const was = this.wantPlay;
     this.wantPlay = play;
-    if (play) this.sleep.resumed();
     // Played again, by anyone: the remote's pause is over.
     if (play && this.state.value.pausedByRemote) this.update({ pausedByRemote: false });
     if (!this.info || was === play) return;
@@ -1735,19 +1701,6 @@ export class PlaybackController {
     const engine = this.engineRef;
     if (this.closed || !engine?.setSpeed || this.state.value.speeds.indexOf(rate) < 0) return;
     if (engine.setSpeed(rate)) this.update({ speed: rate });
-  }
-
-  setSleep(choice: SleepChoice): void {
-    if (this.closed || this.stopped) return;
-    this.sleep.set(choice);
-  }
-
-  keepWatching(): void {
-    if (this.closed || this.stopped) return;
-    this.sleep.extend();
-    // What plays next was held for the timer: its countdown goes on.
-    const known = this.next;
-    if (known && this.state.value.upNext && this.countdownTimer === null && !this.ended) this.showUpNext(known, true);
   }
 
   /**
@@ -1913,7 +1866,6 @@ export class PlaybackController {
     this.nextGeneration();
     this.endOutage();
     this.endSession(position);
-    this.sleep.cancel();
     this.presenter.dispose();
     this.stopCountdown();
     for (const t of [this.seekReportTimer, this.detailsTimer, this.trickplayTimer]) if (t !== null) clearTimeout(t);
@@ -1978,7 +1930,7 @@ export class PlaybackController {
     this.update({ upNext: card });
     if (!restartCountdown) return;
     this.stopCountdown();
-    if (!this.env.autoplayNext() || this.sleep.endsWith(this.item?.id ?? null)) return;
+    if (!this.env.autoplayNext()) return;
     let left = COUNTDOWN_SECONDS;
     const step = () => {
       const current = this.state.value.upNext;
@@ -2029,11 +1981,11 @@ export class PlaybackController {
       subtitleIndex: null,
     };
     this.current = req;
-    const { sleep, title, pausedByRemote, remoteNoticeId } = this.state.value;
+    const { title, pausedByRemote, remoteNoticeId } = this.state.value;
     // The next title plays at normal speed.
     if (this.state.value.speed !== 1) this.engineRef?.setSpeed?.(1);
     // The next title starts paused when this one is: the remote's pause stays the remote's.
-    this.state.value = { ...initial(), itemId: target.id, title, sleep, pausedByRemote, remoteNoticeId, speeds: this.state.value.speeds };
+    this.state.value = { ...initial(), itemId: target.id, title, pausedByRemote, remoteNoticeId, speeds: this.state.value.speeds };
     this.setClock({ positionMs: req.startMs ?? 0, bufferedMs: 0 });
     const generation = this.nextGeneration();
     const prefetched = this.nextDetail?.id === target.id ? this.nextDetail : null;

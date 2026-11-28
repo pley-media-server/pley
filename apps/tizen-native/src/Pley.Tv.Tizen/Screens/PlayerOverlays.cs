@@ -11,8 +11,8 @@ namespace Pley.Tv.Tizen.Screens;
 /*
  * The player's views (design spec §2.7; the Android app's TvPlayerControls, TvPlayerOverlays and
  * TvPlayerExtras): its buttons, and what shows over the video besides the controls: Skip, Up
- * Next, the sleep timer's notice, the method badge, the seek preview and toasts. The player
- * screen places them and gives them focus.
+ * Next, the method badge, the seek preview and toasts. The player screen places them and gives
+ * them focus.
  */
 
 /// <summary>
@@ -371,56 +371,6 @@ sealed class UpNextView : View
             }
             base.Dispose(type);
         }
-    }
-}
-
-/// <summary>
-/// The sleep timer's notice, 30 s before it pauses: "Pausing in 28 s" and Keep watching, at the
-/// bottom left (Skip and Up Next keep the right). It takes focus while the controls are hidden.
-/// </summary>
-sealed class SleepNoticeView : View
-{
-    const float Glyph = 20;
-
-    readonly TextLabel text;
-    readonly ButtonView keep;
-
-    public SleepNoticeView(Action onKeep)
-    {
-        BackgroundColor = PleyColors.Surface3;
-        CornerRadius = Ui.Dp(PleyShape.ControlRadius);
-        var moon = Icons.Icon("moon", Glyph, PleyColors.Muted);
-        moon.Position = new Position(Ui.Dp(20), Ui.Dp(8 + (PleyTv.ButtonHeight - Glyph) / 2));
-        Add(moon);
-        text = Text.Label("", PleyType.Label, PleyColors.Fg);
-        text.Position = new Position(Ui.Dp(20 + Glyph + 16), Ui.Dp(8));
-        Add(text);
-        keep = new ButtonView(SleepText.Keep(), ButtonKind.Pill, onKeep);
-        Add(keep);
-        Group = new FocusGroup(Axis.Row, "sleep-notice");
-        Group.Add(keep.Item);
-        Set(30);
-    }
-
-    public FocusGroup Group { get; }
-
-    public FocusItem Keep => keep.Item;
-
-    public float HeightDp => 8 + PleyTv.ButtonHeight + 8;
-
-    int shownSeconds = -1;
-
-    public void Set(int secondsLeft)
-    {
-        if (Disposed || secondsLeft == shownSeconds) return;
-        shownSeconds = secondsLeft;
-        // As wide as its longest count, so it doesn't shrink as the seconds go.
-        text.Text = SleepText.Notice(30);
-        var w = Text.Width(text);
-        text.Text = SleepText.Notice(secondsLeft);
-        text.Size = new Size(Ui.Dp(w), Ui.Dp(PleyTv.ButtonHeight));
-        keep.Position = new Position(Ui.Dp(20 + Glyph + 16 + w + 16), Ui.Dp(8));
-        Size = new Size(Ui.Dp(20 + Glyph + 16 + w + 16) + keep.SizeWidth + Ui.Dp(8), Ui.Dp(HeightDp));
     }
 }
 

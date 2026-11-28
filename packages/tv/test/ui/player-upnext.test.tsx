@@ -4,7 +4,6 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLanguage } from "../../src/i18n";
 import type { PlaybackController, PlayerClock, PlayerState } from "../../src/player/controller";
-import { SLEEP_OFF } from "../../src/player/sleep";
 import type { AppState } from "../../src/state";
 import { NOTHING_SHOWN } from "../../src/subs/presenter";
 import { UiContext, type Ui } from "../../src/ui/context";
@@ -26,7 +25,6 @@ let detach: (() => void) | null = null;
 const AT_CREDITS: PlayerState = {
   phase: { kind: "playing" },
   itemId: 70,
-  kind: "episode",
   title: "Show",
   subtitle: "S1 E1",
   audio: [],
@@ -53,7 +51,6 @@ const AT_CREDITS: PlayerState = {
   subtitleSync: false,
   speed: 1,
   speeds: [],
-  sleep: SLEEP_OFF,
   stoppedByServer: false,
   reconnecting: false,
   firstFrameMs: null,

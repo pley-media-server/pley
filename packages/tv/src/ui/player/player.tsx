@@ -11,7 +11,6 @@ import { t } from "../../i18n";
 import { skipShows } from "../../player/markers";
 import { CountdownFill, thumbnailAt, sheetPath } from "../../player/nextup";
 import { badgeText, MEDIA_STEP_MS, Seeker, STEP_MS } from "../../player/seeker";
-import { LEAVE_AFTER_MS } from "../../player/sleep";
 import { speedLabel } from "../../player/speed";
 import type { Key } from "../keys";
 import { useUi } from "../context";
@@ -43,7 +42,7 @@ const BAR_WIDTH = 864;
 /**
  * The player (TvPlayerScreen): the TV's own player under the page, the
  * subtitles drawn above it, the controls and their panels, Skip, Up Next,
- * the sleep notice, and the remote's keys as the Android TV app reads them.
+ * and the remote's keys as the Android TV app reads them.
  */
 export function PlayerScreen(p: { request: PlayRequest; pressedAt: number }) {
   const app = useApp();
@@ -199,7 +198,7 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
     return () => clearTimeout(t);
   }, [waiting]);
 
-  // The end with nothing next, a server stop after 20 s, the sleep timer's pause after 10 min: the player leaves.
+  // The end with nothing next, a server stop after 20 s: the player leaves.
   useEffect(() => {
     if (s.phase.kind === "ended") leave();
   }, [s.phase.kind]);
@@ -208,11 +207,6 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
     const t = setTimeout(leave, STOPPED_LEAVE_MS);
     return () => clearTimeout(t);
   }, [s.stoppedByServer]);
-  useEffect(() => {
-    if (!s.sleep.fired) return;
-    const t = setTimeout(leave, LEAVE_AFTER_MS);
-    return () => clearTimeout(t);
-  }, [s.sleep.fired]);
 
   // Up Next or an error takes over: the pending seek goes, the panel and controls close.
   useEffect(() => {
@@ -258,10 +252,9 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
   const skipFree = !s.upNext && !error && !(controls && seeker.target !== null);
   const skipShown = skipFree && skipShows(!!s.skipLabel, s.skipAlone, controls);
   const skipAlone = skipFree && skipShows(!!s.skipLabel, s.skipAlone, false);
-  const sleepShown = s.sleep.secondsLeft !== null && !error;
 
-  // A new Skip or sleep notice takes focus while nothing else is up; the hidden-controls focus holder otherwise, as Skip goes after its 8 s.
-  // With the controls up, Skip or the notice going while it has focus (Skip pressed, its marker over) leaves it to the scrubber.
+  // A new Skip takes focus while nothing else is up; the hidden-controls focus holder otherwise, as Skip goes after its 8 s.
+  // With the controls up, Skip going while it has focus (pressed, its marker over) leaves it to the scrubber.
   useEffect(() => {
     if (panel || s.upNext || error) return;
     if (controls) {
@@ -270,9 +263,8 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
       return;
     }
     if (skipShown) focusFid("skip");
-    else if (sleepShown) focusFid("keep");
     else focusFid("video");
-  }, [skipShown, sleepShown, controls, !!panel, !!s.upNext, !!error]);
+  }, [skipShown, controls, !!panel, !!s.upNext, !!error]);
   useEffect(() => {
     if (s.upNext) focusFid("playnow");
   }, [s.upNext?.itemId]);
@@ -385,7 +377,7 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
         const focused = ui.focus.current?.getAttribute("data-fid") ?? null;
         if (!controlsRef.current) {
           if (key === "ok") {
-            if (focused === "skip" || focused === "keep") return false;
+            if (focused === "skip") return false;
             if (e.type === "down" && !e.repeat && !busy) playPauseRef.current();
             return true;
           }
@@ -517,7 +509,6 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
               {s.method && <MethodBadge method={s.methodKind} text={s.method} />}
               <TimeOfDay hours24={app.platform.clock24()} />
             </div>
-            {s.phase.kind === "paused" && <EndsAt controller={c} hours24={app.platform.clock24()} />}
           </div>
         </div>
         {target !== null && controls && <SeekPreview state={s} targetMs={target} durationMs={clockNow().durationMs} />}
@@ -534,7 +525,6 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
                 onSelect={() => openPanel("speed")}
               />
             )}
-            <PlayerButton fid="sleep" icon="moon" label={t("player.controls.sleep")} onSelect={() => openPanel("sleep")} />
           </div>
           <div class="row-centre">
             {hasPrevNext && <PlayerButton fid="previous" icon="skip-back" iconSize={24} label={t("player.controls.previous")} onSelect={() => media("previous")} />}
@@ -556,15 +546,6 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
           <F class="skip-pill t-caption" fid="skip" label={s.skipLabel!} onSelect={() => c.skip()}>
             <span>{s.skipLabel}</span>
             <span style="margin-left:8px;display:flex"><Icon name="chevrons-right" size={18} /></span>
-          </F>
-        </G>
-      )}
-      {sleepShown && (
-        <G kind="row" class={`sleep-notice${controls ? " lifted" : ""}`}>
-          <Icon name="moon" size={20} color="var(--muted)" />
-          <span class="t-label c-fg">{t("player.sleep.pausingIn", { seconds: s.sleep.secondsLeft! })}</span>
-          <F class="keep-btn t-label" fid="keep" label={t("player.sleep.keepWatching")} onSelect={() => c.keepWatching()}>
-            {t("player.sleep.keepWatching")}
           </F>
         </G>
       )}
@@ -686,19 +667,6 @@ export function TimeOfDay(p: { hours24: boolean }) {
     return () => clearTimeout(t);
   }, [now]);
   return <span class="t-label c-muted">{formatTimeOfDay(now, p.hours24)}</span>;
-}
-
-/** When it ends, while paused, as the Android TV app says it; later by a minute for each minute it waits. */
-function EndsAt(p: { controller: PlaybackController; hours24: boolean }) {
-  const clock = p.controller.clock.value;
-  const [, setMinute] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setMinute((n) => n + 1), 60_000 - (Date.now() % 60_000) + 50);
-    return () => clearTimeout(t);
-  });
-  if (clock.durationMs <= 0) return null;
-  const end = new Date(Date.now() + Math.max(0, clock.durationMs - clock.positionMs));
-  return <div class="t-label c-muted">{t("player.controls.endsAt", { time: formatTimeOfDay(end, p.hours24) })}</div>;
 }
 
 /** The scrubber: played, buffered, chapter gaps, the thumb at the seek target (else where it plays), the marker's name under it. */

@@ -36,12 +36,6 @@ public struct NowPlayingModel: Equatable, Sendable {
     public let error: String?
     public let shuffle: Bool
     public let hasNext: Bool
-    /// The sleep timer: its choice, and its words beside "Sleep Timer"
-    /// ("15 min left", "Pausing in 12 s").
-    public let sleep: SleepChoice
-    public let sleepSummary: String?
-    /// "Pausing in 12 s" in the timer's last 30 s, with Keep listening.
-    public let sleepNotice: String?
     public let upNext: [Row]
     /// What VoiceOver reads for the mini player: "Now playing, Song, Artist".
     public let spoken: String
@@ -61,9 +55,6 @@ public struct NowPlayingModel: Equatable, Sendable {
         error = state.error?.text
         shuffle = state.shuffle
         hasNext = state.hasNext
-        sleep = state.sleep.choice
-        sleepSummary = state.sleep.summary(item: "track")
-        sleepNotice = state.sleep.notice
         upNext = state.upNext.map { position, item in
             let byline = [item.grandparentTitle, item.parentTitle].compactMap { $0 }.filter { !$0.isEmpty }
                 .joined(separator: " · ")

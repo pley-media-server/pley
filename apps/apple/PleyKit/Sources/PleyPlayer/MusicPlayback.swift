@@ -54,7 +54,6 @@ public struct MusicState: Equatable, Sendable {
     /// The current track's place in `queue`.
     public var index = 0
     public var shuffle = false
-    public var sleep = SleepState()
 
     public init() {}
 
@@ -76,7 +75,7 @@ public struct MusicState: Equatable, Sendable {
     public static func == (a: MusicState, b: MusicState) -> Bool {
         a.track == b.track && a.durationMs == b.durationMs && a.playing == b.playing && a.loading == b.loading
             && a.ended == b.ended && a.error == b.error && a.queue == b.queue && a.index == b.index
-            && a.shuffle == b.shuffle && a.sleep == b.sleep
+            && a.shuffle == b.shuffle
     }
 }
 
@@ -150,8 +149,6 @@ public struct MusicEnvironment {
 /// - **Previous** restarts a track that has played more than 3 s.
 /// - **The profile's remotes** (`obey`): play, pause, seek, skip, next and
 ///   previous, for the track playing now, reported at once.
-/// - **The sleep timer** pauses after the minutes chosen, or at the end of
-///   the track (the next one waits, paused).
 ///
 /// It lives as long as the app (`AppModel.music`), so it plays on with no
 /// screen open, in the background too.
@@ -197,14 +194,10 @@ public final class MusicPlayback: ObservableObject {
     private var error: MusicError?
     /// A report answered `404`: the next play starts a new session where it was.
     private var expired = false
-    private lazy var timer = SleepTimer(clock: env.clock, itemLeftMs: { [weak self] in self?.trackLeftMs() },
-                                        itemKey: { [weak self] in self?.currentKey },
-                                        onFire: { [weak self] in self?.pause() })
 
     public init(environment: MusicEnvironment) {
         env = environment
         queue = MusicQueue(random: environment.random)
-        timer.onChange = { [weak self] _ in self?.publish() }
     }
 
     /// Whether anything is queued.
@@ -235,7 +228,6 @@ public final class MusicPlayback: ObservableObject {
         } else if error != nil || expired || session == nil && loadTask == nil {
             startTrack(at: lastPosition, sameTrack: true, play: true)
         } else {
-            timer.resumed()
             output().play()
         }
     }
@@ -282,17 +274,6 @@ public final class MusicPlayback: ObservableObject {
     public func setShuffle(_ shuffle: Bool) {
         queue.setShuffle(shuffle)
         publish()
-    }
-
-    public func setSleep(_ choice: SleepChoice) {
-        if queue.isEmpty, choice != .off { return }
-        timer.set(choice)
-        publish()
-    }
-
-    /// Keep listening, in the sleep timer's last 30 s: the same time again.
-    public func keepListening() {
-        timer.extend()
     }
 
     /// A video or Live TV starts: the music waits where it was.
@@ -347,7 +328,6 @@ public final class MusicPlayback: ObservableObject {
         session.stoppedByServer(positionMs: lastPosition)
         loadTask?.cancel()
         loadTask = nil
-        timer.cancel()
         out?.pause()
         fail(.stopped)
     }
@@ -359,7 +339,6 @@ public final class MusicPlayback: ObservableObject {
         loadTask?.cancel()
         loadTask = nil
         stopTicker()
-        timer.cancel()
         endSession()
         outEvents?.cancel()
         outEvents = nil
@@ -396,11 +375,6 @@ public final class MusicPlayback: ObservableObject {
     }
 
     // MARK: Inside
-
-    private var currentKey: AnyHashable? {
-        guard let track = queue.current else { return nil }
-        return AnyHashable("\(queue.index)-\(track.id)")
-    }
 
     private var lastPosition: Int { max(out?.positionMs ?? 0, 0) }
 
@@ -503,13 +477,6 @@ public final class MusicPlayback: ObservableObject {
         publish()
     }
 
-    /// How long the track has left, for the sleep timer; `nil` while it isn't playing.
-    private func trackLeftMs() -> Int? {
-        guard session != nil, !ended, error == nil else { return nil }
-        let duration = state.durationMs
-        return duration > 0 ? duration - lastPosition : nil
-    }
-
     /// Ends the current track's session at the output's position.
     private func endSession() {
         guard let session else { return }
@@ -558,7 +525,6 @@ public final class MusicPlayback: ObservableObject {
             loading = buffering
             publish()
         case .playWhenReady(let play):
-            if play { timer.resumed() }
             if !play, !ended, let session {
                 reportPaused(session)
                 startTicker()
@@ -577,10 +543,8 @@ public final class MusicPlayback: ObservableObject {
         stopTicker()
         let length = (finished?.info.durationMs).flatMap { $0 > 0 ? $0 : nil } ?? max(out?.durationMs ?? 0, lastPosition)
         finished?.end(positionMs: length)
-        // The sleep timer ends with this track: the next one waits, paused.
-        let sleeping = timer.itemEnded(currentKey)
         if queue.next() {
-            startTrack(at: 0, play: !sleeping)
+            startTrack(at: 0)
         } else {
             ended = true
             moving = false
@@ -620,7 +584,6 @@ public final class MusicPlayback: ObservableObject {
         next.loading = loading && error == nil
         next.ended = ended
         next.error = error
-        next.sleep = queue.isEmpty ? SleepState() : timer.state
         guard next != state else { return }
         state = next
         onChange?(next)

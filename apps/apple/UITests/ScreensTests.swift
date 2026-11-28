@@ -162,9 +162,9 @@ final class ScreensTests: XCTestCase {
 
     /// Music: an album played from its page (the mini player, the track
     /// marked, the session on the dashboard), Next (the first session gone),
-    /// Now Playing with Shuffle and a 15-minute sleep timer, and a music
-    /// playlist made of the artist's tracks played from its second entry,
-    /// then paused; the playlist is deleted afterwards.
+    /// Now Playing with Shuffle, and a music playlist made of the artist's
+    /// tracks played from its second entry, then paused; the playlist is
+    /// deleted afterwards.
     func testMusic() async throws {
         if UIDevice.current.userInterfaceIdiom == .pad {
             XCUIDevice.shared.orientation = .landscapeLeft

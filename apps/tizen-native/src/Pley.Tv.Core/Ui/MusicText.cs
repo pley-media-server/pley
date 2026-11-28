@@ -41,9 +41,6 @@ public static class MusicText
     /// <summary>"40 tracks".</summary>
     public static string TrackCount(long n) => Strings.Count("music.count.tracks", n);
 
-    /// <summary>The sleep button's "Sleep timer: 42 min left": the timer's name and what it says.</summary>
-    public static string Sleep(string timer, string left) => Strings.T("music.nowPlaying.sleep", ("timer", timer), ("left", left));
-
     /// <summary>Why music doesn't play, in danger text under the byline.</summary>
     public static string Error(MusicError error) => error switch
     {

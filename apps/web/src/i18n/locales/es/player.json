@@ -35,11 +35,6 @@
     },
     "originalNotSmooth": "El original no se reproducía con fluidez en este navegador.",
     "originalFailed": "Este navegador no pudo reproducir el archivo original.",
-    "sleepEnd": {
-      "episode": "Final de este episodio",
-      "movie": "Final de esta película",
-      "video": "Final de este video"
-    },
     "stoppedElsewhere": "La reproducción se detuvo desde otro dispositivo",
     "stoppedByAdmin": "El administrador del servidor detuvo la reproducción",
     "unreachable": "No se puede conectar con tu servidor",
@@ -75,14 +70,6 @@
     "episode": "A continuación · {{episode}}",
     "playNow": "Reproducir ahora",
     "cancel": "Cancelar la reproducción automática"
-  },
-  "sleep": {
-    "pausingIn": "Se pausará en {{seconds}} s",
-    "keepWatching": "Seguir viendo",
-    "minutes_one": "{{count}} minuto",
-    "minutes_many": "{{count}} minutos",
-    "minutes_other": "{{count}} minutos",
-    "minutesShort": "{{minutes}} min"
   },
   "chapters": {
     "title": "Capítulos",
@@ -123,7 +110,6 @@
       "upload": "Añadir archivo de subtítulos",
       "style": "Estilo de subtítulos",
       "speed": "Velocidad",
-      "sleep": "Temporizador de suspensión",
       "details": "Detalles de reproducción"
     },
     "defaultAudio": "Predeterminado",
@@ -204,12 +190,6 @@
   },
   "book": {
     "speed": "Velocidad: {{rate}}",
-    "sleep": "Temporizador",
-    "sleepIn": "Temporizador: quedan {{time}}",
-    "sleepAtEnd": "Temporizador: pausa al final",
-    "sleepEndOfChapter": "Final del capítulo",
-    "sleepEndOfPart": "Final de la parte",
-    "sleepOff": "Desactivar el temporizador",
     "back_one": "Retroceder {{count}} segundo",
     "back_many": "Retroceder {{count}} segundos",
     "back_other": "Retroceder {{count}} segundos",

@@ -209,20 +209,6 @@ function pageTextDrawn() {
   return false;
 }
 
-// Whether Now Playing's sleep timer button, focused, is a pill saying what
-// is left: the accent past where its round button ends (x 1388, the buttons
-// from 856 under the scrubber, in the column right of the cover).
-function sleepButtonLong() {
-  if (!frame) return false;
-  for (let y = 440; y < 488; y += 4) {
-    for (let x = 1406; x < 1486; x += 4) {
-      const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
-      if (frame.data[at] < 120 && frame.data[at + 1] > 150 && frame.data[at + 2] > 200) return true;
-    }
-  }
-  return false;
-}
-
 // The A to Z's mark on a letter (LibraryScreen.xml's column from 1764, 212,
 // 30 pixels a letter), left of the letter: the accent while the letters have
 // the focus, else the lighter ground behind the letter of the title the
@@ -410,9 +396,8 @@ const person = { opened: false };
 // An artist's Play: each album's tracks asked for, the first played.
 const artistPlayed = { gathered: false, first: false };
 // Now Playing: what OK on Up next played, Previous once shuffled and once
-// in order again, and the sleep timer's button: short while off, long
-// once set; then what OK on the album's second disc played.
-const music = { upNext: null, shuffled: null, unshuffled: null, sleepOff: false, sleepSet: false, sleepEnd: false, sleepCycled: false, disc: null };
+// in order again; then what OK on the album's second disc played.
+const music = { upNext: null, shuffled: null, unshuffled: null, disc: null };
 
 // The track OK plays: the next one the server is asked to play.
 async function playedBy(what) {
@@ -501,14 +486,14 @@ async function walk() {
   await settle();
   shoot("player");
   // The controls (Down: on Play/Pause), as the Android TV player's: the row
-  // is Chapters, Sleep timer, Previous, Play/Pause, Next, Subtitles,
-  // Quality and Info (rowButton). Subtitles' panel ends with Subtitle sync
-  // and Find subtitles…; sync's right moves the subtitles later, and Back
-  // closes it, the stream opening again with its text track moved.
+  // is Chapters, Previous, Play/Pause, Next, Subtitles, Quality and Info
+  // (rowButton). Subtitles' panel ends with Subtitle sync and Find
+  // subtitles…; sync's right moves the subtitles later, and Back closes
+  // it, the stream opening again with its text track moved.
   await press("down");
   await sleep(300);
   shoot("player-controls");
-  await rowButton(5); // Subtitles
+  await rowButton(4); // Subtitles
   await press("select");
   await sleep(300);
   shoot("player-subtitles");
@@ -524,21 +509,9 @@ async function walk() {
   await press("select");
   await press("up", 10);
   await press("select");
-  // The sleep timer: 15 minutes, which its panel then counts down.
-  await rowButton(1);
-  await press("select");
-  await sleep(300);
-  shoot("player-sleep");
-  await press("down"); // 15 min
-  await press("select");
-  await rowButton(1);
-  await press("select");
-  await sleep(300);
-  shoot("player-sleep-set");
-  await press("back");
   // Info: what the server makes of the conversion asked for.
   since = mark();
-  await rowButton(7);
+  await rowButton(6);
   await press("select");
   await waitFor(/^GET \/api\/playback\/s\d+$/, since, "the conversion's details");
   shoot("player-details");
@@ -547,7 +520,7 @@ async function walk() {
   // as the pick, and the stream opened again with it (a new session, as
   // the server drew the picture subtitles onto this one).
   since = mark();
-  await rowButton(5);
+  await rowButton(4);
   await press("select");
   await press("down", 10); // Find subtitles…
   await press("select");
@@ -571,7 +544,7 @@ async function walk() {
   // as the pick, and the stream opened again with it.
   since = mark();
   const streamsBefore = fixture.streams.length;
-  await rowButton(5);
+  await rowButton(4);
   await press("select");
   await press("up", 10); // Off
   await press("down"); // English (SRT)
@@ -965,9 +938,9 @@ async function walk() {
   // the music player; Now Playing stopped. Then their older album, its
   // tracks played; the next in Now Playing's Up next played, then Shuffle,
   // which puts the track playing first (Previous plays it again), and Stop
-  // shuffling, the album's order again (Previous plays the one before), and
-  // the sleep timer's button. Now Playing stopped; then the album's second
-  // disc played from its list and stopped, and Back to Home.
+  // shuffling, the album's order again (Previous plays the one before). Now
+  // Playing stopped; then the album's second disc played from its list and
+  // stopped, and Back to Home.
   await openFromMenu(6, /^GET \/api\/libraries\/3\/hubs$/, "Music");
   await settle();
   since = mark();
@@ -1020,21 +993,8 @@ async function walk() {
   await press("select");
   await press("right"); // Previous
   music.unshuffled = await playedBy("Previous, in the album's order");
-  // The sleep timer's button: 15 minutes, saying what is left, then on
-  // through its choices to End of this track and Off again.
-  await press("right", 4); // Sleep timer
-  await sleep(300);
-  music.sleepOff = !sleepButtonLong();
-  await press("select");
-  music.sleepSet = await drawnWithin(2000, sleepButtonLong);
-  shoot("now-playing-sleep");
-  await press("select", 5); // 30, 45, 60 and 90 min, End of this track
-  music.sleepEnd = await drawnWithin(2000, sleepButtonLong);
-  await press("select"); // Off
-  music.sleepCycled = await drawnWithin(2000, () => !sleepButtonLong());
-  if (!(music.sleepOff && music.sleepSet && music.sleepEnd && music.sleepCycled)) console.log(`sleep timer's button: off ${music.sleepOff}, set ${music.sleepSet}, at the track's end ${music.sleepEnd}, off again ${music.sleepCycled}`);
   since = mark();
-  await press("left"); // Stop
+  await press("right", 3); // Stop
   await press("select");
   await waitFor(/^DELETE \/api\/playback\//, since, "the track's session closed");
   // The album again: its tracks under "Disc 1" and "Disc 2", headings the
@@ -1716,8 +1676,6 @@ const checks = [
   ["played the track after the one playing from Now Playing's Up next", music.upNext === 5202],
   ["shuffled Now Playing's queue, the track playing first", music.shuffled === 5202],
   ["put the album's order back with Stop shuffling", music.unshuffled === 5201],
-  ["set Now Playing's sleep timer, its button saying what is left", music.sleepOff && music.sleepSet],
-  ["stepped the sleep timer through End of this track back to Off", music.sleepEnd && music.sleepCycled],
   ["played the track OK was on under an album's second disc", music.disc === 5203],
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
   ["searched, asking for every title, person and channel found", asked(/^GET \/api\/search\?limit=200&/)],

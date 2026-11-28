@@ -13,6 +13,10 @@ describes how they are made.
 - The window's title bar and icon follow the theme and accent the server's
   web app shows, and are Midnight's on the list of servers.
 
+### Removed
+
+- The sleep timer is gone, from videos and audiobooks.
+
 ## [0.1.10] - 2026-11-27
 
 ### Added

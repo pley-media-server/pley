@@ -65,19 +65,6 @@ import UIKit
         #expect(rows.map { $0.image != nil } == [false, false, false, false, true, false])
     }
 
-    @Test func theSleepTimerSaysWhatIsLeft() throws {
-        var state = PlayerState()
-        state.sleepItem = "episode"
-        state.sleep = SleepState(choice: .minutes(15), minutesLeft: 12)
-        let menu = PlayerMenus.sleepTimer(state, PlayerMenus.Actions())
-        #expect(menu.title == "Sleep Timer")
-        #expect(menu.subtitle == "12 min left")
-        let rows = try #require(menu.children as? [UIAction])
-        #expect(rows.first?.title == "Off")
-        #expect(rows.last?.title == "End of this episode")
-        #expect(rows.filter { $0.image != nil }.map(\.title) == ["15 minutes"])
-    }
-
     @Test func findSubtitlesIsLastInSubtitlesWhileItStreams() throws {
         var state = PlayerState()
         state.subtitles = [MenuChoice(id: MenuChoice.off, label: "Off", selected: true)]
@@ -158,12 +145,11 @@ import UIKit
         state.chapters = [ChapterChoice(index: 0, title: "Prologue", startMs: 0, current: true)]
         let menu = PlayerMenus.options(state, PlayerMenus.Actions())
         let titles = menu.children.compactMap { ($0 as? UIMenu)?.title }
-        #expect(titles == ["Quality", "Audio", "Subtitles", "Speed", "Sleep Timer", "Chapters", "Details"])
+        #expect(titles == ["Quality", "Audio", "Subtitles", "Speed", "Chapters", "Details"])
         // Text subtitles add their style after them.
         state.textSubtitles = true
         let styled = PlayerMenus.options(state, PlayerMenus.Actions()).children.compactMap { ($0 as? UIMenu)?.title }
-        #expect(styled == ["Quality", "Audio", "Subtitles", "Subtitle style", "Speed", "Sleep Timer", "Chapters",
-                           "Details"])
+        #expect(styled == ["Quality", "Audio", "Subtitles", "Subtitle style", "Speed", "Chapters", "Details"])
         let quality = menu.children.first as? UIMenu
         #expect(quality?.options.contains(.displayInline) == true)
         #expect((quality?.children as? [UIAction])?.allSatisfy { $0.subtitle != nil && $0.state == .off } == true)

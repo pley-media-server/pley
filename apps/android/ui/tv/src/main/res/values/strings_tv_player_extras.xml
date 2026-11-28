@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The TV player's subtitle sync, sleep timer and a playback the server stopped. -->
+<!-- The TV player's subtitle sync, speed and a playback the server stopped. -->
 <resources>
     <!-- The subtitles panel's row that moves the subtitles in time. -->
     <string name="tv_player_sync">Sync</string>
     <string name="tv_player_sync_hint">OK resets</string>
     <!-- The audio panel's row that moves the sound against the picture, in 50 ms steps. -->
     <string name="tv_player_audio_delay">Audio delay</string>
-    <!-- The control row's button and its panel. -->
-    <string name="tv_player_sleep">Sleep timer</string>
     <!-- The control row's button and panel of the playback speed. -->
     <string name="tv_player_speed">Speed</string>
     <!-- The subtitles panel's row that looks for subtitles online, and its panel. -->

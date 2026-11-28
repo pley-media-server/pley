@@ -599,7 +599,7 @@ its packages into the SDK by hand and it runs on WHPX.
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
 | `ui/themes.ts`, `ui/theme.css` | The themes and accents from `packages/themes/themes.json`, as the app's colors; the styles that draw in them |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |
-| `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, sleep timer, reports, music, the remote and casts |
+| `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, reports, music, the remote and casts |
 | `live/` | Live TV: categories, the guide's pages, a channel on the TV's player |
 | `subs/` | Subtitles drawn by the app |
 | `caps/` | The server's direct-play rules, so Playback details can say why |
@@ -807,7 +807,7 @@ and favorites) and its live player (changing channel, number keys, what's
 on, the channel list on OK and the controls on OK held, Playback details,
 and why a channel doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
-(the scrubber, the controls, the sleep timer and the queue), with the
+(the scrubber, the controls and the queue), with the
 music playing on behind the other pages, driven by the remote's media keys
 on Now Playing, and pausing for a video; Discover and requests, ported from Android TV
 ([Requests](#requests): the rail's entry and its number, Discover's hero
@@ -830,7 +830,7 @@ shows, the next as it plays on, those around a seek as it lands; one the
 server is still making, or without Cues, read whole), burned in by the
 server only when it can't make that file, the side
 panels (Subtitles with Sync and, for text subtitles, their look, Audio,
-Quality, the sleep timer, Speed where the TV's player has other speeds, and Info,
+Quality, Speed where the TV's player has other speeds, and Info,
 where the server's speed sits beside the TV's network speed: the fastest
 second of the last ten, from the bytes the TV's network received, since
 Tizen's player doesn't say how fast it downloads),
@@ -1272,8 +1272,8 @@ middle of the page, under a folder icon, and keeps focus there, so the
 rail stays closed; Left opens it.
 
 A video plays in Pley's player as it is, with no server
-(`Local/LocalPlayerSource.cs`), so seeking, the panels, the sleep timer and
-the subtitles' look are the same; what only a server does isn't there:
+(`Local/LocalPlayerSource.cs`), so seeking, the panels and the subtitles'
+look are the same; what only a server does isn't there:
 converting, seek previews, the next episode. Android TV and Fire TV have
 the same page ([ANDROID.md](ANDROID.md#videos-on-a-usb-drive)), with
 Media3 reading the file, and without M2TS.

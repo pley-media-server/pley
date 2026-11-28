@@ -1405,11 +1405,10 @@ it (`keep_previous`, and `ahead`, so the server doesn't list it as
 playing yet) and waits after it in the player, which goes on to it as
 the track ends: it says it plays, and the session of the track that
 ended then ends, as at any end. Shuffle and Repeat ask again for the
-track that now comes next; the sleep timer set to the end of the track,
-Next, Previous and a pick from the queue let it go. The server forgets a
-session it doesn't hear from, so the one asked ahead is let go too after
-half a minute paused or a seek a minute or more from the end, and asked
-again once the music plays near the end. When the server refuses it (no
+track that now comes next; Next, Previous and a pick from the queue let
+it go. The server forgets a session it doesn't hear from, so the one
+asked ahead is let go too after half a minute paused or a seek a minute
+or more from the end, and asked again once the music plays near the end. When the server refuses it (no
 conversion free beside the track playing), the next track is asked for
 as the one playing ends, after a short wait; when the server is out of
 reach for a moment, it is asked again 10 seconds later. One the player can't read
@@ -1624,8 +1623,8 @@ Samsung app; with nothing to focus (no ".." line) focus waits on that
 message, showing nothing, so the rail closes over the page and Left opens
 it. A video plays in Pley's player as it is, with no server, also while
 the server is out of reach, the way a download plays: seeking, the
-panels, the sleep timer and the subtitles' look are the same. The page is
-in the rail, which shows once the TV is signed in to a server.
+panels and the subtitles' look are the same. The page is in the rail,
+which shows once the TV is signed in to a server.
 
 - **The drive** is the first mounted volume of `StorageManager`'s that
   isn't the device's own, removable ones first (some TV builds don't mark a

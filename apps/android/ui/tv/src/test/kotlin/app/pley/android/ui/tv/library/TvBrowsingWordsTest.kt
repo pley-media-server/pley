@@ -37,7 +37,6 @@ class TvBrowsingWordsTest {
         assertEquals("Jump to a letter: K", english.getString(R.string.tv_library_jump, "K"))
         assertEquals("No results for “north”", english.getString(R.string.tv_search_none_title, "north"))
         assertEquals("437 GB free of 1.0 TB", english.getString(R.string.tv_drive_space, "437 GB", "1.0 TB"))
-        assertEquals("Sleep timer: 30 min", english.getString(R.string.tv_music_sleep_running, "Sleep timer", "30 min"))
         assertEquals("Added 8 items to Road trip", addedMessage(english, AddEvent.Added("Road trip", 8)))
         assertEquals("Added to Road trip", addedMessage(english, AddEvent.Added("Road trip", 1)))
     }

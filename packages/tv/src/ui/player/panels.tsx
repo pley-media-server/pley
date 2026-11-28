@@ -8,7 +8,6 @@ import { Cancel } from "../../net/transport";
 import { mediaFacts, streamBlock, type FactBlock } from "../../format/media-info";
 import type { PlaybackController, PlayerState } from "../../player/controller";
 import type { EngineStats } from "../../player/engine";
-import { SLEEP_CHOICES, sameChoice, sleepLabel } from "../../player/sleep";
 import { speedLabel } from "../../player/speed";
 import { formatOffset, SYNC_STEP_MS } from "../../subs/sync";
 import { PanelRow } from "../kit/buttons";
@@ -18,7 +17,7 @@ import { PanelTitle, SidePanel } from "../kit/panel";
 import { useApp } from "../screens/common";
 import { LANGUAGES } from "../screens/settings";
 
-export type PlayerPanel = "subtitles" | "find" | "audio" | "quality" | "chapters" | "speed" | "sleep" | "info";
+export type PlayerPanel = "subtitles" | "find" | "audio" | "quality" | "chapters" | "speed" | "info";
 
 /** Subtitle search on this server, as last heard: not set up, or a server older than it. */
 let searchUnavailable: "setup" | "older" | null = null;
@@ -146,25 +145,6 @@ export function PlayerPanels(p: {
           {s.speeds.map((rate) => (
             <PanelRow key={String(rate)} label={speedLabel(rate)} checked={rate === s.speed} initial={rate === s.speed} onSelect={pick(() => c.setSpeed(rate))} />
           ))}
-        </SidePanel>
-      );
-    case "sleep":
-      return (
-        <SidePanel onClose={p.onClose} label={t("player.controls.sleep")}>
-          <PanelTitle>{t("player.controls.sleep")}</PanelTitle>
-          {SLEEP_CHOICES.map((choice) => {
-            const on = sameChoice(choice, s.sleep.choice);
-            return (
-              <PanelRow
-                key={choice.kind === "minutes" ? choice.minutes : choice.kind}
-                label={sleepLabel(choice, s.kind)}
-                sub={on && choice.kind === "minutes" && s.sleep.minutesLeft !== null ? t("player.sleep.minutesLeft", { count: s.sleep.minutesLeft }) : null}
-                checked={on}
-                initial={on}
-                onSelect={pick(() => c.setSleep(choice))}
-              />
-            );
-          })}
         </SidePanel>
       );
     case "info":

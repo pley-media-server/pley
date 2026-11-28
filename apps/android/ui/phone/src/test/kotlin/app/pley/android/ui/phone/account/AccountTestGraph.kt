@@ -49,7 +49,6 @@ import app.pley.android.player.NowPlaying
 import app.pley.android.player.PlaybackServices
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerGraph
-import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.ScreensGraph
@@ -214,9 +213,9 @@ class AccountTestGraph : ScreensGraph {
         override fun seekTo(positionMs: Long) {
             seeks += positionMs
         }
-        val sleeps = mutableListOf<SleepChoice>()
-        override fun setSleep(choice: SleepChoice) {
-            sleeps += choice
+        val speeds = mutableListOf<Float>()
+        override fun setBookSpeed(speed: Float) {
+            speeds += speed
         }
         override fun pauseForVideo() = Unit
     }

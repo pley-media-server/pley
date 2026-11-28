@@ -11,8 +11,8 @@
 ' the buttons, whose panels have the file's subtitles (every track,
 ' pictures too, with subtitle sync for text ones or pictures drawn here,
 ' SubtitleSync.brs, and Find subtitles…), its audio, Quality, its
-' chapters, the sleep timer (Sleep.brs) and the playback's details
-' (Details.brs). Subtitles (or audio) the person picks are remembered on the server
+' chapters and the playback's details (Details.brs). Subtitles (or audio)
+' the person picks are remembered on the server
 ' for the show or the movie (Tracks.brs), so the next episode starts with
 ' matching ones; the user's remote, on another device, picks them as the
 ' menu does. The quality is the one chosen in Settings or the menu (the
@@ -62,7 +62,7 @@ sub init()
     m.menuText.font = uiType("body")
     m.menuHint.font = uiType("caption")
     ' What the panel shows ("subtitles", "audio", "quality", "chapters",
-    ' "sleep", "details", "finding", "found"…), the button that opened it
+    ' "details", "finding", "found"…), the button that opened it
     ' (focused again as it closes), and the values of its rows: a choice's,
     ' or the action of a row that isn't one ("sync", "find").
     m.menuKind = ""
@@ -155,25 +155,6 @@ sub init()
     m.toastTimer.observeField("fire", "onToastTimer")
     m.autoTimer = m.top.findNode("autoTimer")
     m.autoTimer.observeField("fire", "onAutoTick")
-    ' The sleep timer, off until set in the menu, for the whole time the
-    ' player shows; when it paused the video (clock ms), -1 otherwise.
-    m.sleep = sleepNew(0, 0#)
-    m.sleepPausedAt = -1#
-    m.sleepNotice = m.top.findNode("sleepNotice")
-    m.sleepText = m.top.findNode("sleepText")
-    m.sleepButtons = m.top.findNode("sleepButtons")
-    keepWatching = t("player.sleep.keepWatching")
-    m.sleepButtons.buttons = [keepWatching]
-    ' Longer words ("Continuer à regarder") make the button wider than its
-    ' least, and the notice behind it with it.
-    button = textWidth(keepWatching, uiType("label")) + 64
-    if button < m.sleepButtons.minWidth then button = m.sleepButtons.minWidth
-    back = m.top.findNode("sleepBack")
-    width = m.sleepButtons.translation[0] + button + 8
-    if width > back.width then back.width = width
-    m.sleepButtons.observeField("buttonSelected", "onKeepWatching")
-    m.sleepTimer = m.top.findNode("sleepTimer")
-    m.sleepTimer.observeField("fire", "onSleepTick")
     m.pausedTimer = m.top.findNode("pausedTimer")
     m.pausedTimer.duration = playerPausedReportEveryMs() / 1000
     m.pausedTimer.observeField("fire", "onPausedTick")
@@ -274,7 +255,7 @@ sub styleOverlays()
     fonts = {
         bannerTitle: "title", bannerLine: "label", upNextTitle: "caption", nextTitle: "section", nextLine: "label",
         countdown: "caption", syncTitle: "caption", syncValue: "section", syncHint: "caption", noticeTitle: "pageTitle",
-        noticeText: "bodyLarge", sleepText: "label", toastText: "label"
+        noticeText: "bodyLarge", toastText: "label"
     }
     for each id in fonts
         m.top.findNode(id).font = uiType(fonts[id])
@@ -1090,7 +1071,6 @@ sub onState(event as object)
     if state <> "paused" then m.pausedTimer.control = "stop"
     if state <> "playing" then hideBanner()
     m.controls.playing = state <> "paused"
-    m.controls.paused = state = "paused"
     if state = "buffering" then setLoading(true)
     if state = "playing"
         m.againPending = false
@@ -1101,11 +1081,6 @@ sub onState(event as object)
         endReconnect()
         setLoading(false)
         if m.bannerDue then showBanner()
-        ' Played again after the sleep timer's pause: the player stays.
-        if m.sleepPausedAt >= 0
-            m.sleepPausedAt = -1#
-            if m.sleep.minutes = 0 then m.sleepTimer.control = "stop"
-        end if
         if m.tracksFrom < 0 then m.tracksFrom = m.clock.TotalMilliseconds() + tracksSettleMs()
         restartHide()
         if m.paused or m.reportAtPlay
@@ -1123,9 +1098,8 @@ sub onState(event as object)
         report("paused")
         m.pausedTimer.control = "start"
         setLoading(false)
-        ' The person's pause shows where it is, and when it would end; the
-        ' remote's and the sleep timer's don't.
-        if not m.remoteQuiet and m.sleepPausedAt < 0
+        ' The person's pause shows where it is; the remote's doesn't.
+        if not m.remoteQuiet
             focus = m.focusKey
             if not m.controls.shown or focus = "" then focus = "scrubber"
             showControls(focus)
@@ -1168,7 +1142,7 @@ sub onPosition(event as object)
         report("playing")
     end if
     if m.controls.shown then m.controls.positionMs = m.positionMs
-    if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt and not sleepEndsWith(m.sleep, urlValue(m.itemId)) then showUpNext()
+    if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt then showUpNext()
     updateSkip()
     followPictures()
     drawPictures()
@@ -1194,7 +1168,7 @@ sub updateSkip()
     if shown
         m.skip.visible = true
         ' The controls keep the focus while they show.
-        if look.focused and not m.sleepButtons.isInFocusChain() then m.skip.setFocus(true)
+        if look.focused then m.skip.setFocus(true)
     else
         hideSkip()
     end if
@@ -1296,11 +1270,6 @@ sub ended()
     if m.durationMs > 0 then m.positionMs = m.durationMs
     report("stopped")
     endSession()
-    ' The sleep timer's end: nothing plays after this one.
-    if sleepEndsWith(m.sleep, urlValue(m.itemId))
-        uiNavigate({ back: true })
-        return
-    end if
     if m.next = invalid
         uiNavigate({ back: true })
         return
@@ -1349,9 +1318,7 @@ sub finish()
     m.reportAtPlay = false
     endQuiet()
     m.countdownTimer.control = "stop"
-    m.sleepTimer.control = "stop"
     m.pausedTimer.control = "stop"
-    m.sleepNotice.visible = false
     m.stallTimer.control = "stop"
     m.detailsTimer.control = "stop"
     endReconnect()
@@ -1683,10 +1650,9 @@ sub playNext(finished = true as boolean)
     open(nextEpisode.itemId, nextEpisode.startMs, invalid, "auto")
 end sub
 
-' The keys, as the Android TV player's (TvPlayerKeys.kt). While the sleep
-' timer's Keep watching, a panel, subtitle sync or Up Next shows, they are
-' theirs: Back closes them, and play, fast forward and rewind act on the
-' video. Otherwise:
+' The keys, as the Android TV player's (TvPlayerKeys.kt). While a panel,
+' subtitle sync or Up Next shows, they are theirs: Back closes them, and
+' play, fast forward and rewind act on the video. Otherwise:
 ' - Controls hidden: OK, Up and Left or Right bring them up on the
 '   scrubber (Left and Right seeking from there), Down on Play/Pause, and
 '   Back leaves the player (the scene), which closes the session.
@@ -1708,13 +1674,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
     ' Any key of the person's own: the remote's pause is theirs now.
     if m.remoteQuiet then endQuiet()
     if m.holdKey <> "" and key <> m.holdKey then endHold()
-    ' The sleep timer's Keep watching takes OK; Back leaves it to count
-    ' down, and the other keys do as they would without it.
-    if m.sleepButtons.isInFocusChain()
-        if key = "OK" then return false
-        focusKeys()
-        if key = "back" then return true
-    end if
     if m.menu.visible
         if key = "back" or key = "left"
             menuBack()
@@ -1905,14 +1864,13 @@ sub fillControls()
     m.controls.buttons = controlButtons()
 end sub
 
-' The row, as the Android TV player's: Chapters (for two or more) and the
-' sleep timer at the left; Previous, Play/Pause and Next in the middle
-' (Previous and Next for an episode, a queue or chapters); Subtitles,
-' Audio (for a file with tracks), Quality and Info at the right.
+' The row, as the Android TV player's: Chapters (for two or more) at the
+' left; Previous, Play/Pause and Next in the middle (Previous and Next for
+' an episode, a queue or chapters); Subtitles, Audio (for a file with
+' tracks), Quality and Info at the right.
 function controlButtons() as object
     buttons = []
     if m.chapterList.Count() > 1 then buttons.Push({ id: "chapters", icon: "list-video", label: t("player.menu.chapters"), group: "left" })
-    buttons.Push({ id: "sleep", icon: "moon", label: t("player.sleep.title"), group: "left" })
     previousNext = m.chapterList.Count() > 1 or m.queue <> invalid or httpString(m.item.kind) = "episode"
     if previousNext then buttons.Push({ id: "previous", icon: "skip-back", label: t("player.controls.previous"), group: "center" })
     buttons.Push({ id: "playPause", icon: "pause", label: t("player.controls.pause"), group: "center" })
@@ -1937,14 +1895,12 @@ sub showControls(focus as string)
     if m.info = invalid or m.notice.visible or m.upNext.visible or m.menu.visible then return
     m.controls.positionMs = m.positionMs
     m.controls.playing = m.video.state <> "paused"
-    m.controls.paused = m.video.state = "paused"
     focusControl(focus)
     m.controls.shown = true
-    if m.skip.hasFocus() or m.sleepButtons.isInFocusChain() then m.keys.setFocus(true)
+    if m.skip.hasFocus() then m.keys.setFocus(true)
     hideBanner()
     restartHide()
     placeSkip()
-    placeSleepNotice()
     ' Past its 8 s, Skip comes back with them, Up from the scrubber away.
     updateSkip()
 end sub
@@ -1959,9 +1915,8 @@ sub hideControls()
         showTarget()
     end if
     placeSkip()
-    placeSleepNotice()
     updateSkip()
-    if m.skip.visible and not m.sleepButtons.isInFocusChain() then m.skip.setFocus(true)
+    if m.skip.visible then m.skip.setFocus(true)
 end sub
 
 ' Whatever seek is on its way ends: a held key, the presses waiting, the
@@ -2003,16 +1958,6 @@ sub placeSkip()
     end if
 end sub
 
-' The sleep timer's notice at the bottom left, above the controls while
-' they show.
-sub placeSleepNotice()
-    if m.controls.shown
-        m.sleepNotice.translation = [96, 672]
-    else
-        m.sleepNotice.translation = [96, 890]
-    end if
-end sub
-
 ' Left and Right along the row, stopping at its ends.
 sub moveAlongRow(key as string)
     at = -1
@@ -2037,8 +1982,7 @@ sub pressButton(id as string)
     end if
 end sub
 
-' Play or pause; the person's pause brings up the controls, with when it
-' ends.
+' Play or pause; the person's pause brings up the controls.
 sub togglePlay()
     if m.video.state = "paused"
         m.video.control = "resume"
@@ -2288,8 +2232,6 @@ sub openPanel(kind as string, button as string)
         openQualities()
     else if kind = "chapters"
         openChapters()
-    else if kind = "sleep"
-        openSleep()
     else
         openDetails()
     end if
@@ -2458,22 +2400,6 @@ sub openChapters()
     showMenuChoices(items, detChapterAt(chapters, m.positionMs))
 end sub
 
-' Off, minutes, or the end of what plays; the one set checked.
-sub openSleep()
-    m.menuKind = "sleep"
-    m.menuTitle.text = t("player.sleep.title")
-    items = []
-    m.menuValues = []
-    current = 0
-    for each choice in sleepChoices(playingKind())
-        if choice.minutes = m.sleep.minutes then current = items.Count()
-        items.Push({ title: choice.label })
-        m.menuValues.Push(choice.minutes)
-    end for
-    showMenuChoices(items, current)
-    if m.sleep.minutes <> 0 then m.menuHint.text = sleepLabel(m.sleep, sleepNow(), playingKind())
-end sub
-
 ' The panel's rows, the choice made (current, -1 for none) checked and
 ' focused.
 sub showMenuChoices(items as object, current as integer)
@@ -2497,8 +2423,8 @@ sub onMenuChoiceFocused()
 end sub
 
 ' A row chosen: a track, a quality (kept as the Roku's: Settings shows it,
-' and the title opens again at it where it was), a chapter gone to, the
-' sleep timer set; Subtitle sync and Find subtitles… go on from there.
+' and the title opens again at it where it was), a chapter gone to;
+' Subtitle sync and Find subtitles… go on from there.
 sub onMenuChoice(event as object)
     at = event.getData()
     kind = m.menuKind
@@ -2537,10 +2463,6 @@ sub onMenuChoice(event as object)
         if m.trackCurrent = invalid or value <> m.trackCurrent then pickTrack(kind, value)
         return
     end if
-    if kind = "sleep"
-        setSleep(value)
-        return
-    end if
     ' Original alone is offered where it alone plays: the quality kept stays
     ' as it is, for servers that convert.
     if m.originalOnly or value = aqChoice(playbackSection()) then return
@@ -2558,75 +2480,6 @@ sub chooseQuality(value as string)
     if seconds <> invalid and seconds > 0 then position = Int(seconds * 1000)
     newTitle()
     open(m.itemId, position, m.item, m.mode)
-end sub
-
-' --- The sleep timer ---
-
-' What plays, as the sleep timer names its end.
-function playingKind() as string
-    if m.item = invalid then return ""
-    return httpString(m.item.kind)
-end function
-
-function clockMs() as double
-    return m.clock.TotalMilliseconds() * 1#
-end function
-
-' What the timer says now.
-function sleepNow() as object
-    left = -1#
-    if m.played and m.durationMs > 0 then left = (m.durationMs - m.positionMs) * 1#
-    return sleepState(m.sleep, clockMs(), left, urlValue(m.itemId))
-end function
-
-' Set from the menu (minutes; 0 for Off, -1 for the end of what plays).
-sub setSleep(minutes as integer)
-    m.sleep = sleepNew(minutes, clockMs())
-    hideSleepNotice()
-    if minutes = 0 and m.sleepPausedAt < 0
-        m.sleepTimer.control = "stop"
-    else
-        m.sleepTimer.control = "start"
-    end if
-end sub
-
-' Once a second: the notice in the last 30 s, the pause at the end, and
-' the player left 10 minutes into that pause.
-sub onSleepTick()
-    if m.sleepPausedAt >= 0
-        if clockMs() - m.sleepPausedAt >= sleepLeaveAfterMs() then uiNavigate({ back: true })
-        return
-    end if
-    state = sleepNow()
-    if state.fire
-        m.sleep = sleepNew(0, 0#)
-        hideSleepNotice()
-        m.sleepPausedAt = clockMs()
-        m.video.control = "pause"
-        return
-    end if
-    if state.secondsLeft < 0
-        hideSleepNotice()
-        return
-    end if
-    m.sleepText.text = t("player.sleep.pausingIn", { seconds: state.secondsLeft })
-    if not m.sleepNotice.visible
-        m.sleepNotice.visible = true
-        ' The button takes the focus while nothing else is up.
-        if ((m.keys.hasFocus() or m.top.hasFocus()) and not m.controls.shown) or m.skip.hasFocus() then m.sleepButtons.setFocus(true)
-    end if
-end sub
-
-sub hideSleepNotice()
-    if m.sleepButtons.isInFocusChain() then focusKeys()
-    m.sleepNotice.visible = false
-end sub
-
-' Keep watching: the same time again, or this title plays to its end and
-' the next one's end stops.
-sub onKeepWatching()
-    sleepExtend(m.sleep, urlValue(m.itemId))
-    hideSleepNotice()
 end sub
 
 ' How the stream plays, and for a conversion what the server makes of it

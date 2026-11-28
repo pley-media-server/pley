@@ -16,7 +16,7 @@ public sealed class PlayerWordsTests : IDisposable
     {
         Strings.Use("fr");
         Assert.Equal("Sous-titres", PlayerText.Subtitles);
-        Assert.Equal("Minuteur de veille", PlayerPanels.Build(PlayerPanelKind.Sleep, new PlayerState(), 0, new Settings()).Title);
+        Assert.Equal("Vitesse", PlayerPanels.Build(PlayerPanelKind.Speed, new PlayerState(), 0, new Settings()).Title);
         Assert.Equal("Sous-titres : Anglais (SRT)", PlayerText.SubtitlesToast("Anglais (SRT)"));
         Assert.Equal("À suivre · S1 · É2", SessionText.UpNext("S1 · É2"));
         Assert.Equal("Lecture depuis un autre appareil", Casts.Banner(" "));
@@ -31,14 +31,11 @@ public sealed class PlayerWordsTests : IDisposable
     public void Counts_and_numbers_are_the_languages_own()
     {
         Strings.Use("fr");
-        Assert.Equal("Il reste 42 min", SleepText.Summary(new SleepState(new SleepChoice.Minutes(45), MinutesLeft: 42)));
         Assert.Equal("1 heure 2 minutes sur 0 seconde", PlayerText.Position(3_720_000, 0));
         Assert.Equal("+0,5 s", SubtitleSync.Label(500));
         Assert.Equal("1,25×", PlaybackSpeeds.Label(1.25));
         Assert.Equal("−1,5 s", AudioDelays.Label(-1_500));
         Strings.Use("es");
-        Assert.Equal("Queda 1 min", SleepText.Summary(new SleepState(new SleepChoice.Minutes(5), MinutesLeft: 1)));
-        Assert.Equal("Quedan 3 min", SleepText.Summary(new SleepState(new SleepChoice.Minutes(5), MinutesLeft: 3)));
         Assert.Equal("2 horas 1 segundo", PlayerText.Spoken(7_201_000));
         Assert.Equal("+30 s", PlayerText.Badge(30_000));
     }

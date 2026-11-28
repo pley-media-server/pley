@@ -36,8 +36,6 @@ function lucide() {
 }
 
 const ICONS = lucide();
-// The player's sleep timer, as the Android TV player has it (TvPlayerExtras.kt).
-ICONS.moon ??= { filled: false, paths: ["M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"] };
 // Appearance in Settings, as the web's (Lucide's palette), its dots as round caps.
 ICONS.palette ??= {
   filled: false,
@@ -84,7 +82,7 @@ const box = (width, height, r, fill) => `<rect width="${width}" height="${height
 // Icons, white, as big as the screens draw them: 40 px (20 dp) in buttons
 // and rows, the player's previous and next 48, its play and pause 52.
 const ICONS_40 = [
-  "captions", "audio-lines", "gauge", "info", "moon", "list-video", "check", "play", "pause", "rotate-ccw",
+  "captions", "audio-lines", "gauge", "info", "list-video", "check", "play", "pause", "rotate-ccw",
   "circle-check", "bookmark-plus", "bookmark-check", "list-plus", "ellipsis", "film", "eye-off", "shuffle",
   "search", "house", "clapperboard", "tv", "music", "list-music", "layers", "settings", "compass", "radio",
   "star", "chevron-right", "chevron-left", "arrow-up-narrow-wide", "arrow-down-wide-narrow", "sliders-horizontal",

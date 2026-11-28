@@ -9,13 +9,11 @@
     "quality": "Quality",
     "chapters": "Chapters",
     "info": "Info",
-    "sleep": "Sleep timer",
     "speed": "Speed"
   },
   "status": {
     "loading": "Loading",
-    "reconnecting": "Reconnecting…",
-    "endsAt": "Ends at {{time}}"
+    "reconnecting": "Reconnecting…"
   },
   "markers": {
     "intro": "Intro",
@@ -165,17 +163,6 @@
     "word": "Chapter",
     "numbered": "Chapter {{number}}",
     "named": "Chapter {{number}} · {{name}}"
-  },
-  "sleep": {
-    "off": "Off",
-    "minutes": "{{minutes}} min",
-    "minutesLeft_one": "{{count}} min left",
-    "minutesLeft_other": "{{count}} min left",
-    "endOfEpisode": "End of this episode",
-    "endOfTrack": "End of this track",
-    "pausingIn": "Pausing in {{seconds}} s",
-    "keepWatching": "Keep watching",
-    "keepListening": "Keep listening"
   },
   "spoken": {
     "position": "{{elapsed}} of {{duration}}",

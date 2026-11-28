@@ -451,26 +451,6 @@ public class PlayerModelTests
         Assert.Equal(2L, h.LastBody["item_id"]);
     }
 
-    /// <summary>The sleep timer, set while the credits' countdown runs, ends with the file: the card holds no count, and the next episode waits.</summary>
-    [Fact]
-    public void The_sleep_timer_ending_with_the_file_while_the_credits_countdown_runs_leaves_the_card_no_seconds()
-    {
-        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_694_000, EndMs = 2_700_000, Source = "chapter" };
-        var next = PlayerHarness.Episode(2, 2);
-        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
-        h.Source.NextOf[1] = next;
-        h.Start(new PlayRequest(1, 2_693_000, false));
-        h.Play(1_000);
-        Assert.Equal(10, h.State.UpNext!.SecondsLeft);
-        h.Model.SetSleep(new SleepChoice.EndOfItem());
-        h.End();
-        Assert.True(h.State.Sleep.Fired);
-        Assert.Null(h.State.UpNext!.SecondsLeft);
-        h.Play(20_000);
-        Assert.Null(h.State.UpNext!.SecondsLeft);
-        Assert.Single(h.Source.Bodies);
-    }
-
     /// <summary>Credits a minute before the end (an after-credits scene after them) bring Skip Credits alone; Up Next comes at the end, as without credits.</summary>
     [Fact]
     public void Credits_that_something_follows_bring_skip_credits_alone_and_up_next_at_the_end()
@@ -951,36 +931,6 @@ public class PlayerModelTests
     }
 
     [Fact]
-    public void At_the_end_of_the_episode_the_sleep_timer_pauses_and_the_next_one_waits()
-    {
-        var next = PlayerHarness.Episode(2, 2);
-        h.Add(PlayerHarness.Episode(1, 1)).Add(next);
-        h.Source.NextOf[1] = next;
-        h.Start(new PlayRequest(1, 0, true));
-        h.Model.SetSleep(new SleepChoice.EndOfItem());
-        Assert.Equal(new SleepChoice.EndOfItem(), h.State.Sleep.Set);
-        h.End();
-        Assert.True(h.State.Sleep.Fired);
-        Assert.False(h.Model.WantsToPlay);
-        Assert.Null(h.State.UpNext!.SecondsLeft);
-        h.Play(20_000);
-        Assert.Single(h.Source.Bodies);
-    }
-
-    [Fact]
-    public void Minutes_of_sleep_pause_the_playback_and_playing_again_ends_that()
-    {
-        h.Add(PlayerHarness.Movie());
-        h.Start(new PlayRequest(1, 0, true));
-        h.Model.SetSleep(new SleepChoice.Minutes(15));
-        h.Play(15 * 60_000);
-        Assert.False(h.Engine.Playing);
-        Assert.True(h.State.Sleep.Fired);
-        h.Model.Play();
-        Assert.False(h.State.Sleep.Fired);
-    }
-
-    [Fact]
     public void The_speed_is_this_titles_only_at_the_speeds_the_tvs_player_plays()
     {
         var next = PlayerHarness.Episode(2, 2);
@@ -1123,7 +1073,7 @@ public class PlayerPanelTests
     }
 
     [Fact]
-    public void The_audio_quality_chapters_and_sleep_panels()
+    public void The_audio_quality_and_chapters_panels()
     {
         var item = PlayerHarness.Movie() with
         {
@@ -1163,13 +1113,6 @@ public class PlayerPanelTests
         Assert.Equal(1_200_000, h.Engine.Seeks.Last());
         h.Model.Previous(1_202_000);
         Assert.Equal(600_000, h.Engine.Seeks.Last());
-
-        h.Model.SetSleep(new SleepChoice.Minutes(30));
-        var sleep = h.Model.Panel(PlayerPanelKind.Sleep);
-        Assert.Equal(new[] { "Off", "15 min", "30 min", "45 min", "60 min", "90 min", "End of this episode" }, sleep.Rows.Select(r => r.Label));
-        Assert.Equal((2, "30 min left"), (sleep.Focus, sleep.Rows[2].Supporting));
-        Assert.False(h.Model.Choose(sleep.Rows[0]));
-        Assert.Equal(new SleepChoice.Off(), h.State.Sleep.Set);
     }
 
     [Fact]

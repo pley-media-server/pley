@@ -11,6 +11,5 @@
     <string name="player_find_subtitles">Trouver des sous-titres…</string>
     <string name="player_searching">Recherche…</string>
     <string name="player_adding">Ajout…</string>
-    <string name="player_sleep_timer">Minuteur de veille</string>
     <string name="player_stopped_title">Lecture arrêtée</string>
 </resources>

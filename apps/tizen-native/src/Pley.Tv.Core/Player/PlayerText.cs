@@ -21,7 +21,6 @@ public static class PlayerText
     public static string Quality => Strings.T("player.controls.quality");
     public static string Chapters => Strings.T("player.controls.chapters");
     public static string Info => Strings.T("player.controls.info");
-    public static string Sleep => Strings.T("player.controls.sleep");
     public static string Speed => Strings.T("player.controls.speed");
 
     // The scrubber and Up Next.
@@ -67,9 +66,6 @@ public static class PlayerText
 
     /// <summary>Previous restarts the chapter playing when it is this far in, else goes to the one before.</summary>
     public const long RestartChapterMs = 3_000;
-
-    /// <summary>"Ends at 10:42 PM": the time is the screen's to write, as the TV writes times.</summary>
-    public static string EndsAt(string time) => Strings.T("player.status.endsAt", ("time", time));
 
     /// <summary>"Next in 7", Play now's words while Up Next counts down with reduced motion.</summary>
     public static string NextIn(int seconds) => Strings.T("player.upNext.nextIn", ("seconds", seconds));

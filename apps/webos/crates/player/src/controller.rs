@@ -17,8 +17,8 @@
 //!   user's remote picks them the same way, and every report says which play.
 //! - **Quality.** The menu, Original, and Automatic with LG's signals (waits
 //!   and buffer growth) and in-place bitrate changes.
-//! - **Markers, Up Next, the sleep timer, speed, Playback details**, and a
-//!   session the server stopped: it says so and plays no more.
+//! - **Markers, Up Next, speed, Playback details**, and a session the server
+//!   stopped: it says so and plays no more.
 //! - **A video on a drive** ([`PlayerServer::local`](crate::server::PlayerServer::local)):
 //!   played as it is with no server behind it, so nothing is converted or
 //!   asked of a server, a 12 s stall fails at once, audio always switches in
@@ -70,7 +70,6 @@ use crate::quality::{
 };
 use crate::recovery::{EngineError, Failure, FallbackReason, Recovery, RecoveryAction, StruggleMeter, failure_text};
 use crate::remote::{self, Command, RemoteAction, RemoteKind, RemotePlayer, remote_action, video_controls_with_tracks};
-use crate::sleep::{SleepChoice, SleepItem, SleepState, SleepTimer};
 
 /// The clock of the controller's own checks.
 pub const TICK_MS: i64 = 500;
@@ -263,7 +262,6 @@ pub struct PlayerState {
     pub speed: f32,
     /// The speeds offered; empty when only normal.
     pub speeds: Vec<f32>,
-    pub sleep: SleepState,
     pub stopped_by_server: bool,
     /// The server stopped answering mid-playback: "Reconnecting…".
     pub reconnecting: bool,
@@ -311,7 +309,6 @@ impl Default for PlayerState {
             subtitle_sync: false,
             speed: 1.0,
             speeds: Vec::new(),
-            sleep: SleepState::default(),
             stopped_by_server: false,
             reconnecting: false,
             first_frame_ms: None,
@@ -455,9 +452,7 @@ enum Check {
 /// What a lookup of the next item is for.
 enum NextFor {
     Credits,
-    Ended {
-        sleeping: bool,
-    },
+    Ended,
     PlayNext,
     /// The remote's next, pressed on another device: nothing next says nothing here.
     Remote,
@@ -628,7 +623,6 @@ pub struct PlaybackController {
     /// When Skip shows on its own.
     skip: SkipWindow,
     presenter: Presenter,
-    sleep: SleepTimer,
 
     last_advance_at: i64,
     last_advance_pos: i64,
@@ -726,7 +720,6 @@ impl PlaybackController {
             credits: CreditsGate::default(),
             skip: SkipWindow::default(),
             presenter,
-            sleep: SleepTimer::default(),
             last_advance_at: now,
             last_advance_pos: -1,
             last_struggle_sample: 0,
@@ -845,7 +838,7 @@ impl PlaybackController {
             return None;
         }
         let mut due = vec![Some(self.next_tick)];
-        due.extend([self.progress_at, self.seek_report_at, self.details_at, self.sleep.next_due()]);
+        due.extend([self.progress_at, self.seek_report_at, self.details_at]);
         due.push(self.countdown.map(|c| c.2));
         due.push(self.skip.due(self.now));
         due.push(self.trickplay_at.map(|t| t.0));
@@ -904,14 +897,6 @@ impl PlaybackController {
         if self.seek_report_at.is_some_and(|t| now >= t) {
             self.seek_report_at = None;
             self.report(if self.want_play { ProgressState::Playing } else { ProgressState::Paused });
-        }
-        if self.sleep.next_due().is_some_and(|t| now >= t) {
-            let item = self.sleep_item();
-            let fired = self.sleep.tick(now, item);
-            self.sleep_changed();
-            if fired {
-                self.on_sleep();
-            }
         }
         if let Some((item_id, left, at)) = self.countdown
             && now >= at
@@ -1932,12 +1917,6 @@ impl PlaybackController {
             return;
         }
         self.ended = true;
-        let key = self.item.as_ref().map_or(-1, |d| d.id);
-        let sleeping = self.sleep.item_ended(key);
-        self.sleep_changed();
-        if sleeping {
-            self.on_sleep();
-        }
         let engine_duration = self.view.duration_ms.map_or(0, |d| d as i64);
         let duration = match self.info.as_ref().map(|i| i.duration_ms).filter(|d| *d > 0) {
             Some(d) => d,
@@ -1956,11 +1935,11 @@ impl PlaybackController {
         }
         self.phase(Phase::Paused);
         if let Some(known) = self.next.clone() {
-            let restart = !sleeping && self.countdown.is_none();
+            let restart = self.countdown.is_none();
             self.show_up_next(known, restart);
             return;
         }
-        self.look_up_next(NextFor::Ended { sleeping });
+        self.look_up_next(NextFor::Ended);
     }
 
     // ---------------------------------------------------------------- the 500 ms check
@@ -2116,33 +2095,6 @@ impl PlaybackController {
         });
     }
 
-    fn sleep_item(&self) -> SleepItem {
-        let left = if self.info.is_none() || !self.media_shown || self.ended || self.clock.duration_ms <= 0 {
-            None
-        } else {
-            Some(self.clock.duration_ms - self.live_position())
-        };
-        SleepItem { key: self.item.as_ref().map_or(-1, |d| d.id), left_ms: left }
-    }
-
-    fn sleep_changed(&mut self) {
-        if self.state.sleep != self.sleep.state {
-            self.state.sleep = self.sleep.state;
-            self.changed();
-        }
-    }
-
-    /// The sleep timer ended: it pauses, and what plays next doesn't start by itself.
-    fn on_sleep(&mut self) {
-        self.countdown = None;
-        if let Some(card) = &mut self.state.up_next {
-            card.seconds_left = None;
-        }
-        self.engine.pause();
-        self.set_want_play(false);
-        self.changed();
-    }
-
     /// The server ended the session: the engine stops, nothing more is asked of
     /// the server (only `stopped`, for the resume point), and the screen says why.
     fn stop_by_server(&mut self, message: Option<&str>, by_admin: bool) {
@@ -2167,8 +2119,6 @@ impl PlaybackController {
         self.next_lookup += 1;
         self.hide_up_next();
         self.presenter.hide();
-        self.sleep.cancel();
-        self.sleep_changed();
         self.engine.unload();
         self.state.phase =
             Phase::Error { message: details::stopped_text(message, by_admin), can_retry: false, title: None };
@@ -2347,8 +2297,6 @@ impl PlaybackController {
         let was = self.want_play;
         self.want_play = play;
         if play {
-            self.sleep.resumed();
-            self.sleep_changed();
             // Played again, by anyone: the remote's pause is over.
             if std::mem::take(&mut self.state.paused_by_remote) {
                 self.changed();
@@ -2568,34 +2516,6 @@ impl PlaybackController {
         }
     }
 
-    /// Sets the sleep timer.
-    pub fn set_sleep(&mut self, choice: SleepChoice) {
-        if self.closed || self.stopped {
-            return;
-        }
-        let item = self.sleep_item();
-        self.sleep.set(self.now, choice, item);
-        self.sleep_changed();
-    }
-
-    /// "Keep watching": the sleep timer adds the same time again.
-    pub fn keep_watching(&mut self) {
-        if self.closed || self.stopped {
-            return;
-        }
-        let item = self.sleep_item();
-        self.sleep.extend(self.now, item);
-        self.sleep_changed();
-        // What plays next was held for the timer: its countdown goes on.
-        if let Some(known) = self.next.clone()
-            && self.state.up_next.is_some()
-            && self.countdown.is_none()
-            && !self.ended
-        {
-            self.show_up_next(known, true);
-        }
-    }
-
     /// A quality picked in the menu, kept for the next titles. Automatic picked
     /// again while it plays lower starts afresh at the original. The session
     /// starts again only when it would ask for something else.
@@ -2788,7 +2708,6 @@ impl PlaybackController {
         self.end_outage();
         self.end_session(position);
         self.closed = true;
-        self.sleep.cancel();
         self.presenter.hide();
         self.countdown = None;
         self.seek_report_at = None;
@@ -2850,8 +2769,8 @@ impl PlaybackController {
         match (purpose, found) {
             (NextFor::Credits, Some(f)) => self.show_up_next(f, true),
             (NextFor::Credits, None) => {}
-            (NextFor::Ended { .. }, None) => self.phase(Phase::Ended),
-            (NextFor::Ended { sleeping }, Some(f)) => self.show_up_next(f, !sleeping),
+            (NextFor::Ended, None) => self.phase(Phase::Ended),
+            (NextFor::Ended, Some(f)) => self.show_up_next(f, true),
             (NextFor::PlayNext, Some(f)) => self.switch_to(f),
             (NextFor::PlayNext, None) => {
                 let text =
@@ -2886,8 +2805,7 @@ impl PlaybackController {
             return;
         }
         self.countdown = None;
-        let key = self.item.as_ref().map_or(-1, |d| d.id);
-        if !self.env.autoplay_next || self.sleep.ends_with(key) {
+        if !self.env.autoplay_next {
             return;
         }
         self.countdown_step(found.id, COUNTDOWN_SECONDS);
@@ -2946,7 +2864,6 @@ impl PlaybackController {
         self.state = PlayerState {
             item_id: target.id,
             title: s.title.clone(),
-            sleep: s.sleep,
             speeds: s.speeds.clone(),
             notice_id: s.notice_id,
             remote_notice_id: s.remote_notice_id,

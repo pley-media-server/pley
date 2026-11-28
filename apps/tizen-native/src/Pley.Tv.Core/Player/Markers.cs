@@ -248,5 +248,5 @@ public sealed class PlayNowCountdown
 
 /// <summary>What plays next, during its card (the Android app's UpNextUi).</summary>
 /// <param name="Heading">"Up next · S1 E2", or "Up next".</param>
-/// <param name="SecondsLeft">Seconds before it plays by itself; null when it won't (autoplay off, or the sleep timer holds it).</param>
+/// <param name="SecondsLeft">Seconds before it plays by itself; null when it won't (autoplay off).</param>
 public sealed record UpNextCard(long ItemId, string Title, string Heading, int? SecondsLeft);

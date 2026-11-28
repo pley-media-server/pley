@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The phone player's subtitle sync, sleep timer and a playback the server stopped. -->
+<!-- The phone player's subtitle sync, speed and a playback the server stopped. -->
 <resources>
     <!-- The subtitles page's row that moves the subtitles in time. -->
     <string name="player_sync">同步</string>
@@ -16,8 +16,6 @@
     <string name="player_find_subtitles">搜尋字幕…</string>
     <string name="player_searching">搜尋中…</string>
     <string name="player_adding">新增中…</string>
-    <!-- The settings row and page of the sleep timer. -->
-    <string name="player_sleep_timer">睡眠定時</string>
     <!-- The error's title when the server stopped the playback. -->
     <string name="player_stopped_title">播放已停止</string>
 </resources>

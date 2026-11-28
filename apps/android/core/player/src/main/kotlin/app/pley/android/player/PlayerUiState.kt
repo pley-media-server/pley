@@ -7,7 +7,6 @@ import app.pley.android.model.MediaStream
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.TranscodeInfo
 import app.pley.android.player.markers.Markers
-import app.pley.android.player.sleep.SleepState
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 
@@ -262,8 +261,6 @@ data class PlayerUiState(
     val subtitleSync: Boolean = false,
     /** The subtitles chosen are text, which the subtitle style (size, background, font, position) is for: pictures keep their own look. */
     val subtitleStyled: Boolean = false,
-    /** The sleep timer. */
-    val sleep: SleepState = SleepState(),
     /** The playback speed, 1 normal ([PlaybackController.setSpeed]). */
     val speed: Float = 1f,
     /** Why the speed can't change now (a download's sound that nothing here decodes); `null` when it can. */

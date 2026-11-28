@@ -4,7 +4,6 @@ import type { ItemDetail, ItemSummary } from "../../api/types";
 import { formatClock, formatDuration, pluralize } from "../../format/format";
 import { t } from "../../i18n";
 import { musicPlayer } from "../../player/music";
-import { sleepLabel } from "../../player/sleep";
 import { useUi } from "../context";
 import { nudge } from "../focus";
 import { Art } from "../kit/art";
@@ -290,15 +289,13 @@ export function AlbumScreen(p: { entry: Entry; id: number; trackId?: number }) {
 }
 
 /**
- * Now Playing (TvNowPlayingScreen): the art, the track, the scrubber and
- * the controls, the sleep timer, and the queue. The page dims after two
- * minutes without a key.
+ * Now Playing (TvNowPlayingScreen): the art, the track, the scrubber, the
+ * controls and the queue. The page dims after two minutes without a key.
  */
 export function NowPlayingScreen() {
   const ui = useUi();
   const player = musicPlayer();
   const now = player.now.value;
-  const sleep = player.sleep.value;
   const [dim, setDim] = useState(false);
   const playBig = useRef<HTMLElement | null>(null);
   const seeker = useSettledSeek();
@@ -364,22 +361,7 @@ export function NowPlayingScreen() {
             ? t("browse.music.cantPlay")
             : now.loading
               ? t("browse.loading")
-              : sleep.secondsLeft !== null
-                ? t("browse.music.pausingIn", { seconds: sleep.secondsLeft })
-                : "";
-  const sleepText =
-    sleep.secondsLeft !== null
-      ? t("browse.music.keepListening")
-      : sleep.choice.kind === "off"
-        ? t("browse.music.sleepTimer")
-        : t("browse.music.sleepTimerSet", {
-            choice:
-              sleep.choice.kind === "end_of_item"
-                ? t("browse.music.endOfTrack")
-                : sleep.minutesLeft !== null
-                  ? t("browse.music.minutesLeft", { minutes: sleep.minutesLeft })
-                  : sleepLabel(sleep.choice),
-          });
+              : "";
   const list = player.list();
   return (
     <div class="music-page">
@@ -407,9 +389,6 @@ export function NowPlayingScreen() {
           </F>
           <div class="now-round">
             <Round label={t("browse.music.next")} icon="skip-forward" disabled={now.index + 1 >= now.count} onSelect={() => player.next()} />
-          </div>
-          <div class="now-round">
-            <Round label={sleepText} icon="moon" onSelect={() => player.stepSleep()} />
           </div>
         </G>
         {list.length > 1 && (

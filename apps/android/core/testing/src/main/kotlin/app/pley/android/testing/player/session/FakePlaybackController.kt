@@ -22,8 +22,6 @@ import app.pley.android.player.TrackChoice
 import app.pley.android.player.UpNextUi
 import app.pley.android.player.session.QualityPreset
 import app.pley.android.player.session.SavedPlaybackState
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,8 +89,6 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
 
     override fun setSubtitleOffset(offsetMs: Long) = record("setSubtitleOffset", offsetMs)
 
-    override fun setSleep(choice: SleepChoice) = record("setSleep", choice)
-
     override fun setSpeed(speed: Float) = record("setSpeed", speed)
 
     override fun setAudioDelay(delayMs: Long) = record("setAudioDelay", delayMs)
@@ -102,8 +98,6 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
     override fun addFoundSubtitle(resultId: String) = record("addFoundSubtitle", resultId)
 
     override fun closeSubtitleSearch() = record("closeSubtitleSearch")
-
-    override fun keepWatching() = record("keepWatching")
 
     override fun skip() = record("skip")
 
@@ -149,9 +143,9 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
          * stream at 8 Mbps with a fallback note, two audio tracks, subtitles
          * with one to burn in, the intro showing, chapters, previews, the
          * details open, Up Next counting down and a notice; the subtitles
-         * moved, a sleep timer running, 1.5×, the sound 0.2 s later, subtitles
-         * found online, and (only to fill them) the server out of reach, a
-         * stop by the server and the notes of a sound that can't follow.
+         * moved, 1.5×, the sound 0.2 s later, subtitles found online, and
+         * (only to fill them) the server out of reach, a stop by the server
+         * and the notes of a sound that can't follow.
          */
         fun everything(): PlayerUiState = PlayerUiState(
             phase = PlayerPhase.Playing,
@@ -203,7 +197,6 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
             subtitleOffsetMs = 500,
             subtitleSync = true,
             subtitleStyled = true,
-            sleep = SleepState(SleepChoice.Minutes(30), minutesLeft = 12),
             stoppedByServer = true,
             speed = 1.5f,
             speedNote = "Not for this download: its sound goes to your receiver as it is, and nothing here decodes it",

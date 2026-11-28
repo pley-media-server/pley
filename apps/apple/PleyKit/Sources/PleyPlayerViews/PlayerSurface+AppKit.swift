@@ -11,7 +11,7 @@ import SwiftUI
 ///
 /// - Its action menu (the controls' "…") has Quality, each choice with its
 ///   second line, Audio, Subtitles (Find Subtitles… last), Subtitle sync,
-///   Speed, Sleep Timer, Chapters and Details.
+///   Speed, Chapters and Details.
 /// - Picture in Picture is the controls' own button; restoring it brings
 ///   the player's window to the front. The window stays open meanwhile,
 ///   and closing it ends the playback and Picture in Picture.
@@ -292,7 +292,7 @@ public final class ActionMenuSource: NSObject, NSMenuDelegate {
 public enum PlayerMenus {
     /// Quality (the one playing checked), Audio (when there is a choice),
     /// Subtitles and their sync (when the file has some), their style
-    /// (while text subtitles show), Speed, Sleep Timer, Chapters and Details.
+    /// (while text subtitles show), Speed, Chapters and Details.
     @MainActor
     public static func actionMenu(_ state: PlayerState, controller: PlaybackController?,
                                   findSubtitles: (@MainActor () -> Void)? = nil) -> NSMenu {
@@ -338,7 +338,6 @@ public enum PlayerMenus {
             if let style = styleMenu(state, controller: controller) { menu.addItem(style) }
         }
         menu.addItem(speedMenu(state, controller: controller))
-        menu.addItem(sleepMenu(state, controller: controller))
         if !state.chapters.isEmpty {
             menu.addItem(submenu(localized("Chapters"), state.chapters.map { chapter in
                 let item = ClosureMenuItem(title: chapter.label) { [weak controller] in
@@ -424,28 +423,6 @@ public enum PlayerMenus {
             return item
         })
         item.subtitle = state.speedLabel
-        return item
-    }
-
-    /// Sleep Timer: Off, the minutes and the end of this episode, the one
-    /// running checked, what is left as its second line, and Keep Watching
-    /// in its last 30 s.
-    @MainActor
-    public static func sleepMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem {
-        var items: [NSMenuItem] = state.sleepChoices.map { choice in
-            let item = ClosureMenuItem(title: choice.label) { [weak controller] in
-                if let sleep = SleepChoice(id: choice.id) { controller?.setSleep(sleep) }
-            }
-            item.state = choice.selected ? .on : .off
-            return item
-        }
-        if state.sleep.secondsLeft != nil {
-            items += [.separator(), ClosureMenuItem(title: localized("Keep Watching")) { [weak controller] in
-                controller?.keepWatching()
-            }]
-        }
-        let item = submenu(localized("Sleep Timer"), items)
-        item.subtitle = state.sleepSummary
         return item
     }
 

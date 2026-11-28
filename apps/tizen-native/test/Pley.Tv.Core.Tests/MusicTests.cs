@@ -127,81 +127,6 @@ public class MusicQueueTests
     }
 }
 
-/// <summary>The sleep timer: the Android app's SleepTimerTest.</summary>
-public class SleepTimerTests
-{
-    const long Minute = 60_000;
-    readonly FakeScheduler scheduler = new FakeScheduler();
-    long? left;
-    object? key = 1L;
-    int fired;
-
-    SleepTimer Timer() => new SleepTimer(scheduler, () => left, () => key, () => fired++);
-
-    [Fact]
-    public void Minutes_count_down_the_notice_shows_the_last_30_s_once_a_second_then_it_pauses()
-    {
-        var t = Timer();
-        t.Set(new SleepChoice.Minutes(15));
-        Assert.Equal(15, t.State.Value.MinutesLeft);
-        Assert.Null(t.State.Value.SecondsLeft);
-        scheduler.Advance(14 * Minute + 29_000);
-        Assert.Null(t.State.Value.SecondsLeft);
-        scheduler.Advance(1_000);
-        Assert.Equal(30, t.State.Value.SecondsLeft);
-        scheduler.Advance(15_000);
-        Assert.Equal(15, t.State.Value.SecondsLeft);
-        Assert.Equal(0, fired);
-        scheduler.Advance(15_000);
-        Assert.Equal(1, fired);
-        Assert.Equal(new SleepState(Fired: true), t.State.Value);
-        t.Resumed();
-        Assert.False(t.State.Value.Fired);
-    }
-
-    [Fact]
-    public void Keep_listening_adds_the_same_time_again_and_off_stops_it()
-    {
-        var t = Timer();
-        t.Set(new SleepChoice.Minutes(30));
-        scheduler.Advance(30 * Minute - 10_000);
-        Assert.Equal(10, t.State.Value.SecondsLeft);
-        t.Extend();
-        Assert.Null(t.State.Value.SecondsLeft);
-        Assert.Equal(31, t.State.Value.MinutesLeft);
-        scheduler.Advance(20_000);
-        Assert.Equal(0, fired);
-        t.Set(new SleepChoice.Off());
-        scheduler.Advance(60 * Minute);
-        Assert.Equal(0, fired);
-        Assert.Equal(new SleepState(new SleepChoice.Off()), t.State.Value);
-    }
-
-    [Fact]
-    public void The_end_of_the_item_ends_it_and_keep_listening_waits_for_the_next_ones_end()
-    {
-        var t = Timer();
-        left = 10 * Minute;
-        t.Set(new SleepChoice.EndOfItem());
-        Assert.True(t.EndsWith(1L));
-        left = 25_000;
-        scheduler.Advance(1_000);
-        Assert.Equal(25, t.State.Value.SecondsLeft);
-        t.Extend();
-        scheduler.Advance(1_000);
-        Assert.Null(t.State.Value.SecondsLeft);
-        Assert.False(t.ItemEnded(1L));
-        key = 2L;
-        left = 15_000;
-        scheduler.Advance(1_000);
-        Assert.Equal(15, t.State.Value.SecondsLeft);
-        Assert.True(t.ItemEnded(2L));
-        Assert.Equal(1, fired);
-        Assert.Equal("End of this track", SleepText.Choice(new SleepChoice.EndOfItem(), music: true));
-        Assert.Equal("42 min left", SleepText.Summary(new SleepState(new SleepChoice.Minutes(45), MinutesLeft: 42)));
-    }
-}
-
 /// <summary>Music's playback: the Android app's MusicPlaybackTest, on the TV's player through keyed sessions.</summary>
 public class MusicPlayerTests
 {
@@ -365,8 +290,6 @@ public class MusicPlayerTests
         Assert.Empty(p.Queue.Value.Tracks);
         Assert.Equal(new[] { "stopped 0", "deleted" }, server.Sessions[0].Reports);
         Assert.True(Engine.Released);
-        p.SetSleep(new SleepChoice.Minutes(15));
-        Assert.IsType<SleepChoice.Off>(p.Sleep.Value.Set);
     }
 
     [Fact]
@@ -379,21 +302,6 @@ public class MusicPlayerTests
         Assert.Equal(0, p.Now.Value.Index);
         Assert.True(p.Now.Value.Shuffle);
         Assert.Single(server.Asked);
-    }
-
-    [Fact]
-    public void The_sleep_timer_at_the_end_of_a_track_holds_the_next_one_paused()
-    {
-        var p = Player();
-        p.Play(Album);
-        Engine.SetPlaying(true);
-        p.StepSleep();
-        Assert.Equal(new SleepChoice.Minutes(15), p.Sleep.Value.Set);
-        for (var i = 0; i < 5; i++) p.StepSleep();
-        Assert.IsType<SleepChoice.EndOfItem>(p.Sleep.Value.Set);
-        Engine.Status(EngineStatus.Ended);
-        Assert.Contains($"prepare {FakeMusicServer.Server}/api/media/pley_mk_12/file.flac paused", Engine.Calls);
-        Assert.True(p.Sleep.Value.Fired);
     }
 }
 
@@ -494,9 +402,6 @@ public class MusicPagesTests
         Assert.Equal("Loading…", model.Status);
         Assert.True(model.ShowsPause);
         Assert.Equal("Shuffle", model.ShuffleLabel);
-        Assert.Equal("Sleep timer", model.SleepLabel);
-        model.StepSleep();
-        Assert.Equal("Sleep timer: 15 min left", model.SleepLabel);
         model.SeekBy(1);
         Assert.Equal(("0:10", "−3:02"), model.Times(new MusicPosition(10_000, 192_000)));
         model.JumpTo(1);

@@ -14,7 +14,6 @@ public enum PlayerPanelKind
     Chapters,
     /// <summary>Playback details: the readout, which Up and Down scroll; nothing to choose.</summary>
     Info,
-    Sleep,
     Speed,
 }
 
@@ -44,7 +43,6 @@ public abstract record PlayerRowAction
     public sealed record Quality(string Id) : PlayerRowAction;
     public sealed record PlayOriginal : PlayerRowAction;
     public sealed record Chapter(long StartMs) : PlayerRowAction;
-    public sealed record Sleep(SleepChoice Choice) : PlayerRowAction;
     public sealed record Speed(double Rate) : PlayerRowAction;
     /// <summary>The Sync row: Left and Right move the subtitles 0.1 s, OK puts them back.</summary>
     public sealed record SubtitleSync : PlayerRowAction;
@@ -55,7 +53,7 @@ public abstract record PlayerRowAction
 }
 
 /// <summary>A row of a player panel.</summary>
-/// <param name="Supporting">The line under the label: a quality's hint, a chapter's time, "42 min left", Sync's "OK resets".</param>
+/// <param name="Supporting">The line under the label: a quality's hint, a chapter's time, Sync's "OK resets".</param>
 /// <param name="Value">A step row's value ("+0.5 s"), or a fact's.</param>
 /// <param name="Icon">Lucide's name: "rotate-ccw" for Play original.</param>
 public sealed record PlayerRow(PlayerRowKind Kind, string Label, bool Checked = false, string? Supporting = null, string? Value = null, string? Icon = null, PlayerRowAction? Action = null);
@@ -135,7 +133,6 @@ public static class PlayerPanels
         PlayerPanelKind.Quality => PlayerText.Quality,
         PlayerPanelKind.Chapters => PlayerText.Chapters,
         PlayerPanelKind.Info => PlayerText.InfoTitle,
-        PlayerPanelKind.Sleep => PlayerText.Sleep,
         _ => PlayerText.Speed,
     };
 
@@ -178,14 +175,6 @@ public static class PlayerPanels
             case PlayerPanelKind.Chapters:
                 var playing = PlayerText.ChapterAt(state.Chapters, positionMs);
                 Choices(state.Chapters.Select((c, i) => new PlayerRow(PlayerRowKind.Choice, PlayerText.ChapterTitle(c, i), i == playing, PlayerText.Time(c.StartMs), Action: new PlayerRowAction.Chapter(c.StartMs))));
-                break;
-            case PlayerPanelKind.Sleep:
-                Choices(SleepChoice.All.Select(choice =>
-                {
-                    var on = state.Sleep.Set == choice;
-                    var left = on && choice is SleepChoice.Minutes && state.Sleep.MinutesLeft != null ? SleepText.Summary(state.Sleep) : null;
-                    return new PlayerRow(PlayerRowKind.Choice, SleepText.Choice(choice), on, left, Action: new PlayerRowAction.Sleep(choice));
-                }));
                 break;
             case PlayerPanelKind.Speed:
                 Choices(PlaybackSpeeds.All.Where(r => r == 1 || state.Speeds.Contains(r)).Select(r => new PlayerRow(PlayerRowKind.Choice, PlaybackSpeeds.Label(r), r == state.Speed, Action: new PlayerRowAction.Speed(r))));

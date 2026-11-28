@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import type HlsType from "hls.js";
 import type { ErrorData, FragLoadedData, FragParsedData, InitPTSFoundData, LevelSwitchedData, ManifestParsedData } from "hls.js";
@@ -68,7 +68,6 @@ import { methodLabel, PlaybackDetails } from "./PlaybackDetails";
 import { SettingsPopover } from "./SettingsPopover";
 import { speedLabel, stepSpeed } from "./speed";
 import { activeMarker, fileMarkers, SkipButton, skipTarget, useSkipAlone, useSkipMarkers } from "./SkipButton";
-import { carriedSleepTimer, sleepChoice, SleepNotice, useSleepTimer } from "./sleepTimer";
 import { SubtitleOverlay } from "./SubtitleOverlay";
 import { PictureSubtitleOverlay, usePictureTrack, type PictureTrackHooks } from "./PictureSubtitleOverlay";
 import { hlsLeadMs, hlsShiftMs, picturePath } from "./pictures";
@@ -520,24 +519,6 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   const subtitle = isEpisode ? [episodeLabel(item), item.title].filter(Boolean).join(" · ") : null;
   useDocumentTitle(isEpisode ? `${title} ${episodeLabel(item)}` : item.title);
 
-  // The sleep timer starts off, but goes on to the next episode while it runs.
-  const location = useLocation();
-  const [carriedSleep] = useState(() => carriedSleepTimer(location.state));
-  const sleep = useSleepTimer({
-    initial: carriedSleep,
-    mediaLeft: duration > 0 ? duration - current : Number.POSITIVE_INFINITY,
-    onSleep: () => {
-      videoRef.current?.pause();
-      // Asleep: the next episode doesn't start on its own either.
-      setUpNext(null);
-    },
-  });
-  const sleepEndLabel = isEpisode
-    ? t("video.sleepEnd.episode")
-    : item.kind === "movie"
-      ? t("video.sleepEnd.movie")
-      : t("video.sleepEnd.video");
-
   const destroyHls = () => {
     hlsRef.current?.destroy();
     hlsRef.current = null;
@@ -632,7 +613,6 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     unfreeze();
     setPlaying(false);
     setUpNext(null);
-    sleep.clear();
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     invalidateWatchState(qc);
   });
@@ -1075,11 +1055,6 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     void done.then(() => invalidateWatchState(qc));
     if (!hasNext) {
       void done.then(() => navigate(endUrl, { replace: true }));
-      return;
-    }
-    if (sleep.atEnd) {
-      // The sleep timer was for this one: nothing plays next.
-      sleep.clear();
       return;
     }
     findNext()
@@ -1731,9 +1706,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
         if (!remote) toast.info(queue ? t("video.lastInQueue") : t("video.lastEpisode"));
         return;
       }
-      // A running sleep timer goes on with the next one.
-      const timer = sleep.timer && "endsAt" in sleep.timer ? sleep.timer : null;
-      void navigate(nextUrl(next), { replace: true, state: timer ? { sleep: timer } : null });
+      void navigate(nextUrl(next), { replace: true });
     } catch (err) {
       toast.error(errorMessage(err));
     }
@@ -1854,7 +1827,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     durationMs: item.files.find((f) => f.id === markersFileId)?.duration_ms || duration * 1000,
     enabled: !!info && !loading && !error && !ended,
     onCredits: () => {
-      if (!hasNext || upNext || sleep.atEnd) return;
+      if (!hasNext || upNext) return;
       findNext()
         .then((next) => {
           if (next) setUpNext(next);
@@ -2263,10 +2236,6 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
             onSubtitleFileRefused={(message) => toast.error(message)}
             speed={speed}
             onSpeed={setSpeed}
-            sleep={sleepChoice(sleep.timer)}
-            sleepLeft={sleep.timer && "endsAt" in sleep.timer ? sleep.secondsLeft : null}
-            sleepEndLabel={sleepEndLabel}
-            onSleep={sleep.choose}
           />
           {fullscreenOffered || fullscreen ? (
             <button
@@ -2282,13 +2251,9 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
         </div>
       </div>
 
-      {/* Skip and the sleep notice sit above the bottom bar whenever it shows, whatever keeps it there. */}
+      {/* Skip sits above the bottom bar whenever it shows, whatever keeps it there. */}
       {marker && !upNext && !ended && (skipAlone || showControls) ? (
         <SkipButton marker={marker} onSkip={skipMarker} lifted={showControls} onHover={setHoveringControls} />
-      ) : null}
-
-      {sleep.notice !== null && !stopped && !error && !ended ? (
-        <SleepNotice seconds={sleep.notice} onKeepWatching={sleep.keepWatching} lifted={showControls} />
       ) : null}
 
       {!stopped && !error ? <QualityNotice notice={qualityNotice} /> : null}

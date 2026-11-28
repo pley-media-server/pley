@@ -27,6 +27,12 @@ describes how they are made.
   menu included, with its initial while its picture loads or when it
   doesn't.
 
+### Removed
+
+- On TVs, the player's controls no longer say "Ends at" with a time under
+  the clock while paused: the time left stays by the scrubber.
+- The sleep timer is gone, from videos, music and audiobooks.
+
 ### Fixed
 
 - Up Next's countdown stays in Play now when the episode ends during it.

@@ -27,7 +27,6 @@
     <string name="tv_music_next">Suivant</string>
     <string name="tv_music_previous">Précédent</string>
     <string name="tv_music_position">Position dans le titre</string>
-    <string name="tv_music_sleep_running">%1$s : %2$s</string>
     <string name="tv_music_loading">Chargement…</string>
     <string name="tv_music_nothing_playing">Aucune lecture en cours</string>
     <string name="tv_music_nothing_playing_body">Lancez un album ou un artiste, il apparaîtra ici.</string>

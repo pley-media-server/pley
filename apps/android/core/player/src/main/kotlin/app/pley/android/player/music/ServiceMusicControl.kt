@@ -22,8 +22,6 @@ import app.pley.android.player.PlayerEngine
 import app.pley.android.player.music.library.signInRead
 import app.pley.android.player.session.SessionReporter
 import app.pley.android.player.session.clientIdOf
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepState
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -114,12 +112,6 @@ class ServiceMusicControl(
         playback.returnAfterLeave(playOn)
         connect()
     }
-
-    override val sleep: StateFlow<SleepState> get() = playback.sleep
-
-    override fun setSleep(choice: SleepChoice) = onMain { playback.setSleep(choice) }
-
-    override fun keepListening() = onMain { playback.keepListening() }
 
     /**
      * Binds to the service, which then shows the session; once per run of

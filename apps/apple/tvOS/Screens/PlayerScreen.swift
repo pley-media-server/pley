@@ -5,15 +5,14 @@ import SwiftUI
 
 /// The player on Apple TV: the system's player, full screen, with its
 /// transport bar's Quality menu (each choice with its second line), Audio
-/// menu, Subtitles menu (with the sync and Find Subtitles…), Speed and
-/// Sleep Timer menus, Picture in Picture, the subtitles drawn over the
-/// video, a Details tab in its info panel, Skip Intro, Skip Credits, Up
-/// Next and the sleep timer's Keep Watching as its contextual actions
-/// (Skip after its first 8 seconds only with the transport bar), and the
-/// chapters as its navigation markers. The sleep timer's last
-/// 30 s show at the top, and the player's notices ("Playing from …", as a
-/// cast from another device starts) for 4 seconds. Menu closes it (when
-/// the transport bar isn't showing), which ends the session.
+/// menu, Subtitles menu (with the sync and Find Subtitles…) and Speed
+/// menu, Picture in Picture, the subtitles drawn over the video, a
+/// Details tab in its info panel, Skip Intro, Skip Credits and Up Next as
+/// its contextual actions (Skip after its first 8 seconds only with the
+/// transport bar), and the chapters as its navigation markers. The
+/// player's notices ("Playing from …", as a cast from another device
+/// starts) show at the top for 4 seconds. Menu closes it (when the
+/// transport bar isn't showing), which ends the session.
 struct PlayerScreen: View {
     let app: AppModel
     @ObservedObject var controller: PlaybackController
@@ -32,18 +31,7 @@ struct PlayerScreen: View {
                     .onChange(of: geometry.size) { _, size in sized(size) }
             }
             .ignoresSafeArea()
-            if let notice = controller.state.sleep.notice {
-                VStack {
-                    Text(notice)
-                        .monospacedDigit()
-                        .padding(.horizontal, 30)
-                        .padding(.vertical, 14)
-                        .background(.regularMaterial, in: Capsule())
-                        .accessibilityIdentifier("player.sleepNotice")
-                    Spacer()
-                }
-                .allowsHitTesting(false)
-            } else if let notice {
+            if let notice {
                 VStack {
                     Text(notice)
                         .padding(.horizontal, 30)

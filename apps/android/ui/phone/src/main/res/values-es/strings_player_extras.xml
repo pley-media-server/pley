@@ -11,6 +11,5 @@
     <string name="player_find_subtitles">Buscar subtítulos…</string>
     <string name="player_searching">Buscando…</string>
     <string name="player_adding">Añadiendo…</string>
-    <string name="player_sleep_timer">Temporizador de suspensión</string>
     <string name="player_stopped_title">Reproducción detenida</string>
 </resources>

@@ -13,11 +13,11 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import app.pley.android.player.NowPlaying
-import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
 import app.pley.android.ui.phone.kit.LocalOffline
@@ -82,7 +82,7 @@ class CarMusicSizesTest {
     private fun check(screen: String) {
         show { NowPlayingScreen(car = true) }
         CarScreenChecks.save(compose, "now-playing-$screen")
-        val controls = listOf("Close Now Playing", "Queue", "Sleep timer", "Position in the track", "Shuffle", "Previous", "Pause", "Next", "Repeat")
+        val controls = listOf("Close Now Playing", "Queue", "Position in the track", "Shuffle", "Previous", "Pause", "Next", "Repeat")
         CarScreenChecks.controls(compose, "Now Playing, $screen", controls)
         CarScreenChecks.apart(compose, "Now Playing, $screen", controls)
     }
@@ -97,34 +97,36 @@ class CarMusicSizesTest {
     }
 
     /**
-     * The sleep timer opens in a sheet, as the queue does: its choices a car's size (the sheet starts again from the
-     * screen's density), the last one reached by scrolling where the screen is short, and a choice sets the timer.
+     * A book's Speed opens in a sheet, as the queue does: its choices a car's size (the sheet starts again from the
+     * screen's density), the last one reached by scrolling where the screen is short, and a choice sets the speed.
      */
-    private fun checkSleep(screen: String) {
+    private fun checkSpeed(screen: String) {
+        graph.music.now.value = NOW.copy(book = true)
         show { NowPlayingScreen(car = true) }
-        compose.onNode(hasContentDescription("Sleep timer") and hasClickAction()).performClick()
+        compose.onNode(hasContentDescription("Speed 1×") and hasClickAction()).performClick()
         compose.waitForIdle()
-        CarScreenChecks.save(compose, "sleep-$screen")
+        CarScreenChecks.save(compose, "speed-$screen")
         val density = compose.density.density
-        for (choice in listOf("Off", "15 min", "30 min")) {
-            val row = compose.onNode(hasText(choice) and hasClickAction()).fetchSemanticsNode()
-            val height = row.layoutInfo.height / density
-            assertTrue("$screen: $choice is $height dp tall", height >= 64f - 0.5f)
+        // The sheet's rows, not the button, which says the speed too.
+        fun choice(text: String) = compose.onNode(hasText(text) and isSelectable())
+        for (text in listOf("0.8×", "1×", "1.2×")) {
+            val height = choice(text).fetchSemanticsNode().layoutInfo.height / density
+            assertTrue("$screen: $text is $height dp tall", height >= 64f - 0.5f)
         }
-        compose.onNode(hasText("Off") and hasClickAction()).assertIsSelected()
-        compose.onNode(hasText("End of this track") and hasClickAction()).performScrollTo().assertIsDisplayed()
-        compose.onNode(hasText("30 min") and hasClickAction()).performScrollTo().performClick()
-        compose.waitUntil(5_000) { compose.onAllNodes(hasText("15 min")).fetchSemanticsNodes().isEmpty() }
-        assertEquals(listOf<SleepChoice>(SleepChoice.Minutes(30)), graph.music.sleeps)
+        choice("1×").assertIsSelected()
+        choice("2×").performScrollTo().assertIsDisplayed()
+        choice("1.5×").performScrollTo().performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("0.8×")).fetchSemanticsNodes().isEmpty() }
+        assertEquals(listOf(1.5f), graph.music.speeds)
     }
 
     @Test
     @Config(qualifiers = CarScreenChecks.SMALL)
-    fun sleepSmallLandscape() = checkSleep("small")
+    fun speedSmallLandscape() = checkSpeed("small")
 
     @Test
     @Config(qualifiers = CarScreenChecks.NARROW)
-    fun sleepNarrow() = checkSleep("narrow")
+    fun speedNarrow() = checkSpeed("narrow")
 
     @Test
     @Config(qualifiers = CarScreenChecks.SMALL)

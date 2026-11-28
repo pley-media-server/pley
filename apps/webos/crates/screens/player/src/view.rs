@@ -2,8 +2,8 @@
 //! `TvPlayerKeys.kt`; the TV app's `ui/player/player.tsx`): which overlays show, where focus
 //! goes, what each key does, and the layers drawn over the picture, bottom to top: the controls'
 //! scrim, the subtitles, the focus holder of the hidden controls, the controls, the compact
-//! Playback details, Skip, the sleep notice and Up Next, the seek badge, the buffering ring,
-//! the panels, the error and the toast.
+//! Playback details, Skip and Up Next, the seek badge, the buffering ring, the panels, the error
+//! and the toast.
 
 use pley_base::{Color, Icon, Key, KeyEvent, Point, Rect};
 use pley_core::Settings;
@@ -34,12 +34,10 @@ pub const CONFIRM_MS: i64 = 2_000;
 pub const BANNER_MS: i64 = 4_000;
 /// The server stopped the playback: the player leaves this long after saying so (`TvPlayerExtras.kt`).
 pub const STOPPED_LEAVE_MS: i64 = 20_000;
-/// Skip, the notice and Up Next fade in and out over 150 ms.
+/// Skip and Up Next fade in and out over 150 ms.
 const CORNER_FADE: Motion = Motion::new(0.150, Easing::FAST_OUT_SLOW_IN);
 /// The buffering ring's center.
 const RING_CENTRE: Point = Point::new(theme::CANVAS_W / 2.0, theme::CANVAS_H / 2.0);
-/// "Ends at" counts at most this far ahead: a duration past it is the server's mistake.
-const ENDS_AT_MAX_MS: i64 = 7 * 24 * 3_600_000;
 /// A sheet's previews counted at most, across and down, to find the sheet ahead of a scrub.
 const SHEET_SIDE_MAX: i64 = 100;
 
@@ -89,8 +87,6 @@ pub enum Target {
     /// The holder of the keys while the controls are hidden.
     Video,
     Skip,
-    /// The sleep notice's Keep watching.
-    Keep,
     Scrubber,
     /// The chapters as cards over the scrubber.
     Chapters,
@@ -110,8 +106,6 @@ pub struct Ids {
     pub video: Id,
     pub skip_group: Id,
     pub skip: Id,
-    pub keep_group: Id,
-    pub keep: Id,
     pub scrub_group: Id,
     pub scrubber: Id,
     pub chapters: Id,
@@ -133,8 +127,6 @@ impl Ids {
             video: id("video"),
             skip_group: id("skip-group"),
             skip: id("skip"),
-            keep_group: id("keep-group"),
-            keep: id("keep"),
             scrub_group: id("scrub-group"),
             scrubber: id("scrubber"),
             chapters: id("chapters"),
@@ -159,7 +151,6 @@ impl Ids {
         match t {
             Target::Video => self.video,
             Target::Skip => self.skip,
-            Target::Keep => self.keep,
             Target::Scrubber => self.scrubber,
             Target::Chapters => self.chapters,
             Target::Button(b) => self.button(b),
@@ -180,7 +171,6 @@ struct Seen {
     up_next: Option<i64>,
     error: bool,
     skip: bool,
-    keep: bool,
     original: bool,
     lower: bool,
     adding: bool,
@@ -206,7 +196,6 @@ enum Act {
     /// OK on a chapter's card: its index.
     Chapter(usize),
     Skip,
-    Keep,
     PlayNow,
     CancelCard,
     Retry,
@@ -251,7 +240,6 @@ pub struct PlayerView {
     seen: Seen,
     waiting_since: Option<f64>,
     stopped_at: Option<i64>,
-    fired_at: Option<i64>,
     details_open: bool,
     can_find: bool,
     found: Vec<SubtitleResult>,
@@ -260,7 +248,6 @@ pub struct PlayerView {
     last_pointer: Option<Point>,
     last_focus: Option<Id>,
     last_skip: String,
-    last_seconds: i64,
     last_card: Option<UpNextCard>,
     previews: Previews,
     /// Whether the stream's first picture was there last frame, and how many have come: each
@@ -309,7 +296,6 @@ impl PlayerView {
             banner_for: None,
             banner_due: false,
             banner_until: 0,
-            fired_at: None,
             details_open: false,
             can_find: true,
             found: Vec::new(),
@@ -318,7 +304,6 @@ impl PlayerView {
             last_pointer: None,
             last_focus: None,
             last_skip: String::new(),
-            last_seconds: 0,
             last_card: None,
             previews: Previews::none(),
             pictured: false,
@@ -351,21 +336,12 @@ impl PlayerView {
     pub fn focus(&self, ui: &Ui) -> Option<Target> {
         let ids = Ids::new(ui);
         let f = ui.focused()?;
-        let simple = [
-            Target::Video,
-            Target::Skip,
-            Target::Keep,
-            Target::Scrubber,
-            Target::Chapters,
-            Target::PlayNow,
-            Target::Cancel,
-        ];
+        let simple = [Target::Video, Target::Skip, Target::Scrubber, Target::Chapters, Target::PlayNow, Target::Cancel];
         if let Some(t) = simple.into_iter().find(|t| ids.of(*t) == f) {
             return Some(t);
         }
         let buttons = [
             Btn::Chapters,
-            Btn::Sleep,
             Btn::Speed,
             Btn::Previous,
             Btn::PlayPause,
@@ -495,14 +471,9 @@ impl PlayerView {
             && !(controls && self.seeker.pending())
     }
 
-    fn keep_shown(&self, s: &PlayerState) -> bool {
-        s.sleep.seconds_left.is_some() && !matches!(s.phase, Phase::Error { .. })
-    }
-
     /// Acts on what changed in the playback: its notices become toasts, and what the user's
-    /// remote did a 2 s one, never the controls; Up Next and errors take the screen; Skip and the
-    /// sleep notice take focus as they come; the end, a stop by the server and the sleep timer's
-    /// long pause make the player leave.
+    /// remote did a 2 s one, never the controls; Up Next and errors take the screen; Skip takes
+    /// focus as it comes; the end and a stop by the server make the player leave.
     fn follow(&mut self, ui: &mut Ui, p: &mut dyn Playback, now: i64, ids: &Ids, out: &mut Out) {
         let s = p.state();
         let notice = if s.notice_id != self.seen.notice { s.notice.clone() } else { None };
@@ -525,12 +496,8 @@ impl PlayerView {
         }
         let error = matches!(s.phase, Phase::Error { .. });
         let skip = self.skip_shown(s);
-        let keep = self.keep_shown(s);
         if let Some(l) = &s.skip_label {
             l.clone_into(&mut self.last_skip);
-        }
-        if let Some(n) = s.sleep.seconds_left {
-            self.last_seconds = n;
         }
         // The title banner, once as each item begins playing (the first, or the next episode
         // by itself), unless the controls show, which have the title already.
@@ -546,7 +513,6 @@ impl PlayerView {
             }
         }
         let waiting = matches!(s.phase, Phase::Preparing | Phase::Buffering) || s.switching;
-        let fired = s.sleep.fired && s.phase == Phase::Paused;
         let ended = s.phase == Phase::Ended;
         let stopped = s.stopped_by_server;
         let adding = matches!(s.search, SubtitleSearch::Adding(_));
@@ -600,13 +566,7 @@ impl PlayerView {
         } else if !skip && self.seen.skip && focused == Some(ids.skip) {
             self.ask = Some(if self.controls { Target::Scrubber } else { Target::Video });
         }
-        if keep && !self.seen.keep && !skip && card.is_none() && !self.controls && self.panel.is_none() {
-            self.ask = Some(Target::Keep);
-        } else if !keep && self.seen.keep && focused == Some(ids.keep) {
-            self.ask = Some(if self.controls { Target::Scrubber } else { hidden_focus(skip) });
-        }
         self.seen.skip = skip;
-        self.seen.keep = keep;
         self.waiting_since = if waiting { Some(self.waiting_since.unwrap_or(ui.time())) } else { None };
 
         // The search: an added subtitle closes it; a failed add says why; an older server's
@@ -633,19 +593,14 @@ impl PlayerView {
         if stopped_at.is_some_and(|t| now >= t + STOPPED_LEAVE_MS) {
             out.leave = true;
         }
-        let fired_at = if fired { Some(*self.fired_at.get_or_insert(now)) } else { None };
-        self.fired_at = fired_at;
-        if fired_at.is_some_and(|t| now >= t + pley_player::sleep::LEAVE_AFTER_MS) {
-            out.leave = true;
-        }
     }
 
     // ---------------------------------------------------------------- keys
 
     /// The keys, in `TvPlayerScreen.kt`'s order: the media keys whatever shows; then nothing more
     /// while an error, Up Next or a panel has the keys; then Left and Right seek, and Up, Down,
-    /// Info and Guide bring the controls, from the hidden controls' holder (or Skip, or the
-    /// notice) and Left and Right from the scrubber. A move of the pointer brings the controls.
+    /// Info and Guide bring the controls, from the hidden controls' holder (or Skip) and Left and
+    /// Right from the scrubber. A move of the pointer brings the controls.
     fn input(&mut self, ui: &mut Ui, p: &mut dyn Playback, now: i64, ids: &Ids, out: &mut Out) {
         let s = p.state();
         let error = matches!(s.phase, Phase::Error { .. });
@@ -715,7 +670,7 @@ impl PlayerView {
             return;
         }
         let focused = ui.focused();
-        let holder = !self.controls && [ids.video, ids.skip, ids.keep].iter().any(|i| focused == Some(*i));
+        let holder = !self.controls && [ids.video, ids.skip].iter().any(|i| focused == Some(*i));
         let on_bar = self.controls && focused == Some(ids.scrubber);
         let on_cards = self.strip.is_some() && focused == Some(ids.chapters);
         for e in &keys {
@@ -949,7 +904,6 @@ impl PlayerView {
         let error = matches!(s.phase, Phase::Error { .. });
         let card = s.up_next.is_some();
         let skip = self.skip_shown(s);
-        let keep = self.keep_shown(s);
         let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
         let fade = ui.animate(ids.fade, if self.controls { 1.0 } else { 0.0 }, Motion::OVERLAY);
 
@@ -1012,19 +966,6 @@ impl PlayerView {
             let r = ui.opacity(skip_fade, |ui| if skip { draw(ui) } else { inert(ui, draw) });
             if r.activated {
                 acts.push(Act::Skip);
-            }
-            if r.menu && !self.controls {
-                acts.push(Act::VideoMenu);
-            }
-        }
-        let keep_fade = ui.animate(ids.keep.with("fade"), if keep { 1.0 } else { 0.0 }, CORNER_FADE);
-        if keep_fade > 0.0 || keep {
-            let (n, controls) = (self.last_seconds, self.controls);
-            let draw =
-                |ui: &mut Ui| overlays::sleep_notice(ui, ids.keep_group, ids.keep, n, bottom, controls, ids.scrubber);
-            let r = ui.opacity(keep_fade, |ui| if keep { draw(ui) } else { inert(ui, draw) });
-            if r.activated {
-                acts.push(Act::Keep);
             }
             if r.menu && !self.controls {
                 acts.push(Act::VideoMenu);
@@ -1113,19 +1054,9 @@ impl PlayerView {
         let now = env.unix_now as i64;
         let line = text::episode_line(s.subtitle.as_deref());
         let time = clock::time_of_day(now, env.hours24);
-        let ends = (s.phase == Phase::Paused).then(|| {
-            let left = clock.duration_ms.saturating_sub(clock.position_ms).clamp(0, ENDS_AT_MAX_MS) / 1000;
-            t!("player.controls.endsAt", time = clock::time_of_day(now.saturating_add(left), env.hours24))
-        });
         controls::top_bar(
             ui,
-            &TopBar {
-                title: &s.title,
-                line: line.as_deref(),
-                method: s.method.as_deref(),
-                clock: &time,
-                ends: ends.as_deref(),
-            },
+            &TopBar { title: &s.title, line: line.as_deref(), method: s.method.as_deref(), clock: &time },
         );
         let chapter_at = self.strip.as_ref().and_then(|st| s.chapters.get(st.index)).map(|c| c.start_ms);
         if let Some(strip) = &self.strip {
@@ -1355,7 +1286,6 @@ impl PlayerView {
                 self.seeker.cancel();
                 p.skip();
             }
-            Act::Keep => p.keep_watching(),
             Act::PlayNow => p.play_next(),
             Act::CancelCard => p.cancel_up_next(),
             Act::Retry => p.retry(),
@@ -1409,7 +1339,6 @@ impl PlayerView {
             Pick::Audio(i) => p.select_audio(*i),
             Pick::PlayOriginal => p.play_original(),
             Pick::Quality(id) => p.select_quality(id),
-            Pick::Sleep(c) => p.set_sleep(*c),
             Pick::Speed(r) => p.set_speed(*r),
         }
         if !pick.keeps_open() {
@@ -1439,7 +1368,6 @@ impl PlayerView {
             p.next_wake(),
             self.seeker.next_due(),
             self.stopped_at.map(|t| t + STOPPED_LEAVE_MS),
-            self.fired_at.map(|t| t + pley_player::sleep::LEAVE_AFTER_MS),
             (self.banner_until > now).then_some(self.banner_until),
         ];
         if let Some(t) = due.into_iter().flatten().min() {
@@ -1456,8 +1384,7 @@ impl PlayerView {
 }
 
 /// Where focus goes as the controls hide (`hideControls(if (skipShown) Skip else Video)`): Skip
-/// while it shows on its own, else the holder of the keys. The sleep notice takes focus only as
-/// it comes.
+/// while it shows on its own, else the holder of the keys.
 fn hidden_focus(skip: bool) -> Target {
     if skip { Target::Skip } else { Target::Video }
 }

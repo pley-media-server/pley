@@ -60,27 +60,6 @@
     "originalHint": "Qualité maximale. Peut s’interrompre pour charger sur une connexion lente.",
     "automaticHint": "S’adapte aux conditions."
   },
-  "sleep": {
-    "title": "Minuteur de veille",
-    "titleNow": "Minuteur : {{state}}",
-    "off": "Désactivé",
-    "minutes": "{{minutes}} min",
-    "minutesLeft_one": "Il reste {{count}} min",
-    "minutesLeft_many": "Il reste {{count}} min",
-    "minutesLeft_other": "Il reste {{count}} min",
-    "secondsLeft_one": "Il reste {{count}} s",
-    "secondsLeft_many": "Il reste {{count}} s",
-    "secondsLeft_other": "Il reste {{count}} s",
-    "end": {
-      "episode": "Fin de cet épisode",
-      "movie": "Fin de ce film",
-      "track": "Fin de ce titre",
-      "video": "Fin de cette vidéo"
-    },
-    "pausingIn": "Mise en pause dans {{seconds}} s",
-    "keepWatching": "Continuer à regarder",
-    "keepListening": "Continuer à écouter"
-  },
   "find": {
     "title": "Trouver des sous-titres",
     "language": "Langue des sous-titres",
@@ -233,7 +212,6 @@
     "previous": "Précédent",
     "next": "Suivant",
     "info": "Infos",
-    "endsAt": "Se termine à {{time}}",
     "remaining": "−{{time}}",
     "intro": "Intro",
     "credits": "Générique",

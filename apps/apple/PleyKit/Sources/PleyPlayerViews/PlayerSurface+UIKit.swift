@@ -20,16 +20,15 @@ import UIKit
 ///   (`appliesPreferredDisplayCriteriaAutomatically`, from the master
 ///   playlist's `FRAME-RATE` and `VIDEO-RANGE`). The Quality, Audio,
 ///   Subtitles (with the subtitle sync, the subtitle style while text
-///   subtitles show, and Find Subtitles… last), Speed
-///   and Sleep Timer menus sit in the transport bar, and Details is a tab
-///   of the info panel. Picture in Picture is the transport bar's own
-///   button.
-///   Skip Intro, Skip Credits, Up Next ("Play Next (8)", Cancel) and the
-///   sleep timer's Keep Watching are the player's contextual actions, and
-///   the chapters its navigation markers, with their pictures. Skip is
-///   there by itself for its first 8 seconds, then only with the
-///   transport bar (`PictureInPictureKeeper`, the controller's delegate,
-///   tells when it shows).
+///   subtitles show, and Find Subtitles… last) and Speed menus sit in the
+///   transport bar, and Details is a tab of the info panel. Picture in
+///   Picture is the transport bar's own button.
+///   Skip Intro, Skip Credits and Up Next ("Play Next (8)", Cancel) are
+///   the player's contextual actions, and the chapters its navigation
+///   markers, with their pictures. Skip is there by itself for its first
+///   8 seconds, then only with the transport bar
+///   (`PictureInPictureKeeper`, the controller's delegate, tells when it
+///   shows).
 public struct PlayerSurface: UIViewControllerRepresentable {
     let player: AVPlayer?
     let state: PlayerState
@@ -129,7 +128,6 @@ public struct PlayerSurface: UIViewControllerRepresentable {
                 menus.append(PlayerMenus.subtitles(state, actions))
             }
             menus.append(PlayerMenus.speed(state, actions))
-            menus.append(PlayerMenus.sleepTimer(state, actions))
             controller.transportBarCustomMenuItems = menus
         }
         coordinator.state = state
@@ -163,8 +161,6 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         var canSync = false
         var canFind = false
         var speed: Double = 1
-        var sleep: [MenuChoice] = []
-        var sleepSummary: String?
         var style: [SubtitleStyleMenu] = []
 
         init() {}
@@ -175,27 +171,19 @@ public struct PlayerSurface: UIViewControllerRepresentable {
             canSync = state.canSyncSubtitles
             canFind = state.canFindSubtitles
             speed = state.speed
-            sleep = state.sleepChoices
-            // Minutes left: the menu's second line follows them, not the notice's seconds.
-            sleepSummary = state.sleep.secondsLeft == nil ? state.sleepSummary : "notice"
             style = state.subtitleStyleMenus
         }
     }
 
-    /// The sleep timer's Keep Watching in its last 30 s, Skip Intro or
-    /// Skip Credits, or Up Next's Play Next and Cancel; and what they are,
-    /// so they are made again only when that changes. Skip is there by
-    /// itself for its first 8 seconds, so it takes the focus and OK skips;
-    /// after them only with the transport bar (`transportBar`), so OK, the
-    /// arrows and the rest act on the video when nothing else shows.
+    /// Skip Intro or Skip Credits, or Up Next's Play Next and Cancel; and
+    /// what they are, so they are made again only when that changes. Skip
+    /// is there by itself for its first 8 seconds, so it takes the focus
+    /// and OK skips; after them only with the transport bar
+    /// (`transportBar`), so OK, the arrows and the rest act on the video
+    /// when nothing else shows.
     @MainActor
     static func contextualActions(_ state: PlayerState, _ playback: PlaybackController?,
                                   transportBar: Bool) -> (key: String, list: [UIAction]) {
-        if state.sleep.secondsLeft != nil {
-            return ("sleep", [UIAction(title: localized("Keep Watching"), image: UIImage(systemName: "moon.zzz")) { _ in
-                playback?.keepWatching()
-            }])
-        }
         if let card = state.upNext {
             return ("next \(card.itemId) \(card.playLabel)", [
                 UIAction(title: card.playLabel, image: UIImage(systemName: "forward.end")) { _ in playback?.playNext() },

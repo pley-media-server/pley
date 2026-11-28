@@ -1100,20 +1100,6 @@ describe("Up Next at the credits", () => {
     c.close();
   });
 
-  it("holds no count when the sleep timer ends with the file while the credits' countdown runs", async () => {
-    const { w, c } = await playing(credits(2_694_000, 2_700_000));
-    w.engine.pos = 2_694_500;
-    await vi.advanceTimersByTimeAsync(600);
-    expect(c.state.value.upNext).toMatchObject({ itemId: 71, secondsLeft: 10 });
-    c.setSleep({ kind: "end_of_item" });
-    w.engine.pos = 2_700_000;
-    w.engine.listener?.status("ended");
-    expect(c.state.value.upNext).toMatchObject({ itemId: 71, secondsLeft: null });
-    await vi.advanceTimersByTimeAsync(20_000);
-    expect([c.state.value.upNext?.secondsLeft, w.requests.length]).toEqual([null, 1]);
-    c.close();
-  });
-
   it("waits for the end after credits that something follows, Skip Credits showing meanwhile", async () => {
     const { w, c } = await playing(credits(2_520_000, 2_640_000));
     w.engine.pos = 2_520_500;

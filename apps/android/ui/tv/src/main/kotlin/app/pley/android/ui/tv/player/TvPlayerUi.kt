@@ -8,8 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
 
-/** The side panels (design spec §2.7), and the sleep timer's. The chapters are cards over the scrubber instead ([TvChapterStrip]). */
-internal enum class PlayerPanel { Subtitles, Audio, Quality, Info, Sleep, Speed, FindSubtitles }
+/** The side panels (design spec §2.7). The chapters are cards over the scrubber instead ([TvChapterStrip]). */
+internal enum class PlayerPanel { Subtitles, Audio, Quality, Info, Speed, FindSubtitles }
 
 /** What can be given focus in the player. */
 internal enum class PlayerFocus {
@@ -23,12 +23,8 @@ internal enum class PlayerFocus {
     Quality,
     Chapters,
     Info,
-    Sleep,
     Speed,
     UpNext,
-
-    /** The sleep timer's notice (Keep watching). */
-    SleepNotice,
 
     /** The chapters' cards over the scrubber, which take Left, Right and OK themselves. */
     ChapterStrip,
@@ -202,7 +198,6 @@ internal class TvPlayerUi {
             PlayerPanel.Audio -> PlayerFocus.Audio
             PlayerPanel.Quality -> PlayerFocus.Quality
             PlayerPanel.Info -> PlayerFocus.Info
-            PlayerPanel.Sleep -> PlayerFocus.Sleep
             PlayerPanel.Speed -> PlayerFocus.Speed
             PlayerPanel.FindSubtitles -> PlayerFocus.Subtitles
         }

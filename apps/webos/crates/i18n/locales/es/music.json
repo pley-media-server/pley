@@ -44,15 +44,5 @@
     "signedOut": "Vuelve a iniciar sesión para reproducir.",
     "stopped": "El servidor detuvo la reproducción.",
     "unplayable": "Esta pista no se puede reproducir."
-  },
-  "sleep": {
-    "timer": "Temporizador",
-    "pausingIn": "Se pausará en {{seconds}} s",
-    "keepListening": "Seguir escuchando",
-    "minutesLeft_one": "Temporizador: queda {{count}} min",
-    "minutesLeft_many": "Temporizador: quedan {{count}} min",
-    "minutesLeft_other": "Temporizador: quedan {{count}} min",
-    "minutes": "Temporizador: {{minutes}} min",
-    "endOfTrack": "Temporizador: final de esta pista"
   }
 }

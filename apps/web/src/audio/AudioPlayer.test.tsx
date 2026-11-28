@@ -281,6 +281,9 @@ function LastTrack() {
       <button type="button" onClick={() => player.skipBy(30)}>
         Forward
       </button>
+      <button type="button" onClick={() => player.toggle()}>
+        Play
+      </button>
     </>
   );
 }
@@ -327,6 +330,16 @@ describe("AudioPlayer once its queue has run out", () => {
     const requests = await ended();
     await userEvent.click(screen.getByRole("button", { name: "Previous" }));
     await waitFor(() => expect(startsAt(requests)).toEqual([0, 0]));
+  });
+
+  it("starts the last track again on Play, with a session of its own", async () => {
+    const requests = await ended();
+    const audio = document.querySelector("audio")!;
+    Object.defineProperty(audio, "ended", { configurable: true, get: () => true });
+    await userEvent.click(screen.getByRole("button", { name: "Play" }));
+    await waitFor(() => expect(startsAt(requests)).toEqual([0, 0]));
+    const items = starts(requests).map((r) => (r.body as { item_id: number }).item_id);
+    expect(items[1]).toBe(items[0]);
   });
 
   it("starts nothing when skipped forward, at its end still", async () => {

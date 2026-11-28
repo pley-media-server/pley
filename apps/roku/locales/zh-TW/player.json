@@ -60,23 +60,6 @@
     "originalHint": "完整畫質。網路較慢時可能會緩衝。",
     "automaticHint": "根據網路狀況動態調整。"
   },
-  "sleep": {
-    "title": "睡眠定時",
-    "titleNow": "睡眠定時：{{state}}",
-    "off": "關閉",
-    "minutes": "{{minutes}} 分鐘",
-    "minutesLeft_other": "剩餘 {{count}} 分鐘",
-    "secondsLeft_other": "剩餘 {{count}} 秒",
-    "end": {
-      "episode": "本集結束",
-      "movie": "本片結束",
-      "track": "本曲目結束",
-      "video": "本影片結束"
-    },
-    "pausingIn": "{{seconds}} 秒後暫停",
-    "keepWatching": "繼續觀看",
-    "keepListening": "繼續收聽"
-  },
   "find": {
     "title": "搜尋字幕",
     "language": "字幕語言",
@@ -227,7 +210,6 @@
     "previous": "上一個",
     "next": "下一個",
     "info": "資訊",
-    "endsAt": "結束於 {{time}}",
     "remaining": "−{{time}}",
     "intro": "片頭",
     "credits": "片尾",

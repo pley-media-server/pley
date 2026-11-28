@@ -10,7 +10,6 @@
     <string name="tv_player_chapters">Chapitres</string>
     <string name="tv_player_info">Infos</string>
 
-    <string name="tv_player_ends_at">Se termine à %1$s</string>
     <string name="tv_player_intro">Intro</string>
     <string name="tv_player_credits">Générique</string>
     <string name="tv_player_seek_back">−%1$d s</string>

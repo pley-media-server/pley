@@ -609,17 +609,6 @@ fn the_end_and_a_stop_by_the_server_leave() {
 }
 
 #[test]
-fn the_sleep_notice_takes_focus_and_keeps_watching() {
-    let mut pl = Player::new(Fake::movie());
-    pl.p.state.sleep.seconds_left = Some(28);
-    pl.wait(0.2);
-    assert_eq!(pl.focus(), Some(Target::Keep));
-    assert!(pl.texts().contains(&"Pausing in 28 s".to_string()));
-    pl.press(Key::Ok);
-    assert_eq!(pl.p.calls, [Call::KeepWatching]);
-}
-
-#[test]
 fn the_pointer_brings_the_controls_and_a_click_on_the_bar_seeks_there() {
     let mut pl = Player::new(Fake::movie());
     pl.run(&[Step::Point(Point::new(480.0, 300.0))]);
@@ -645,7 +634,7 @@ fn the_details_are_asked_for_while_info_or_the_readout_shows() {
 }
 
 #[test]
-fn the_top_bar_says_what_plays_and_when_it_ends_while_paused() {
+fn the_top_bar_says_what_plays() {
     let mut pl = Player::new(Fake::episode());
     pl.press(Key::Ok);
     assert_eq!(pl.focus(), Some(Target::Scrubber));
@@ -656,7 +645,6 @@ fn the_top_bar_says_what_plays_and_when_it_ends_while_paused() {
     for want in ["Fixture Show", "S1 · E2 · The Second", "Direct play", "1:00", "−19:00"] {
         assert!(texts.iter().any(|t| t == want), "{want} in {texts:?}");
     }
-    assert!(texts.iter().any(|t| t.starts_with("Ends at ")), "{texts:?}");
 }
 
 #[test]
@@ -840,19 +828,6 @@ fn sync_steps_a_tenth_of_a_second_and_ok_puts_it_back() {
 }
 
 #[test]
-fn paused_by_the_sleep_timer_the_player_leaves_after_ten_minutes() {
-    let mut pl = Player::new(Fake::movie());
-    pl.p.state.sleep.fired = true;
-    pl.p.state.phase = Phase::Paused;
-    pl.p.playing = false;
-    pl.idle();
-    pl.wait(599.0);
-    assert!(!pl.left());
-    pl.wait(1.5);
-    assert!(pl.left());
-}
-
-#[test]
 fn notices_and_quality_notes_become_toasts() {
     let mut pl = Player::new(Fake::movie());
     pl.p.state.notice = Some("Subtitles added".into());
@@ -895,26 +870,6 @@ fn the_screen_saver_is_kept_away_only_while_it_plays() {
     assert!(!keeps_awake(&Phase::Buffering, false), "paused while it buffers");
     assert!(!keeps_awake(&Phase::Ended, true));
     assert!(!keeps_awake(&Phase::Error { message: "Gone.".into(), can_retry: true, title: None }, true));
-}
-
-#[test]
-fn hiding_the_controls_puts_focus_on_the_video_not_the_sleep_notice() {
-    let mut pl = Player::new(Fake::movie());
-    pl.p.state.sleep.seconds_left = Some(28);
-    pl.wait(0.2);
-    assert_eq!(pl.focus(), Some(Target::Keep), "the notice takes focus as it comes");
-    pl.press(Key::Up);
-    assert!(pl.view.controls());
-    assert!(pl.back());
-    assert_eq!(pl.focus(), Some(Target::Video));
-    pl.press(Key::Up);
-    pl.wait(5.5);
-    assert!(!pl.view.controls());
-    assert_eq!(pl.focus(), Some(Target::Video));
-    // OK is the video's again, not Keep watching's: it shows the controls on the scrubber.
-    pl.press(Key::Ok);
-    assert!(pl.p.calls.is_empty(), "{:?}", pl.p.calls);
-    assert_eq!(pl.focus(), Some(Target::Scrubber));
 }
 
 /// Play now on Up Next's card: its rectangle, and how far across it the countdown's sweep reaches

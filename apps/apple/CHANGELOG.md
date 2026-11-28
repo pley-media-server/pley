@@ -77,8 +77,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   conversion, and a heavy one never holds up the screen or the remote.
   Find Subtitles… in the player searches online through your server and
   adds the subtitles you choose, which show at once.
-- Playback speed from 0.5× to 2×, and a sleep timer for videos with Keep
-  watching in its last 30 seconds.
+- Playback speed from 0.5× to 2×.
 - Picture in Picture on iPhone, iPad, Apple TV and Mac: from the player's
   button, and by itself when you leave the app on iPhone and iPad; its ✕
   ends the playback.
@@ -92,9 +91,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Music: Play and Shuffle on albums, artists and music playlists, a track
   plays its album from there, and it plays on in the background and with
   the screen locked. A mini player and Now Playing (a window on the Mac,
-  a tab on Apple TV) with Up next, Shuffle, a sleep timer and AirPlay; the
-  lock screen, Control Center, headphones and the Mac's media keys play,
-  pause and skip music and videos.
+  a tab on Apple TV) with Up next, Shuffle and AirPlay; the lock screen,
+  Control Center, headphones and the Mac's media keys play, pause and
+  skip music and videos.
 - Download movies, episodes and whole seasons on iPhone, iPad and Mac to
   watch without your server: as they are, or smaller (Settings →
   Downloads), in the background, on Wi-Fi unless you allow mobile data.

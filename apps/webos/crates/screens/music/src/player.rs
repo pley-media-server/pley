@@ -18,7 +18,6 @@ use pley_core::http::sentence;
 use pley_core::model::{Control, ItemKind, ItemList, ItemSummary, ServerEvent};
 use pley_core::{Api, ApiError, PlayerEngine, Promise, Tasks};
 use pley_player::remote::{Command, RemoteAction, restarts_track};
-use pley_player::sleep::SleepState;
 use pley_player::{MusicSession, NowPlaying, PlayerEnv};
 use pley_shell::{AppCx, BackgroundSession, CastTracks};
 use pley_ui::Ui;
@@ -169,11 +168,6 @@ impl MusicPlayer {
         self.session.list()
     }
 
-    /// The sleep timer.
-    pub fn sleep(&self) -> SleepState {
-        self.session.sleep()
-    }
-
     /// Changes with every change of what shows.
     pub fn version(&self) -> u64 {
         self.session.version()
@@ -211,7 +205,7 @@ impl MusicPlayer {
     pub fn status(&self) -> (String, bool) {
         let n = self.session.now_playing();
         let loading = n.is_some_and(|n| n.loading) && !self.given_way();
-        pages::status(n.and_then(|n| n.error), loading, &self.session.sleep())
+        pages::status(n.and_then(|n| n.error), loading)
     }
 
     /// Whether the track is starting: the engine hasn't played it yet.
@@ -325,11 +319,6 @@ impl MusicPlayer {
         self.session.set_shuffle(on);
     }
 
-    /// The sleep timer's next choice.
-    pub fn step_sleep(&mut self) {
-        self.session.step_sleep();
-    }
-
     /// Plays on from `at` after giving way: a new session there (the session has none then).
     fn resume(&mut self, at: i64) {
         self.resuming = true;
@@ -399,8 +388,8 @@ impl MusicPlayer {
         self.gathered = Some((ticket, outcome));
     }
 
-    /// When the session next needs to run, in ms of the app's clock: its own timers (reports,
-    /// retries, the sleep timer), the engine while a track opens, and the end of the track playing.
+    /// When the session next needs to run, in ms of the app's clock: its own timers (reports
+    /// and retries), the engine while a track opens, and the end of the track playing.
     fn next_wake(&self, now_ms: i64) -> Option<i64> {
         let own = self.session.next_wake();
         let news = self.session.now_playing().and_then(|n| {

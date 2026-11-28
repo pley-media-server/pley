@@ -3,12 +3,12 @@
      over the Video node, whose own are off: the title, how it plays and the
      clock at the top; the scrubber with its times, the chapters' gaps and
      the intro's or credits' name under it; the seek preview over it while
-     a seek is coming; the row of buttons (the sleep timer and chapters at
-     the left, previous, play or pause and next in the middle, subtitles,
-     audio, quality and info at the right), whose focused one fills with
-     the accent and says its name. With the controls hidden: the seek
-     badge ("+30 s") and the loading ring. The player keeps the remote and
-     says what has the focus (focusKey); this only draws. -->
+     a seek is coming; the row of buttons (chapters at the left, previous,
+     play or pause and next in the middle, subtitles, audio, quality and
+     info at the right), whose focused one fills with the accent and says
+     its name. With the controls hidden: the seek badge ("+30 s") and the
+     loading ring. The player keeps the remote and says what has the focus
+     (focusKey); this only draws. -->
 <component name="PlayerControls" extends="Group">
     <interface>
         <field id="title" type="string" onChange="onTop" />
@@ -26,10 +26,8 @@
         <field id="chapters" type="array" onChange="onChapters" />
         <!-- The intro and credits: [{ startMs, endMs, label }]. -->
         <field id="markers" type="array" onChange="onTrack" />
-        <!-- Whether it plays (Play/Pause shows Pause), and whether it is
-             paused, which says when it ends. -->
+        <!-- Whether it plays (Play/Pause shows Pause). -->
         <field id="playing" type="boolean" onChange="onPlaying" />
-        <field id="paused" type="boolean" onChange="onTop" />
         <!-- The row's buttons, in order: [{ id, icon, label, group }], the
              group "left", "center" or "right". -->
         <field id="buttons" type="array" onChange="onButtons" />
@@ -62,13 +60,11 @@
         <Group id="controls" opacity="0" visible="false">
             <Poster id="scrim" width="1920" height="1080" uri="pkg:/images/ui/scrim-player.png" />
             <!-- The top: the title and the episode's line at the left; how
-                 it plays and the clock at the right, when it ends under
-                 them while paused. -->
+                 it plays and the clock at the right. -->
             <Label id="title" translation="[96, 54]" width="1300" maxLines="1" color="0xE9EBEFFF" />
             <Label id="line" translation="[96, 106]" width="1300" maxLines="1" color="0xA1A9B6FF" />
             <Label id="clock" translation="[1424, 60]" width="400" horizAlign="right" color="0xA1A9B6FF" />
             <MethodBadge id="method" visible="false" />
-            <Label id="endsAt" translation="[1224, 112]" width="600" horizAlign="right" color="0xA1A9B6FF" visible="false" />
             <!-- The scrubber, x 96 to 1824, its track's center at y 850. -->
             <Label id="elapsed" translation="[96, 798]" color="0xE9EBEFFF" />
             <Label id="remaining" translation="[1324, 798]" width="500" horizAlign="right" color="0xE9EBEFFF" />

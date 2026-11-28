@@ -1,6 +1,5 @@
 package app.pley.android.player.music
 
-import android.os.SystemClock
 import app.pley.android.auth.AuthException
 import app.pley.android.model.Chapter
 import app.pley.android.model.Control
@@ -25,9 +24,6 @@ import app.pley.android.player.NowPlaying
 import app.pley.android.player.chapterIndexAt
 import app.pley.android.player.session.ServerPlaybackSession
 import app.pley.android.player.session.SessionReporter
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepState
-import app.pley.android.player.sleep.SleepTimer
 import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -53,8 +49,6 @@ class MusicEnvironment(
     val reporter: SessionReporter,
     /** Makes the output, on the main thread, when music first plays. */
     val output: () -> MusicOutput,
-    /** A monotonic clock in ms, for the sleep timer. */
-    val now: () -> Long = SystemClock::elapsedRealtime,
     /** The server's events, to hear of the track's session being stopped, and the remote's commands. */
     val events: Flow<ServerEvent> = emptyFlow(),
     /**
@@ -91,8 +85,6 @@ class MusicEnvironment(
  * - Repeat plays the queue again from its start once it ends, or the
  *   track again once it does, each time with a session of its own; a
  *   book's parts play once, in their order ([MusicQueue]);
- * - a sleep timer pauses after the minutes chosen, or at the end of the
- *   track (the next one waits, paused);
  * - a video or a channel ends the music's session ([pauseForVideo]): the
  *   queue and the place stay, and Play starts a new session there;
  * - a queue can wait without playing ([cue]): what was playing when the app
@@ -199,11 +191,6 @@ class MusicPlayback(
     private var rested = false
     private var resting: Job? = null
 
-    private val timer = SleepTimer(scope, env.now, ::trackLeftMs, { queue.current?.id }) { pause() }
-
-    /** The sleep timer. */
-    val sleep: StateFlow<SleepState> get() = timer.state
-
     init {
         scope.launch {
             env.events.collect { event ->
@@ -270,22 +257,8 @@ class MusicPlayback(
         s?.stoppedByServer(lastPosition())
         dropAhead()
         loadJob?.cancel()
-        timer.cancel()
         out?.stop()
         fail(MusicError.Stopped)
-    }
-
-    fun setSleep(choice: SleepChoice) {
-        if (queue.isEmpty && choice != SleepChoice.Off) return
-        timer.set(choice)
-        // At the end of this track, the next one waits: it isn't to play on without a gap.
-        lookAhead()
-    }
-
-    /** "Keep listening": the same time again. */
-    fun keepListening() {
-        timer.extend()
-        lookAhead()
     }
 
     /** Told when the queue is forgotten ([stop]): the service lets go of its session. */
@@ -652,8 +625,8 @@ class MusicPlayback(
      * The person leaves the TV app: music meant to play (playing, waiting
      * for data, or a track being asked for that will play) pauses as for a
      * video ([pauseForVideo]). With [playOnReturn], [returnAfterLeave] plays
-     * it on. Music paused, at its end, failed or waiting paused (the sleep
-     * timer's next track) stays as it is.
+     * it on. Music paused, at its end, failed or waiting paused stays as
+     * it is.
      */
     fun pauseForLeave(playOnReturn: Boolean) {
         if (!wantsPlay) return
@@ -680,7 +653,6 @@ class MusicPlayback(
         dropAhead()
         loadJob?.cancel()
         stopTicker()
-        timer.cancel()
         endSession()
         out?.release()
         out = null
@@ -771,7 +743,7 @@ class MusicPlayback(
             o.load(sourceOf(started, server), atMs, startPlays, trackInfo(track, server))
             held = true
             askedAtMs = null
-            // From now on, also while it waits paused (the sleep timer's next track).
+            // From now on, also while it waits paused.
             startTicker()
             publish()
         }
@@ -802,13 +774,11 @@ class MusicPlayback(
      * before this one's end (at the speed it plays), and puts it after it
      * in the output, which plays on to it without a gap ([MusicOutput.setNext]).
      * Only while this track plays, held by the output, and with a track
-     * to come; not when the sleep timer ends with this track (the next one
-     * waits), nor again for this track once the server refused it (out of
+     * to come; not again for this track once the server refused it (out of
      * its reach, it is asked again at the next report). What was asked
      * ahead is let go when the track to come changes (Shuffle, Repeat),
-     * the timer is to end with this track, or a seek takes it back more
-     * than [KEEP_AHEAD_MS] from its end: the server forgets a session it
-     * doesn't hear from.
+     * or a seek takes it back more than [KEEP_AHEAD_MS] from its end: the
+     * server forgets a session it doesn't hear from.
      */
     private fun lookAhead() {
         val o = out
@@ -816,7 +786,7 @@ class MusicPlayback(
         val next = index?.let(queue::trackAt)
         val left = timeLeftMs()
         val possible = o != null && o.takesNext && session != null && held && !starting && !ended && error == null &&
-            !yielded && waitingAt == null && next != null && !timer.endsWith(queue.current?.id)
+            !yielded && waitingAt == null && next != null
         val a = ahead
         if (a != null) {
             if (possible && a.index == index && a.trackId == next?.id && (left == null || left <= KEEP_AHEAD_MS)) return
@@ -875,13 +845,6 @@ class MusicPlayback(
 
     /** Where the queue's track is; its start while the output still holds the track before it, or where it waits ([cue]). */
     private fun lastPosition(): Long = if (held) out?.positionMs?.coerceAtLeast(0) ?: 0 else waitingAt ?: askedAtMs ?: 0
-
-    /** How long the track has left, for the sleep timer; `null` while it isn't playing. */
-    private fun trackLeftMs(): Long? {
-        if (session == null || ended || error != null) return null
-        val position = position()
-        return if (position.durationMs > 0) position.durationMs - position.positionMs else null
-    }
 
     /** Ends the current track's session at the output's position. */
     private fun endSession() {
@@ -978,7 +941,6 @@ class MusicPlayback(
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean) {
-            if (playWhenReady) timer.resumed()
             if (!playWhenReady && !ended) session?.progress(lastPosition(), ProgressState.Paused)
             publish()
         }
@@ -990,11 +952,9 @@ class MusicPlayback(
             session = null
             stopTicker()
             s?.end(s.info.durationMs.takeIf { it > 0 } ?: out?.durationMs ?: lastPosition())
-            // The sleep timer ends with this track: the next one waits, paused.
-            val sleeping = timer.itemEnded(queue.current?.id)
             // The next one, the first again when the queue repeats, or this one again when the track does.
             if (queue.advance()) {
-                startTrack(0, play = !sleeping)
+                startTrack(0)
             } else {
                 ended = true
                 playing = false
@@ -1019,12 +979,11 @@ class MusicPlayback(
             // Said to play before the track before ends, so the server lists one or the other all along.
             next?.progress(0, ProgressState.Playing)
             s?.end(s.info.durationMs.takeIf { it > 0 } ?: track?.durationMs ?: 0)
-            val sleeping = timer.itemEnded(track?.id)
             if (next == null) {
                 // Not the track to come: that one is asked for now.
                 a?.session?.discard()
                 if (queue.advance()) {
-                    startTrack(0, play = !sleeping)
+                    startTrack(0)
                 } else {
                     out?.stop()
                     ended = true
@@ -1041,11 +1000,6 @@ class MusicPlayback(
             aheadFailed = false
             askedAtMs = null
             out?.setSpeed(speedOf(queue.current))
-            // The sleep timer ended with the track before (and paused): this one waits at its start.
-            if (sleeping) {
-                out?.seekTo(0)
-                next.progress(0, ProgressState.Paused)
-            }
             publish()
             watchChapters()
             // Playing on with no change the output tells of: a track shorter than the ticker's step is asked ahead now.

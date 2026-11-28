@@ -2,13 +2,11 @@
 ' the queue with the track playing marked (Music.brs lists a long one a
 ' part at a time): OK on one plays it, and the queue goes on from there.
 ' Shuffle plays the other tracks after this one in a random order; Stop
-' shuffling puts the order back. The sleep timer's button steps through
-' its choices, and in the timer's last 30 s, while a line counts down, it
-' is Keep listening. The remote's play pauses or goes on, fast forward and
-' rewind go to the next track or back. Down goes from the buttons to Up
-' next, Up from its first track back; Up from the buttons goes to the
-' scrubber, where Left and Right move 10 s, as on Android TV. Its fields
-' are followed only while this screen shows.
+' shuffling puts the order back. The remote's play pauses or goes on, fast
+' forward and rewind go to the next track or back. Down goes from the
+' buttons to Up next, Up from its first track back; Up from the buttons
+' goes to the scrubber, where Left and Right move 10 s, as on Android TV.
+' Its fields are followed only while this screen shows.
 
 sub init()
     m.c = uiColors()
@@ -33,9 +31,7 @@ sub init()
     m.upNextTitle.font = uiType("label")
     m.watching = false
     m.labels = []
-    ' The buttons' words, and how wide each is: wide enough for either of
-    ' its words, as wide as English's at least, so the row stays still as
-    ' they change; the sleep timer's, as wide as what it says.
+    ' The buttons' names, under each round button while it has the focus.
     m.words = {
         shuffle: t("player.nowPlaying.shuffle"),
         unshuffle: t("player.nowPlaying.stopShuffling"),
@@ -53,8 +49,6 @@ sub init()
     m.part = invalid
     m.rows = CreateObject("roSGNode", "ContentNode")
     m.marked = -1
-    ' Whether the sleep timer's last 30 s were counting down.
-    m.noticing = false
     showButtons()
     m.buttons.focusIndex = 2
     m.buttons.observeField("chosen", "onButton")
@@ -66,7 +60,7 @@ sub onActive()
     music = m.global.music
     if not m.top.active
         if m.watching
-            for each field in ["track", "at", "state", "shuffled", "sleep", "positionMs", "message"]
+            for each field in ["track", "at", "state", "shuffled", "positionMs", "message"]
                 music.unobserveFieldScoped(field)
             end for
             m.watching = false
@@ -78,7 +72,6 @@ sub onActive()
         music.observeFieldScoped("at", "onAt")
         music.observeFieldScoped("state", "onMusicState")
         music.observeFieldScoped("shuffled", "showButtons")
-        music.observeFieldScoped("sleep", "onSleep")
         music.observeFieldScoped("positionMs", "onPosition")
         music.observeFieldScoped("message", "showStatus")
         m.watching = true
@@ -86,7 +79,7 @@ sub onActive()
     onTrack()
     onAt()
     onMusicState()
-    onSleep()
+    showStatus()
     onPosition()
     m.buttons.setFocus(true)
 end sub
@@ -193,10 +186,9 @@ sub onMusicState()
     showButtons()
 end sub
 
-' Shuffle (or Stop shuffling), Previous, Pause (or Play, paused), Next,
-' Stop and the sleep timer, as Android TV's Now Playing: round icons, each
-' named under it while focused; a sleep timer running is a pill saying
-' what is left.
+' Shuffle (or Stop shuffling), Previous, Pause (or Play, paused), Next
+' and Stop, as Android TV's Now Playing: round icons, each named under it
+' while focused.
 sub showButtons()
     music = m.global.music
     words = m.words
@@ -204,21 +196,16 @@ sub showButtons()
     if music.shuffled then shuffle = words.unshuffle
     toggle = words.pause
     if music.state = "paused" then toggle = words.play
-    sleep = t("player.sleep.title")
-    if music.sleep <> invalid then sleep = music.sleep.button
-    labels = [shuffle, words.previousTrack, toggle, words.nextTrack, words.stopAll, sleep]
+    labels = [shuffle, words.previousTrack, toggle, words.nextTrack, words.stopAll]
     if FormatJson(labels) = FormatJson(m.labels) then return
     m.labels = labels
     playIcon = "pause"
     if music.state = "paused" then playIcon = "play"
-    icons = ["shuffle", "skip-back", playIcon, "skip-forward", "square", "moon"]
+    icons = ["shuffle", "skip-back", playIcon, "skip-forward", "square"]
     chips = []
     for i = 0 to labels.Count() - 1
         chips.Push({ label: "", icon: icons[i], name: labels[i], width: 0 })
     end for
-    ' Running, the timer's button says more than its name (MusicPlayer's
-    ' sleep is told whether or not one runs).
-    if sleep <> t("player.sleep.title") then chips[5] = { label: sleep, icon: "moon", width: 0 }
     m.buttons.chips = chips
 end sub
 
@@ -232,35 +219,17 @@ sub onPosition()
     if duration > 0 then m.left.text = "-" + fmtClock(duration - position)
 end sub
 
-' The sleep timer: its button says what is left. Keep listening takes the
-' focus as the last 30 s begin, while the buttons have it.
-sub onSleep()
-    sleep = m.global.music.sleep
-    noticing = sleep <> invalid and sleep.secondsLeft >= 0
-    showButtons()
-    if noticing and not m.noticing and m.buttons.hasFocus() then m.buttons.focusIndex = 5
-    m.noticing = noticing
-    showStatus()
-end sub
-
-' The line under the album: "Pausing in 12 s" in the sleep timer's last
-' 30 s, else what went wrong with a track before.
+' The line under the album: what went wrong with a track before.
 sub showStatus()
-    music = m.global.music
-    if m.noticing
-        m.message.text = t("player.sleep.pausingIn", { seconds: music.sleep.secondsLeft })
-        m.message.color = m.c.muted
-    else
-        m.message.text = music.message
-        m.message.color = m.c.danger
-    end if
+    m.message.text = m.global.music.message
+    m.message.color = m.c.danger
 end sub
 
 sub onButton(event as object)
     music = m.global.music
     shuffle = "shuffle"
     if music.shuffled then shuffle = "unshuffle"
-    actions = [shuffle, "previous", "toggle", "next", "stop", "sleep"]
+    actions = [shuffle, "previous", "toggle", "next", "stop"]
     music.control = actions[event.getData()]
 end sub
 

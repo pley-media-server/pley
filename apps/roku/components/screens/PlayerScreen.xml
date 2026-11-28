@@ -4,10 +4,9 @@
      draws, the title as each item begins, Skip Intro and Skip Credits, Up
      Next before the end of an episode (and at its end), the side panels
      the controls' buttons open (Subtitles with Subtitle sync and Find
-     subtitles…, Audio, Quality, Chapters, Sleep timer, Info), the sleep
-     timer's notice, Automatic's notice of a lower quality and the user's
-     remote's of what it did, "Reconnecting…" while the server is out of
-     reach, and what went wrong when it did. -->
+     subtitles…, Audio, Quality, Chapters, Info), Automatic's notice of a
+     lower quality and the user's remote's of what it did, "Reconnecting…"
+     while the server is out of reach, and what went wrong when it did. -->
 <component name="PlayerScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -42,7 +41,6 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Details.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Media.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/SubtitleSearch.brs" />
-    <script type="text/brightscript" uri="pkg:/components/lib/Sleep.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pictures.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Seeker.brs" />
     <children>
@@ -120,14 +118,6 @@
             <Label id="noticeText" translation="[240, 450]" width="1440" horizAlign="center" wrap="true" maxLines="6" color="0xA1A9B6FF" />
             <PillButtons id="noticeButtons" dark="true" layoutDirection="horiz" itemSpacings="[24]" translation="[0, 700]" minWidth="320" buttonHeight="72" />
         </Group>
-        <!-- The sleep timer's last 30 s, at the bottom left on surface3, the
-             moon before its count: Keep watching adds the same time again. -->
-        <Group id="sleepNotice" translation="[96, 890]" visible="false">
-            <Poster id="sleepBack" width="840" height="88" uri="pkg:/images/ui/r12.9.png" blendColor="0x222731FF" />
-            <Poster translation="[40, 24]" width="40" height="40" uri="pkg:/images/ui/icon-moon-40.png" blendColor="0xA1A9B6FF" />
-            <Label id="sleepText" translation="[100, 0]" width="360" height="88" vertAlign="center" color="0xE9EBEFFF" />
-            <PillButtons id="sleepButtons" dark="true" translation="[480, 8]" minWidth="320" buttonHeight="72" />
-        </Group>
         <!-- Brief notices at the top right on surface3, as the Android TV
              player's toasts: Automatic saying it went down, and what the
              user's remote did ("Paused", "+30 s"). Under the clock while the
@@ -154,8 +144,6 @@
         <Timer id="bufferingTimer" duration="0.5" />
         <!-- Progress told while paused (Player.brs). -->
         <Timer id="pausedTimer" repeat="true" />
-        <!-- The sleep timer's look, once a second while it is set. -->
-        <Timer id="sleepTimer" duration="1" repeat="true" />
         <!-- A picture subtitle track not whole yet, asked for again. -->
         <Timer id="picturesTimer" duration="3" />
         <!-- Automatic's look at the playback, once a second while it plays. -->

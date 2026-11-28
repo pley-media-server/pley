@@ -60,25 +60,6 @@
     "originalHint": "Full quality. May buffer on a slow connection.",
     "automaticHint": "Dynamically adjust to conditions."
   },
-  "sleep": {
-    "title": "Sleep timer",
-    "titleNow": "Sleep timer: {{state}}",
-    "off": "Off",
-    "minutes": "{{minutes}} min",
-    "minutesLeft_one": "{{count}} min left",
-    "minutesLeft_other": "{{count}} min left",
-    "secondsLeft_one": "{{count}} s left",
-    "secondsLeft_other": "{{count}} s left",
-    "end": {
-      "episode": "End of this episode",
-      "movie": "End of this movie",
-      "track": "End of this track",
-      "video": "End of this video"
-    },
-    "pausingIn": "Pausing in {{seconds}} s",
-    "keepWatching": "Keep watching",
-    "keepListening": "Keep listening"
-  },
   "find": {
     "title": "Find subtitles",
     "language": "Subtitle language",
@@ -230,7 +211,6 @@
     "previous": "Previous",
     "next": "Next",
     "info": "Info",
-    "endsAt": "Ends at {{time}}",
     "remaining": "−{{time}}",
     "intro": "Intro",
     "credits": "Credits",

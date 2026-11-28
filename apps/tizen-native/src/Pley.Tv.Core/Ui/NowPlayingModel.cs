@@ -24,10 +24,10 @@ public sealed record NowPlayingState(NowPlaying? Now, IReadOnlyList<QueueRow> Qu
 /// (body large, muted), a 22 dp status line (<see cref="Status"/>), the scrubber (24 dp tall, a 4 dp
 /// track, the buffered part at 45 %, the played part in the accent, a 10 dp thumb growing to 12
 /// with a ring when focused; the times under it, "−" before what is left), then Shuffle, Previous,
-/// Play/Pause (64 dp, a 32 dp glyph, the first focus), Next and the sleep timer as round buttons
-/// 16 dp apart, then "Up next" and the queue (track lines 44 dp at least, 2 dp apart, from the
-/// track playing on). Over a faint copy of the art at 20 %. Focused, the scrubber's Left and Right
-/// seek 10 s (<see cref="SeekBy"/>) and OK plays or pauses. After two minutes without a key the
+/// Play/Pause (64 dp, a 32 dp glyph, the first focus) and Next as round buttons 16 dp apart, then
+/// "Up next" and the queue (track lines 44 dp at least, 2 dp apart, from the track playing on).
+/// Over a faint copy of the art at 20 %. Focused, the scrubber's Left and Right seek 10 s
+/// (<see cref="SeekBy"/>) and OK plays or pauses. After two minutes without a key the
 /// page dims to 30 % (<see cref="DimAfterMs"/>), and the next key wakes it. Nothing playing:
 /// "Nothing is playing", with Back.
 /// </summary>
@@ -60,9 +60,6 @@ public sealed class NowPlayingModel : IDisposable
 
     public Signal<NowPlayingState> State { get; }
 
-    /// <summary>The music's sleep timer.</summary>
-    public Signal<SleepState> Sleep => player.Sleep;
-
     /// <summary>Where the track is: read while drawing.</summary>
     public MusicPosition Position() => player.Position();
 
@@ -88,23 +85,6 @@ public sealed class NowPlayingModel : IDisposable
 
     public void SetShuffle(bool shuffle) => player.SetShuffle(shuffle);
 
-    /// <summary>The sleep button: during the notice "Keep listening", else the next choice, round the list.</summary>
-    public void StepSleep() => player.StepSleep();
-
-    /// <summary>
-    /// What the sleep button says: "Keep listening" during the notice, "Sleep timer" while off,
-    /// else "Sleep timer: 42 min left" or "Sleep timer: End of this track".
-    /// </summary>
-    public string SleepLabel
-    {
-        get
-        {
-            var s = Sleep.Value;
-            if (s.SecondsLeft != null) return SleepText.Keep(music: true);
-            return s.Set is SleepChoice.Off ? SleepText.Title : MusicText.Sleep(SleepText.Title, SleepText.Summary(s, music: true));
-        }
-    }
-
     /// <summary>Shuffle's label: "Shuffle", or "Stop shuffling" while it shuffles.</summary>
     public string ShuffleLabel => State.Value.Now?.Shuffle == true ? MusicText.ShuffleOff : MusicText.Shuffle;
 
@@ -112,8 +92,7 @@ public sealed class NowPlayingModel : IDisposable
     public bool ShowsPause => State.Value.Now is { } n && (n.Playing || (n.Loading && n.Error == null));
 
     /// <summary>
-    /// The status line: why it doesn't play (in danger text), "Loading…", or the sleep timer's
-    /// "Pausing in 30 s" (subtle); empty otherwise.
+    /// The status line: why it doesn't play (in danger text), or "Loading…"; empty otherwise.
     /// </summary>
     public string Status
     {
@@ -122,8 +101,7 @@ public sealed class NowPlayingModel : IDisposable
             var n = State.Value.Now;
             if (n == null) return "";
             if (n.Error is { } e) return MusicText.Error(e);
-            if (n.Loading) return MusicText.Loading;
-            return Sleep.Value.SecondsLeft is { } s ? SleepText.Notice(s) : "";
+            return n.Loading ? MusicText.Loading : "";
         }
     }
 

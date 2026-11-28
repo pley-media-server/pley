@@ -1,12 +1,11 @@
-//! The controller's clocks on `SimEngine`: the reports' cadence, Up Next's
-//! timing, and the sleep timer.
+//! The controller's clocks on `SimEngine`: the reports' cadence and Up Next's
+//! timing.
 
 mod common;
 
 use common::*;
 use pley_core::model::{ItemKind, ItemSummary, Marker, MarkerKind, UserState};
 use pley_player::controller::Phase;
-use pley_player::sleep::SleepChoice;
 
 /// The progress reports and session ends said so far.
 fn reports(w: &World) -> Vec<String> {
@@ -231,34 +230,4 @@ fn up_next_waits_without_a_countdown_when_autoplay_is_off_and_cancelling_it_at_t
     assert_eq!(w.fake.requests().len(), 1);
     w.c.cancel_up_next();
     assert_eq!(w.c.state().phase, Phase::Ended);
-}
-
-#[test]
-fn the_sleep_timer_pauses_after_its_minutes_with_a_notice_in_its_last_30_s() {
-    let mut w = World::new(Fake::new(item(file()), |_| info(|_| ())), |_| ());
-    w.start();
-    w.open();
-    w.c.set_sleep(SleepChoice::Minutes(15));
-    assert_eq!(w.c.state().sleep.minutes_left, Some(15));
-    w.advance(15 * 60_000 - 20_000);
-    assert_eq!(w.c.state().sleep.seconds_left, Some(20));
-    w.advance(20_000);
-    assert!(w.c.state().sleep.fired);
-    assert!(!w.c.wants_to_play());
-    assert_eq!(w.c.state().phase, Phase::Paused);
-    w.c.play();
-    assert!(!w.c.state().sleep.fired);
-}
-
-#[test]
-fn a_sleep_timer_ending_with_the_episode_holds_up_nexts_countdown() {
-    let mut w = episode();
-    w.c.set_sleep(SleepChoice::EndOfItem);
-    w.sim.end();
-    w.advance(100);
-    assert!(w.c.state().sleep.fired);
-    let card = w.c.state().up_next.clone().expect("Up Next shows");
-    assert_eq!(card.seconds_left, None);
-    w.advance(15_000);
-    assert_eq!(w.fake.requests().len(), 1);
 }

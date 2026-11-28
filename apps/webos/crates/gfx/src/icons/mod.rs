@@ -67,7 +67,6 @@ pub const ALL: &[Icon] = &[
     Icon::Lock,
     Icon::LogOut,
     Icon::Monitor,
-    Icon::Moon,
     Icon::Music,
     Icon::Palette,
     Icon::Pause,
@@ -419,7 +418,7 @@ mod tests {
         for icon in ALL {
             assert!(seen.insert(*icon), "{icon:?} twice");
         }
-        assert_eq!(ALL.len(), 100);
+        assert_eq!(ALL.len(), 99);
     }
 
     #[test]

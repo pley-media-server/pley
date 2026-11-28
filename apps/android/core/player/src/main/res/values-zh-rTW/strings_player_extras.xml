@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The sleep timer, subtitle sync and a playback stopped by the server, shared by the phone and the TV. -->
+<!-- A playback stopped by the server, Live TV's details and what a remote did, shared by the phone and the TV. -->
 <resources>
     <!-- A playback the server stopped (docs/API.md, DELETE /api/sessions/{id}). -->
     <string name="session_stopped_by_admin">播放已被伺服器管理員停止。</string>
@@ -38,21 +38,4 @@
     <string name="session_remote_subtitles">字幕：%1$s</string>
     <string name="session_remote_subtitles_off">關閉字幕</string>
     <string name="session_remote_quality">畫質：%1$s</string>
-
-    <!-- The sleep timer's choices. -->
-    <string name="sleep_timer">睡眠定時器</string>
-    <string name="sleep_off">關閉</string>
-    <string name="sleep_minutes">%1$d 分鐘</string>
-    <string name="sleep_end_of_episode">本集結束</string>
-    <string name="sleep_end_of_track">本曲目結束</string>
-    <!-- The timer running, beside its row: "42 min left". -->
-    <plurals name="sleep_minutes_left">
-        <item quantity="other">剩餘 %1$d 分鐘</item>
-    </plurals>
-    <!-- 30 s before the timer pauses. -->
-    <string name="sleep_notice">%1$d 秒後暫停</string>
-    <string name="sleep_keep_watching">繼續觀看</string>
-    <string name="sleep_keep_listening">繼續收聽</string>
-
-    <!-- Subtitle sync: moves the subtitles in time. -->
 </resources>

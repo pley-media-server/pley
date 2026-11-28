@@ -4,7 +4,6 @@
     "chapters": "章节",
     "speed": "速度",
     "speedAt": "速度 {{speed}}",
-    "sleep": "睡眠定时",
     "previous": "上一个",
     "pause": "暂停",
     "next": "下一个",
@@ -13,7 +12,6 @@
     "quality": "画质",
     "info": "信息",
     "seekValue": "{{time}} / {{duration}}",
-    "endsAt": "{{time}} 结束",
     "intro": "片头",
     "credits": "片尾"
   },
@@ -36,19 +34,6 @@
     "qualityLowered": "画质已降至 {{quality}}",
     "lastEpisode": "这是最后一集",
     "lastInQueue": "这是最后一个"
-  },
-  "sleep": {
-    "pausingIn": "{{seconds}} 秒后暂停",
-    "keepWatching": "继续观看",
-    "off": "关闭",
-    "minutes": "{{minutes}} 分钟",
-    "minutesLeft_other": "剩余 {{count}} 分钟",
-    "end": {
-      "episode": "本集结束",
-      "movie": "本片结束",
-      "track": "本曲目结束",
-      "video": "本视频结束"
-    }
   },
   "upNext": {
     "title": "接下来播放",

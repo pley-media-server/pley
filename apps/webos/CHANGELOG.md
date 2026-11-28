@@ -22,6 +22,12 @@ describes how they are made.
   with the player's controls, so they don't sit over the whole intro or
   credits and hold the remote's OK.
 
+### Removed
+
+- The player's controls no longer say "Ends at" with a time under the
+  clock while paused: the time left stays by the scrubber.
+- The sleep timer is gone, from videos and music.
+
 ### Fixed
 
 - The avatar at the top of the side menu is in the profile's own color, as

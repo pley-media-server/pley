@@ -26,7 +26,7 @@ namespace Pley.Tv.Core.Player;
 /// pictures (PGS, VobSub, DVB) from the server's .mks of them (<see cref="Picture"/>), burned in
 /// by the server only when it can't make that file. Choices are saved with PUT
 /// /api/items/{id}/streams, the audio only when picked.</item>
-/// <item><b>Markers, Up Next, the sleep timer, speed</b>, and a session the server stopped: it says
+/// <item><b>Markers, Up Next, speed</b>, and a session the server stopped: it says
 /// so and plays no more.</item>
 /// <item><b>The remote</b>, on another of the profile's devices (docs/API.md, "Remote control"):
 /// play, pause, seek and skip, next when something can come next, as Android's, and the audio,
@@ -77,7 +77,6 @@ public sealed class PlayerModel : IDisposable
     readonly IReporter reporter;
     readonly SubtitleOffsets offsets;
     readonly SubtitlePresenter presenter;
-    readonly SleepTimer sleep;
     readonly Recovery recovery = new Recovery();
     readonly StruggleMeter struggle = new StruggleMeter();
     readonly CreditsGate credits = new CreditsGate();
@@ -174,8 +173,6 @@ public sealed class PlayerModel : IDisposable
         offsets = new SubtitleOffsets(source.Storage, () => source.ProfileId);
         presenter = new SubtitlePresenter(scheduler, source.Subtitles, LivePositionMs, () => offset, () => State.Value.Speed, () => Notice(SessionText.SubtitlesFailed),
             source.PictureSubtitles, PicturesFailed, source.Local, source.PictureSubtitlesPart);
-        sleep = new SleepTimer(scheduler, ItemLeftMs, () => item?.Id, OnSleep);
-        sleep.State.Changed += s => Update(st => st with { Sleep = s });
         lastPositionMs = request.StartMs;
         Clock.Value = new PlayerClock(Math.Max(0, request.StartMs), 0, 0);
     }
@@ -847,8 +844,6 @@ public sealed class PlayerModel : IDisposable
     {
         if (ended) return;
         ended = true;
-        // The sleep timer ends with this item: what comes next waits for the person.
-        var sleeping = sleep.ItemEnded(item?.Id);
         var engineDuration = engine?.DurationMs ?? 0;
         var duration = info?.DurationMs > 0 ? info.DurationMs : engineDuration > 0 ? engineDuration : lastPositionMs;
         lastPositionMs = duration;
@@ -864,13 +859,13 @@ public sealed class PlayerModel : IDisposable
         Phase(PlayerPhase.Paused);
         if (next != null)
         {
-            ShowUpNext(next, restartCountdown: !sleeping && countdownTimer == null);
+            ShowUpNext(next, restartCountdown: countdownTimer == null);
             return;
         }
         LookUpNext(found =>
         {
             if (found == null) Phase(PlayerPhase.Ended);
-            else ShowUpNext(found, restartCountdown: !sleeping);
+            else ShowUpNext(found, restartCountdown: true);
         });
     }
 
@@ -1013,23 +1008,6 @@ public sealed class PlayerModel : IDisposable
     /// <summary>The Quality menu's pick, by id ("auto", "original", "8m"…), which reports say for the remote; none for a file on a drive, which has no menu.</summary>
     string? PickedQuality() => source.Local ? null : picked.Id;
 
-    /// <summary>How long the item playing has left, for the sleep timer; null while unknown.</summary>
-    long? ItemLeftMs()
-    {
-        if (info == null || !mediaShown || ended) return null;
-        var duration = Clock.Value.DurationMs;
-        return duration > 0 ? duration - LivePositionMs() : null;
-    }
-
-    /// <summary>The sleep timer ended: it pauses, and what plays next doesn't start by itself.</summary>
-    void OnSleep()
-    {
-        StopCountdown();
-        if (State.Value.UpNext is { } card) Update(s => s with { UpNext = card with { SecondsLeft = null } });
-        engine?.Pause();
-        SetWantPlay(false);
-    }
-
     /// <summary>
     /// The server ended the session: the engine stops, nothing more is asked of the server (only
     /// "stopped", for the resume point), and the screen says why, without Try again, then leaves.
@@ -1057,7 +1035,6 @@ public sealed class PlayerModel : IDisposable
         nextLookup++;
         HideUpNext();
         presenter.Hide();
-        sleep.Cancel();
         engine?.Stop();
         Update(st => st with { Phase = PlayerPhase.Error(SessionText.Stopped(message, byAdmin), canRetry: false, PlayerText.StoppedTitle), SkipLabel = null, StoppedByServer = true });
     }
@@ -1208,7 +1185,6 @@ public sealed class PlayerModel : IDisposable
     {
         var was = wantPlay;
         wantPlay = play;
-        if (play) sleep.Resumed();
         // Playing again, whoever asked, ends the remote's pause.
         if (play && State.Value.PausedByRemote) Update(s => s with { PausedByRemote = false });
         if (info == null || was == play) return;
@@ -1347,21 +1323,6 @@ public sealed class PlayerModel : IDisposable
         if (e.SetSpeed(rate)) Update(s => s with { Speed = rate });
     }
 
-    public void SetSleep(SleepChoice choice)
-    {
-        if (closed || stopped) return;
-        sleep.Set(choice);
-    }
-
-    /// <summary>The sleep timer's notice: Keep watching adds the same time again.</summary>
-    public void KeepWatching()
-    {
-        if (closed || stopped) return;
-        sleep.Extend();
-        // What plays next was held for the timer: its countdown goes on.
-        if (next != null && State.Value.UpNext != null && countdownTimer == null && !ended) ShowUpNext(next, restartCountdown: true);
-    }
-
     /// <summary>
     /// A quality picked in the panel ("original", "auto", "8m"…), kept for the next titles. The
     /// session starts again only when it plays something else: Original and Automatic play the same.
@@ -1409,9 +1370,6 @@ public sealed class PlayerModel : IDisposable
                 return false;
             case PlayerRowAction.Chapter c:
                 SeekTo(c.StartMs);
-                return false;
-            case PlayerRowAction.Sleep s:
-                SetSleep(s.Choice);
                 return false;
             case PlayerRowAction.Speed s:
                 SetSpeed(s.Rate);
@@ -1596,7 +1554,6 @@ public sealed class PlayerModel : IDisposable
         NextGeneration();
         EndOutage();
         EndSession(position);
-        sleep.Cancel();
         presenter.Hide();
         StopCountdown();
         foreach (var t in new[] { tickTimer, seekReportTimer, detailsTimer, trickplayTimer, progressTimer }) t?.Dispose();
@@ -1666,7 +1623,7 @@ public sealed class PlayerModel : IDisposable
         Update(s => s with { UpNext = card });
         if (!restartCountdown) return;
         StopCountdown();
-        if (!source.Settings.AutoplayNext || sleep.EndsWith(item?.Id)) return;
+        if (!source.Settings.AutoplayNext) return;
         Countdown(found, NextUp.CountdownSeconds);
     }
 
@@ -1725,7 +1682,7 @@ public sealed class PlayerModel : IDisposable
         if (State.Value.Speed != 1) engine?.SetSpeed(1);
         var was = State.Value;
         // The next title starts paused when this one is: the remote's pause stays the remote's.
-        State.Value = new PlayerState { ItemId = target.Id, Title = was.Title, Sleep = was.Sleep, Speeds = was.Speeds, PausedByRemote = was.PausedByRemote };
+        State.Value = new PlayerState { ItemId = target.Id, Title = was.Title, Speeds = was.Speeds, PausedByRemote = was.PausedByRemote };
         SetClock(positionMs: request.StartMs, bufferedMs: 0);
         var at = NextGeneration();
         var prefetched = nextDetail?.Id == target.Id ? nextDetail : null;

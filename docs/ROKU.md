@@ -286,7 +286,7 @@ a random order. As on the other TVs, an album's page also has Go to
 artist, and Now playing while music plays.
 
 Now Playing shows the track, its cover and how far along it is, Shuffle,
-Previous, Pause, Next, Stop and the sleep timer, and Up next: the queue,
+Previous, Pause, Next and Stop, and Up next: the queue,
 numbered, the track playing in bold, which stays in view unless the
 focus is on the list. OK on one plays it, and the queue goes on from
 there. Up from the buttons goes to the scrubber, where Left and Right move
@@ -297,15 +297,6 @@ one: each row is a node the Roku draws, and a playlist holds up to
 order; Stop shuffling puts them back in the album's or playlist's order,
 at the same track. Play pauses or goes on; fast forward and rewind go to the next
 track or back.
-
-The sleep timer belongs to the music, not to Now Playing: it runs while
-other screens show. Each OK on its button steps Off, 15, 30, 45, 60 and 90
-min, End of this track, and the button says what is left ("Sleep timer:
-23 min left"). In its last 30 s Now Playing says "Pausing in 12 s" and the
-button is Keep listening, which adds the same time again (or lets this
-track play to its end). Then the music pauses until Play, as on the other
-apps; at the end of a track, the next one waits, paused. Stop, or the
-queue's end, turns the timer off.
 
 ### The player
 
@@ -364,14 +355,14 @@ The controls are Pley's own, as the Android TV player's
 (`components/shared/PlayerControls`); the Video node's are off
 (`enableUI`). They draw in the Video node, as Roku's own do. At the top,
 the title (a show's name over "S1 E2 · Pilot"), how it plays ("Direct
-play", "Direct stream", "Transcoding"), the clock and, while paused, when
-it ends; at the bottom the scrubber, the time played and the time left,
+play", "Direct stream", "Transcoding") and the clock; at the bottom the
+scrubber, the time played and the time left,
 the chapters as gaps in it and "Intro" or "Credits" under the marker
-playing, then a row of buttons: Chapters (for a file with two or more) and
-Sleep timer at the left, Previous, Play/Pause and Next in the middle
-(Previous and Next for an episode, a queue or chapters), Subtitles, Audio
-(where the file has tracks), Quality and Info at the right. The focused
-button fills with the accent and says its name.
+playing, then a row of buttons: Chapters (for a file with two or more) at
+the left, Previous, Play/Pause and Next in the middle (Previous and Next
+for an episode, a queue or chapters), Subtitles, Audio (where the file has
+tracks), Quality and Info at the right. The focused button fills with the
+accent and says its name.
 
 - **Showing them:** OK, Up, Left or Right bring them up on the scrubber,
   Down on Play/Pause; the person's pause brings them up too. They hide 5 s
@@ -397,19 +388,11 @@ button fills with the accent and says its name.
   the server is still making them, the time shows alone.
 - **The panels** each button opens slide in at the right, as on Android
   TV: Subtitles (every track, then Subtitle sync and Find subtitles…),
-  Audio, Quality (each with what it means under it), Chapters, Sleep timer
-  and Info (the playback's details). The choice made is checked; choosing
-  closes the panel, and Back does too, the controls coming back on the
-  button.
+  Audio, Quality (each with what it means under it), Chapters and Info
+  (the playback's details). The choice made is checked; choosing closes
+  the panel, and Back does too, the controls coming back on the button.
 - **Waiting** shows a turning ring half a second in, "Reconnecting…" under
   it while the server is out of reach.
-
-The sleep timer (its button) pauses after 15 to 90 minutes
-or at the end of what plays, as on the other apps. In its last
-30 s it says "Pausing in 12 s" with Keep watching, which adds the same time
-again (or lets this title play to its end). Paused by it for 10 minutes,
-the player leaves; it isn't kept from one time the player opens to the
-next.
 
 ### Audio and subtitles
 
@@ -1110,9 +1093,8 @@ bun run themes    # components/lib/ThemeTable.brs from packages/themes/themes.js
   of shows, opens a Home row of two libraries' collections together and
   one library's from it, plays an artist's tracks, makes a playlist,
   plays a track from Now Playing's Up next, shuffles the queue and puts
-  its order back, steps the music's sleep timer through its choices,
-  plays a track from under an album's "Disc 2", opens the See all of
-  Search's Discover row,
+  its order back, plays a track from under an album's "Disc 2", opens
+  the See all of Search's Discover row,
   asks for a movie and three seasons from Discover, approves a request,
   opens a title from its ready-to-watch card on Home (which waited while
   the requests showed), picks Twilight and Gold in Settings → Appearance
@@ -1127,7 +1109,7 @@ bun run themes    # components/lib/ThemeTable.brs from packages/themes/themes.js
   music's don't.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next and its wait at the end, the title as an item begins, reconnecting,
-  stalls, media that ends short, the sleep timers' ends, picture
+  stalls, media that ends short, picture
   subtitles shown in time and the remote's commands, which a player obeys
   only once it plays, have only unit tests), sockets that connect but send
   nothing (the event stream, and the casts it brings, have only unit

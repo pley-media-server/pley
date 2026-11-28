@@ -37,6 +37,10 @@ describes how they are made.
   up, rather than encoded on the CPU, which fell far behind. Settings →
   Transcoder says so; downloads still keep HDR.
 
+### Removed
+
+- The web app no longer has a sleep timer, for videos or audiobooks.
+
 ### Fixed
 
 - Rockchip in Docker decodes HEVC, VP9 and AV1 on the chip, and encodes

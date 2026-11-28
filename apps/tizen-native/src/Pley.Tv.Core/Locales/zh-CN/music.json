@@ -32,8 +32,7 @@
     "position": "曲目进度",
     "loading": "加载中…",
     "nothingTitle": "没有正在播放的内容",
-    "nothingBody": "播放专辑或艺人后，就会显示在这里。",
-    "sleep": "{{timer}}：{{left}}"
+    "nothingBody": "播放专辑或艺人后，就会显示在这里。"
   },
   "errors": {
     "offline": "无法连接服务器。",
