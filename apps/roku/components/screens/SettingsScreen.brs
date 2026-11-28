@@ -175,23 +175,34 @@ sub onMe(event as object)
     end if
 end sub
 
-' Profile's head: the profile's picture, or its initial on its color, its
-' name, and the server's address (or that it can't be reached).
+' Profile's head: the profile's picture, or its initial on its color
+' (Avatar.brs), its name, and the server's address (or that it can't be
+' reached).
 sub showHeader()
     session = m.global.session
     m.addressLabel.text = urlDisplayAddress(session.server)
     if m.profileUnreachable then m.addressLabel.text = t("settings.unreachable")
-    if m.me = invalid
-        m.nameLabel.text = "…"
-        return
+    if m.me <> invalid
+        m.nameLabel.text = httpSentence(m.me.name)
+        avatar = avatarOf(m.me)
+        picture = m.me.avatar_url
+    else
+        ' Until the server answers, or when it can't be reached, the
+        ' profile as the app signed in heard it (the rail's), so the circle
+        ' is never the theme's.
+        avatar = session.profileAvatar
+        if avatar = invalid or avatar.initial = invalid
+            m.nameLabel.text = "…"
+            return
+        end if
+        m.nameLabel.text = session.profileName
+        picture = avatar.picture
     end if
-    name = httpSentence(m.me.name)
-    m.nameLabel.text = name
-    m.initial.text = UCase(Left(name, 1))
-    face = profColor(m.me.avatar_color)
-    if face = "" then face = m.c.surface3
-    m.face.blendColor = face
-    m.picture.uri = urlImage(session.server, m.me.avatar_url, 96)
+    m.initial.text = avatar.initial
+    m.initial.font = uiFontFor(avatar.initial, "bold", 44)
+    m.initial.color = avatar.ink
+    m.face.blendColor = avatar.color
+    m.picture.uri = urlImage(session.server, picture, 96)
 end sub
 
 ' The profile as the server has it (GET /api/auth/me, or the answer to a

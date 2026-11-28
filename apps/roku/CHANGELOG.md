@@ -15,6 +15,9 @@ describes how they are made.
 
 ### Changed
 
+- The profile's avatar on the rail, in Settings and in "Who's watching?" is
+  its picture, or its initial on its own color, the same color as on the
+  other apps, whatever the theme.
 - Up Next's card shows the next title's name without its picture, so it
   covers less of the credits.
 - Skip Intro and Skip Credits show on their own for 8 seconds, then only

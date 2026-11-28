@@ -35,6 +35,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Auth.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Avatar.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <children>
         <Label id="title" translation="[192, 56]" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />

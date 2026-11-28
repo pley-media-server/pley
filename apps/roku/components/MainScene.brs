@@ -1320,13 +1320,18 @@ function railRoutes() as object
 end function
 
 ' The rail's entries, as Home's menu was (Home.brs's homeMenu): the
-' profile first, its initial in a circle, then each entry with its icon.
+' profile first, its avatar (its picture, or its initial on its color),
+' then each entry with its icon.
 sub buildRail()
     discover = reqShowsDiscover(reqSummaryOf(m.top.requestSummary))
     libraries = httpArray(m.top.railLibraries)
     entries = homeMenu(libraries, m.top.railLive, discover, m.global.music.state <> "stopped")
-    name = m.global.session.profileName
-    if name <> invalid and name <> "" then entries.Unshift({ title: name, action: "profiles", initial: UCase(Left(name, 1)) })
+    session = m.global.session
+    name = session.profileName
+    avatar = session.profileAvatar
+    if name <> invalid and name <> "" and avatar <> invalid and avatar.initial <> invalid
+        entries.Unshift({ title: name, action: "profiles", initial: avatar.initial, color: avatar.color, ink: avatar.ink, image: urlImage(session.server, avatar.picture, 56) })
+    end if
     for each entry in entries
         entry.icon = homeMenuIcon(entry)
     end for

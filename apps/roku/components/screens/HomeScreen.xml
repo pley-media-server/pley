@@ -34,6 +34,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Avatar.brs" />
     <children>
         <!-- The backdrop, over the whole screen as on Android TV: the hero's,
              or that of the title focus rests on in the rows, under the

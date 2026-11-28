@@ -3,8 +3,9 @@
 ' do: on a server whose household has more than one profile, for a
 ' sign-in allowed to switch them.
 
-' The profiles as tiles: [{ title, subtitle, image, color, initial, itemId,
-' needs, current }]. needs: what switching to it takes ("none", "pin",
+' The profiles as tiles: [{ title, subtitle, image, color, ink, initial,
+' itemId, needs, current }], color, ink and initial its avatar's
+' (Avatar.brs). needs: what switching to it takes ("none", "pin",
 ' "password", "locked"). me (profMe), when known, says which is current:
 ' the server says switching to that one needs nothing, and it shows "PIN"
 ' when it has one, which a start asks.
@@ -15,12 +16,14 @@ function profTiles(profiles as dynamic, server as string, me = invalid as dynami
             name = httpSentence(profile.name)
             needs = httpString(profile.needs)
             if needs = "" then needs = "none"
+            avatar = avatarOf(profile)
             tiles.Push({
                 title: name,
                 subtitle: profNeedsLabel(needs),
                 image: urlImage(server, profile.avatar_url, 220),
-                color: profColor(profile.avatar_color),
-                initial: UCase(Left(name, 1)),
+                color: avatar.color,
+                ink: avatar.ink,
+                initial: avatar.initial,
                 itemId: httpNumber(profile.id, 0),
                 needs: needs,
                 current: httpTrue(profile.current)
@@ -83,15 +86,6 @@ function profNeedsLabel(needs as string) as string
     if needs = "password" then return t("signin.profiles.needs.password")
     if needs = "locked" then return t("signin.profiles.needs.locked")
     return ""
-end function
-
-' A profile's color ("#38bdf8") as Roku writes colors; "" without one,
-' for the screen to draw the theme's surface.
-function profColor(hex as dynamic) as string
-    text = httpString(hex)
-    re = CreateObject("roRegex", "^#[0-9a-fA-F]{6}$", "")
-    if not re.IsMatch(text) then return ""
-    return "0x" + UCase(Mid(text, 2)) + "FF"
 end function
 
 ' What "Who's watching?" the app shows as it starts, as on the other TVs:

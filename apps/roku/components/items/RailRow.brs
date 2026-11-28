@@ -9,6 +9,8 @@ sub init()
     m.count = m.top.findNode("count")
     m.avatar = m.top.findNode("avatar")
     m.initial = m.top.findNode("initial")
+    m.frame = m.top.findNode("frame")
+    m.picture = m.top.findNode("picture")
     m.current = false
     m.danger = false
 end sub
@@ -17,9 +19,23 @@ sub onContent()
     entry = m.top.itemContent
     if entry = invalid then return
     m.name.text = entry.title
-    ' The profile: its initial in a circle, where the others have an icon.
+    ' The profile: its avatar, where the others have an icon; its picture
+    ' over its initial on its color, which shows while the picture loads,
+    ' or when it fails, in the profile's colors whatever the theme.
     initial = ""
     if entry.hasField("initial") then initial = entry.initial
+    picture = ""
+    if initial <> ""
+        m.avatar.blendColor = entry.color
+        m.initial.color = entry.ink
+        picture = entry.image
+    end if
+    if picture <> m.picture.uri
+        ' The scene's agent carries the token, which the picture needs.
+        if picture <> "" then m.picture.setHttpAgent(m.top.getScene().getHttpAgent())
+        m.picture.uri = picture
+    end if
+    m.frame.visible = picture <> ""
     ' Set with each entry, so a language that changed the family of type
     ' (the rail's entries come again in it) shows in its fonts; a library's
     ' or a profile's name in Chinese has a font with its characters.
@@ -63,6 +79,7 @@ sub onHeight()
     m.icon.translation = [52, (h - 40) / 2]
     m.avatar.translation = [44, (h - 56) / 2]
     m.initial.translation = [44, (h - 56) / 2]
+    m.frame.translation = [44, (h - 56) / 2]
     onWidth()
 end sub
 

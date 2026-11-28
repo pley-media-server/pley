@@ -15,8 +15,10 @@ end sub
 sub onContent()
     profile = m.top.itemContent
     if profile = invalid then return
+    ' The profile's own colors (Avatar.brs), whatever the theme.
     m.face.blendColor = profile.color
-    if profile.color = "" then m.face.blendColor = m.c.surface3
+    m.initial.color = profile.ink
+    m.initial.font = uiFontFor(profile.initial, "bold", 56)
     m.initial.text = profile.initial
     m.name.text = profile.title
     m.needs.text = profile.subtitle

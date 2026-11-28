@@ -48,9 +48,10 @@ password is signed in to with a code, choosing it in the browser.
 ### Home
 
 The rail, at the left of Home and every page browsed from it, is the
-Android TV app's: the profile's initial (OK switches profiles), then
-Search, Home, Discover and the requests (where the server has them), Live
-TV, the libraries, Playlists, Collections (every library's collections, a
+Android TV app's: the profile's avatar, its picture or its initial on its
+color as every app draws it ([Profile colors](THEMES.md#profile-colors);
+OK switches profiles), then Search, Home, Discover and the requests
+(where the server has them), Live TV, the libraries, Playlists, Collections (every library's collections, a
 row each), Now Playing while music plays, and Settings, each with its icon
 (a library's by its kind). Every entry is in view, Settings at the
 foot: up to eleven 80 px tall, thirteen at 72 and fourteen at 64, past
