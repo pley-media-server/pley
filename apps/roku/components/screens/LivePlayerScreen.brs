@@ -62,6 +62,8 @@ sub init()
     m.stallTimer.observeField("fire", "onStall")
     m.details = m.top.findNode("details")
     m.detailsFacts = m.top.findNode("detailsFacts")
+    ' The picture dimmed behind the details, in the player's shade.
+    m.top.findNode("detailsScrim").color = themeShade(uiPlayerColors(), 0.5)
     m.detailsSlide = m.top.findNode("detailsSlide")
     m.detailsTimer = m.top.findNode("detailsTimer")
     m.detailsTimer.observeField("fire", "onDetailsTick")
@@ -77,11 +79,17 @@ sub init()
     m.stalling = false
     for each spinner in [m.waiting, m.tuning]
         spinner.poster.uri = "pkg:/images/spinner.png"
+        spinner.poster.blendColor = uiPlayerColors().accent
         spinner.poster.width = 64
         spinner.poster.height = 64
     end for
-    ' The Live chip: the badge's word, in capitals.
-    m.top.findNode("liveMark").text = UCase(t("livetv.program.live"))
+    ' The Live chip: the badge's word, in capitals, in the words' color on
+    ' the danger fill, as every app draws it.
+    playerColors = uiPlayerColors()
+    m.top.findNode("liveChip").color = playerColors.danger
+    liveMark = m.top.findNode("liveMark")
+    liveMark.color = playerColors.dangerFg
+    liveMark.text = UCase(t("livetv.program.live"))
     m.twelve = fmtTwelveHour()
     m.started = false
     ' The channel shown (Live.brs's liveChannel), and the one up and down
@@ -453,7 +461,12 @@ sub buildCategories(keep as boolean)
         if m.railEntries[i].kind <> "heading" and m.railEntries[i].key = wanted then at = i
     end for
     m.railFocused = at
-    m.categoryList.content = nodesContent(liveRailItems(m.railEntries, m.open, m.listCategory))
+    ' In the player's colors (LiveRailItem's dark).
+    items = liveRailItems(m.railEntries, m.open, m.listCategory)
+    for each item in items
+        item.dark = true
+    end for
+    m.categoryList.content = nodesContent(items)
     m.categoryList.jumpToItem = at
 end sub
 

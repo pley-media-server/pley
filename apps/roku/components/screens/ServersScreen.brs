@@ -1,4 +1,5 @@
 sub init()
+    m.c = uiColors()
     m.title = m.top.findNode("title")
     m.list = m.top.findNode("list")
     m.actions = m.top.findNode("actions")
@@ -143,9 +144,9 @@ sub showStatus()
     if words.key <> "" then text = t(words.key, words.values)
     m.status.text = text
     if words.problem
-        m.status.color = uiColors().danger
+        m.status.color = m.c.danger
     else
-        m.status.color = uiColors().muted
+        m.status.color = m.c.muted
     end if
 end sub
 

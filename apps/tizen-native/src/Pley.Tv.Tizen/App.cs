@@ -46,6 +46,8 @@ class App : NUIApplication
     ContextScheduler ui = null!;
     /// <summary>The language what shows was drawn in: another redraws it (<see cref="Redraw"/>).</summary>
     string? drawnIn;
+    /// <summary>The theme and accent what shows was drawn in: another pick redraws it (<see cref="Redraw"/>).</summary>
+    ThemePick? drawnTheme;
     /// <summary>The screen of its own that shows while the pages don't: the servers, signing in, Who's watching?.</summary>
     PageKey? shown;
     /// <summary>The code signing in is about, for the link screen to be drawn again with it.</summary>
@@ -79,6 +81,9 @@ class App : NUIApplication
         Core.Auth.ServerProofs.FollowNetworks();
         state = new AppState(Platform.Of());
         Profile.Took("app state", made);
+        // The saved profile's theme, before the first page; Midnight while it isn't known.
+        PleyColors.Use(state.Theme.Value);
+        window.BackgroundColor = PleyColors.Bg;
         globe = new LanguageGlobe(state);
         // The language last shown, before the first page; the account's or the server's follows when it is another.
         ApplyLanguage(state.Language.Value);
@@ -94,6 +99,14 @@ class App : NUIApplication
                 UseCulture();
                 Redraw();
             });
+        };
+        // A theme or accent picked (Settings, Appearance), or another profile's pick: every color from
+        // here is its, and what shows is drawn again in it once what changed it has run its course.
+        state.Theme.Changed += pick =>
+        {
+            PleyColors.Use(pick);
+            if (player != null) PleyColors.OverVideo(true);
+            ui.Post(Redraw);
         };
         // Pictures come through the API in use, with its token.
         state.Api.Watch(api => images.Api = api);
@@ -193,8 +206,9 @@ class App : NUIApplication
     }
 
     /// <summary>
-    /// What shows, again in the language shown and where it was: the pages with their back stack
-    /// (Settings on its row), the servers (with the address being typed over them), or the code being
+    /// What shows, again in the language shown, or in the theme picked, and where it was: the pages
+    /// with their back stack (Settings on its row, Appearance on the pick), the servers (with the
+    /// address being typed over them), or the code being
     /// signed in with; after the globe, with the globe focused. A player keeps its
     /// words until it closes, and the pages under it are drawn again then. Signing in once the code
     /// is approved, and Who's watching?, keep theirs for the moment before the next page, which
@@ -202,10 +216,21 @@ class App : NUIApplication
     /// </summary>
     void Redraw()
     {
-        if (drawnIn == Strings.Language || player != null) return;
+        if ((drawnIn == Strings.Language && drawnTheme == state.Theme.Value) || player != null) return;
         if (pages is { } tv)
         {
-            ShowHome(tv.Keys, (tv.Top as SettingsScreen)?.Spot);
+            var settings = (tv.Top as SettingsScreen)?.Spot;
+            var appearance = (tv.Top as AppearanceScreen)?.Spot;
+            // Settings under the page opened from it (Appearance): back there, focus is on the row that opened it.
+            var under = tv.Pages.OfType<SettingsScreen>().FirstOrDefault(p => p != tv.Top)?.Under;
+            // Another theme alone changes no words: what the server sent stays as it is.
+            ShowHome(tv.Keys, again =>
+            {
+                foreach (var page in again.Pages)
+                    if (page != again.Top && under is { } spot && page is SettingsScreen s) s.Remember(spot);
+                if (settings is { } at && again.Top is SettingsScreen top) top.Return(at);
+                if (appearance is { } picked && again.Top is AppearanceScreen a) a.Return(picked);
+            }, load: drawnIn != Strings.Language);
             return;
         }
         switch (shown)
@@ -227,6 +252,7 @@ class App : NUIApplication
     {
         shown = key;
         drawnIn = Strings.Language;
+        drawnTheme = state.Theme.Value;
     }
 
     protected override void OnTerminate()
@@ -292,6 +318,9 @@ class App : NUIApplication
     /// <summary>Shows the page for <paramref name="key"/>, in place of what is on screen.</summary>
     void Go(PageKey key)
     {
+        // Outside a profile (the servers, signing in, Who's watching?) the app is in Midnight; its pages
+        // in the profile's own pick. Set before the screen is made, which draws in it.
+        state.ShowingOutside(key.OutsideProfile);
         switch (key)
         {
             case PageKey.Servers:
@@ -343,14 +372,17 @@ class App : NUIApplication
 
     /// <summary>
     /// Home, with the rail; what was saved shows at once, and the server is asked for the rest.
-    /// <paramref name="reopen"/>: the pages to show again in their order (another language), and
-    /// Settings back at <paramref name="spot"/>.
+    /// <paramref name="reopen"/>: the pages to show again in their order (another language or
+    /// theme), and <paramref name="land"/> puts focus back where it was on them. Without
+    /// <paramref name="load"/> (another theme), nothing is asked of the server again.
     /// </summary>
-    void ShowHome(IReadOnlyList<PageKey>? reopen = null, (SettingsCategory, string?)? spot = null)
+    void ShowHome(IReadOnlyList<PageKey>? reopen = null, Action<TvShell>? land = null, bool load = true)
     {
+        // Inside the profile: its own pick, as soon as who is watching is known.
+        state.ShowingOutside(false);
         var made = Profile.Start();
         TvShell? tv = null;
-        tv = new TvShell(state,
+        tv = new TvShell(state, images,
             item =>
             {
                 if (item.Slot == RailSlot.Home) tv!.Restart(Home(tv));
@@ -378,6 +410,7 @@ class App : NUIApplication
             PageKey.Playlists => new PlaylistsScreen(tv, new PlaylistsModel(new AppPlaylistSource(state), new ContextScheduler()), images, gate, k => Go(tv, k)),
             PageKey.Playlist playlist => new PlaylistScreen(tv, shell, new PlaylistModel(new AppPlaylistSource(state), playlist.PlaylistId, new ContextScheduler()), images, gate, k => Go(tv, k)),
             AddToPlaylistPage add => new AddToPlaylistScreen(tv, shell, new AddToPlaylistModel(new AppPlaylistSource(state), add, new ContextScheduler()), add, images),
+            AppearancePage appearance => new AppearanceScreen(tv, state, appearance.Accents),
             NewPlaylistPage or SaveSmartPlaylistPage => new NewPlaylistScreen(tv, shell, new NewPlaylistModel(new AppPlaylistSource(state), NewPlaylistMode.Of(key)!, new ContextScheduler()), key),
             PageKey.Settings => new SettingsScreen(tv, shell, Settings(), images, k => Go(tv, k), k => Restart(tv, k)),
             // What the TV reports when it asks to play, Settings' passthrough choices with it.
@@ -404,7 +437,7 @@ class App : NUIApplication
             liveEntry = new LiveTvEntry(live, new ContextScheduler());
             liveEntry.Channels.Watch(n => state.TakesLive(n > 0));
         }
-        else liveEntry.Refresh();
+        else if (load) liveEntry.Refresh();
         tv.Follow(liveEntry);
         // Now Playing in the rail while music has a queue.
         tv.Follow(music.Now);
@@ -427,12 +460,14 @@ class App : NUIApplication
         shell.Show(tv);
         shown = null;
         drawnIn = Strings.Language;
+        drawnTheme = state.Theme.Value;
         var homeShown = Profile.Start();
         var root = reopen is { Count: > 0 } && reopen[0] is not PageKey.Home ? tv.PageOf?.Invoke(reopen[0]) : null;
         tv.Restart(root ?? Home(tv));
         Profile.Took("Home shown", homeShown);
         foreach (var key in reopen?.Skip(1) ?? Enumerable.Empty<PageKey>()) tv.Open(key);
-        if (spot is { } at && tv.Top is SettingsScreen settings) settings.Return(at);
+        land?.Invoke(tv);
+        if (!load) return;
         // Requests are followed from just after the first frame: reading them starts their events, catching up and polling.
         // Home again (a sign-in, a profile chosen), their summary is read again.
         requests.Start();
@@ -459,6 +494,8 @@ class App : NUIApplication
         music.YieldToVideo();
         var opened = Profile.Start();
         state.HoldRefresh(true);
+        // Drawn in its dark twin's colors in a light theme, until it goes.
+        PleyColors.OverVideo(true);
         PlayerScreen? screen = null;
         screen = new PlayerScreen(shell, state, request, state.Reporter, images, gate, () =>
         {
@@ -478,6 +515,7 @@ class App : NUIApplication
     {
         // A channel takes the TV's one media pipeline: the music lets go of it first.
         music.YieldToVideo();
+        PleyColors.OverVideo(true);
         LivePlayerScreen? screen = null;
         screen = new LivePlayerScreen(shell, live, watch, images, gate, () =>
         {
@@ -493,8 +531,11 @@ class App : NUIApplication
     {
         if (player != sheet) return;
         player = null;
+        // The pages' colors again, under the player as it goes.
+        PleyColors.OverVideo(false);
+        if (!shell.Covered) Window.Instance.BackgroundColor = PleyColors.Bg;
         // The language changed while it played: the pages under it in the new one.
-        if (drawnIn != Strings.Language) ui.Post(Redraw);
+        if (drawnIn != Strings.Language || drawnTheme != state.Theme.Value) ui.Post(Redraw);
         var then = afterPlayer;
         afterPlayer = null;
         then?.Invoke();

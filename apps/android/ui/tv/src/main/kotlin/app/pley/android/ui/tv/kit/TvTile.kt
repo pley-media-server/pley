@@ -29,6 +29,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -170,6 +171,8 @@ fun TvTileFrame(
     look.reduced = reduced
     look.tier = tier
     val presses = remember(look) { TilePresses(look) }
+    val ringColor = PleyColors.AccentBright
+    val markColor = PleyColors.Fg
     // The whole tile on a layer of its own: a row or grid scrolling moves its
     // recorded drawing instead of drawing its caption and well again in every
     // frame (on a Google TV Streamer, a held Down through a library re-drew
@@ -194,8 +197,8 @@ fun TvTileFrame(
                     onDrawWithContent {
                         drawContent()
                         // The current tile's ring gives way to the focus ring as it comes in.
-                        if (mark != null) drawCurrentRing(kind, 1f - look.shown(), look.scale(), mark)
-                        drawFocusRing(kind, look.shown(), look.scale(), ring)
+                        if (mark != null) drawCurrentRing(kind, 1f - look.shown(), look.scale(), mark, markColor)
+                        drawFocusRing(kind, look.shown(), look.scale(), ring, ringColor)
                     }
                 }
                 .graphicsLayer {
@@ -321,14 +324,14 @@ private fun Modifier.focusedOnTop(look: TileFocusLook): Modifier = layout { meas
  * 4.5 dp outside the scaled edge. It is drawn outside the well's layer, so
  * its width stays the same as the well grows, and nothing is made per frame.
  */
-internal fun DrawScope.drawFocusRing(kind: TileKind, alpha: Float, scale: Float, stroke: Stroke) {
+internal fun DrawScope.drawFocusRing(kind: TileKind, alpha: Float, scale: Float, stroke: Stroke, color: Color) {
     if (alpha <= 0f) return
     val offset = PleyFocus.RingOffset.toPx()
     val width = size.width * scale
     val height = size.height * scale
     val radius = if (kind.round) minOf(width, height) / 2f + offset else PleyShape.TileTvRadius.toPx() * scale + offset
     drawRoundRect(
-        color = PleyColors.AccentBright,
+        color = color,
         topLeft = Offset((size.width - width) / 2f - offset, (size.height - height) / 2f - offset),
         size = Size(width + 2 * offset, height + 2 * offset),
         cornerRadius = CornerRadius(radius, radius),
@@ -343,14 +346,14 @@ internal fun DrawScope.drawFocusRing(kind: TileKind, alpha: Float, scale: Float,
  * edge on the well's, so it frames the picture where the focus ring
  * stands off it.
  */
-internal fun DrawScope.drawCurrentRing(kind: TileKind, alpha: Float, scale: Float, stroke: Stroke) {
+internal fun DrawScope.drawCurrentRing(kind: TileKind, alpha: Float, scale: Float, stroke: Stroke, color: Color) {
     if (alpha <= 0f) return
     val offset = stroke.width / 2f
     val width = size.width * scale
     val height = size.height * scale
     val radius = if (kind.round) minOf(width, height) / 2f + offset else PleyShape.TileTvRadius.toPx() * scale + offset
     drawRoundRect(
-        color = PleyColors.Fg,
+        color = color,
         topLeft = Offset((size.width - width) / 2f - offset, (size.height - height) / 2f - offset),
         size = Size(width + 2 * offset, height + 2 * offset),
         cornerRadius = CornerRadius(radius, radius),
@@ -368,13 +371,13 @@ private const val CURRENT_RING_ALPHA = 0.85f
  * [topLeft]: the one a row or grid draws still while its tiles are quiet
  * ([TileQuiet]). [stroke] is the ring's, made once rather than each frame.
  */
-internal fun DrawScope.drawStillRing(kind: TileKind, topLeft: Offset, stroke: Stroke) {
+internal fun DrawScope.drawStillRing(kind: TileKind, topLeft: Offset, stroke: Stroke, color: Color) {
     val offset = PleyFocus.RingOffset.toPx()
     val width = kind.tvWidth.roundToPx().toFloat()
     val height = kind.tvHeight.roundToPx().toFloat()
     val radius = if (kind.round) minOf(width, height) / 2f + offset else PleyShape.TileTvRadius.toPx() + offset
     drawRoundRect(
-        color = PleyColors.AccentBright,
+        color = color,
         topLeft = Offset(topLeft.x - offset, topLeft.y - offset),
         size = Size(width + 2 * offset, height + 2 * offset),
         cornerRadius = CornerRadius(radius, radius),

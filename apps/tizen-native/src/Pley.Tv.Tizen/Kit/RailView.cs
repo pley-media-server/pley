@@ -8,11 +8,8 @@ using Tizen.NUI.BaseComponents;
 
 namespace Pley.Tv.Tizen.Kit;
 
-/// <summary>Who the rail's avatar shows: a name, and the profile's color or picture.</summary>
-sealed record RailProfile(string Name, Color? Color = null)
-{
-    public string Initial => Name.Length > 0 ? char.ToUpperInvariant(Name[0]).ToString() : "";
-}
+/// <summary>Who the rail's avatar shows: the profile's name, its avatar_color and its picture's full address, drawn as every avatar is (<see cref="AvatarView"/>).</summary>
+sealed record RailProfile(string Name, string? AvatarColor, string? Picture);
 
 /// <summary>
 /// The rail (the Android app's TvRail, design spec §2.1): 56 dp entries collapsed, 256 open, 40
@@ -53,8 +50,11 @@ sealed class RailView : View
     readonly View edge;
     readonly List<Entry> entries = new List<Entry>();
     readonly Entry avatar;
-    readonly View avatarCircle;
-    readonly TextLabel avatarInitial;
+    /// <summary>Where the profile's 32 dp avatar goes: a Surface3 circle while who is watching isn't known.</summary>
+    readonly View avatarSlot;
+    AvatarView? avatarView;
+    RailProfile? profile;
+    readonly Images images;
     readonly Func<bool> reduced;
     /// <summary>The entries' view, clipped from the avatar's foot to Settings' top, and the entries in it, moved to scroll them.</summary>
     readonly View view;
@@ -70,9 +70,10 @@ sealed class RailView : View
     /// <summary>The entries are being made again: focus goes to its entry at once, leaving no animation running on the one that went.</summary>
     bool remaking;
 
-    public RailView(FocusTree tree, Func<bool> reducedMotion, Action<RailItem> onSelect, Action onProfile)
+    public RailView(FocusTree tree, Images images, Func<bool> reducedMotion, Action<RailItem> onSelect, Action onProfile)
     {
         this.tree = tree;
+        this.images = images;
         reduced = reducedMotion;
         // Over the page and under the rail, as tv-material's scrim is: Bg at 50 %.
         Scrim = new View
@@ -91,19 +92,14 @@ sealed class RailView : View
         Add(edge);
 
         avatar = new Entry(this, Rail.ProfileItem, null, "", AvatarTop, AvatarHeight, onProfile);
-        avatarCircle = new View
+        avatarSlot = new View
         {
             Size = new Size(Ui.Dp(AvatarSize), Ui.Dp(AvatarSize)),
             Position = new Position(Ui.Dp(12), Ui.Dp((AvatarHeight - AvatarSize) / 2)),
             CornerRadius = Ui.Dp(AvatarSize / 2),
             BackgroundColor = PleyColors.Surface3,
         };
-        avatarInitial = Text.Label("", PleyType.Label, PleyColors.Fg);
-        avatarInitial.FontStyle = Text.Weight(PleyType.Bold);
-        avatarInitial.Size = avatarCircle.Size;
-        avatarInitial.HorizontalAlignment = HorizontalAlignment.Center;
-        avatarCircle.Add(avatarInitial);
-        avatar.Box.Add(avatarCircle);
+        avatar.Box.Add(avatarSlot);
         avatar.SetSecondLine(Strings.T("shell.rail.switchProfile"));
         Group.Add(avatar.Item);
         Add(avatar.Box);
@@ -178,11 +174,22 @@ sealed class RailView : View
         Follow(tree.Current);
     }
 
-    public void SetProfile(RailProfile? profile)
+    /// <summary>The profile the avatar shows, in its own colors whatever the theme; null while it isn't known.</summary>
+    public void SetProfile(RailProfile? shown)
     {
-        avatarInitial.Text = profile?.Initial ?? "";
-        avatarCircle.BackgroundColor = profile?.Color ?? PleyColors.Surface3;
-        avatar.SetLabel(profile?.Name ?? "");
+        avatar.SetLabel(shown?.Name ?? "");
+        if (shown == profile) return;
+        profile = shown;
+        if (avatarView != null)
+        {
+            avatarView.Unparent();
+            avatarView.Dispose();
+            avatarView = null;
+        }
+        avatarSlot.BackgroundColor = shown == null ? PleyColors.Surface3 : Color.Transparent;
+        if (shown == null) return;
+        avatarView = new AvatarView(shown.Name, shown.AvatarColor, shown.Picture, AvatarSize, images);
+        avatarSlot.Add(avatarView);
     }
 
     /// <summary>The entry for the page showing (<see cref="Rail.Current"/>); null on sign-in and Who's watching?.</summary>

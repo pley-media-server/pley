@@ -515,6 +515,11 @@ pub struct AccelUse {
     /// What it leaves to software encoders: `h264`, `hevc` and `hdr`
     /// (HEVC Main 10, for transcodes that keep HDR), where one works.
     pub software: Vec<&'static str>,
+    /// HDR video converted for playback is tone mapped with it, though the
+    /// transcoder could keep it: only software encodes HEVC Main 10, a GPU
+    /// encodes H.264 and a tone mapper works ([`keeps_hdr`]). Not with tone
+    /// mapping turned off, which keeps it. Downloads still keep it.
+    pub hdr_to_sdr: bool,
     /// The tone mappers that work with it, where the transcoder tried them
     /// (a VAAPI encoder takes the GPU mappers whose frames reached it in
     /// the start-up test, and zimg); `None`: every one it has.
@@ -534,7 +539,32 @@ pub fn accel_use(caps: &Capabilities, hwaccel: HwAccel) -> AccelUse {
     let vaapi =
         picked_encoder(caps, VideoCodec::H264, hwaccel, false).is_some_and(|e| e.hardware && e.accel == HwAccel::Vaapi);
     let tonemappers = (vaapi && !caps.vaapi_tonemappers.is_empty()).then(|| caps.vaapi_tonemappers.clone());
-    AccelUse { hardware_decoding: decodes_on_gpu_with(caps, hwaccel), software, tonemappers }
+    let hdr_to_sdr = tone_maps_for_gpu(caps, hwaccel);
+    AccelUse { hardware_decoding: decodes_on_gpu_with(caps, hwaccel), software, hdr_to_sdr, tonemappers }
+}
+
+/// Whether HDR video converted for playback stays HDR with `hwaccel` and
+/// `tonemapping` chosen, where the transcoder can keep it (`hdr_transcode`):
+/// when the encoder that keeps it, HEVC Main 10, is a GPU's, or when no GPU
+/// encodes anyway. Not when a GPU encodes H.264 and only x265 encodes HEVC
+/// Main 10 (Rockchip's encoders, older Intel and NVIDIA graphics): tone
+/// mapping into the GPU's encoder costs a fraction of x265's work, which
+/// fell far behind real time on such computers (a third of it on an
+/// RK3588). Unless nothing would tone map it (tone mapping turned off, or
+/// no tone mapper works), which would wash its colors out.
+pub fn keeps_hdr(caps: &Capabilities, hwaccel: HwAccel, tonemapping: TonemapMode) -> bool {
+    caps.hdr_transcode && (tonemapping == TonemapMode::None || !tone_maps_for_gpu(caps, hwaccel))
+}
+
+/// Whether HDR video converted for playback is tone mapped into a GPU's
+/// H.264 with `hwaccel` chosen rather than kept by x265, tone mapping on
+/// ([`keeps_hdr`]).
+fn tone_maps_for_gpu(caps: &Capabilities, hwaccel: HwAccel) -> bool {
+    let on_gpu = |codec, main10| picked_encoder(caps, codec, hwaccel, main10).is_some_and(|e| e.hardware);
+    caps.hdr_transcode
+        && !caps.tonemappers.is_empty()
+        && on_gpu(VideoCodec::H264, false)
+        && !on_gpu(VideoCodec::Hevc, true)
 }
 
 /// Whether some video is decoded on a GPU with `hwaccel` chosen, as the
@@ -1355,10 +1385,66 @@ mod tests {
         };
         assert!(accel_use(&piped, HwAccel::Rkmpp).hardware_decoding);
         assert_eq!(accel_use(&piped, HwAccel::Auto), accel_use(&piped, HwAccel::Rkmpp));
+        assert!(!accel_use(&piped, HwAccel::Rkmpp).hdr_to_sdr, "a transcoder that keeps no HDR says nothing");
         // Vulkan's decoder feeds libplacebo whatever encodes.
         let vulkan = Capabilities { vulkan_decode: vec!["hevc10".into()], ..intel };
         assert!(ACCELS.iter().all(|accel| accel_use(&vulkan, *accel).hardware_decoding));
         assert!(ACCELS.iter().all(|accel| accel_use(&vulkan, *accel).tonemappers.is_none()));
+    }
+
+    #[test]
+    fn hdr_is_kept_by_a_gpu_or_where_no_gpu_encodes() {
+        let hevc = |name: &str, accel, main10| EncoderInfo { codec: VideoCodec::Hevc, main10, ..encoder(name, accel) };
+        let x265 = hevc("libx265", HwAccel::None, true);
+        let keeps = |caps: &Capabilities, accel| keeps_hdr(caps, accel, TonemapMode::Auto);
+        // Rockchip: H.264 and 8-bit HEVC on the chip, Main 10 in x265 only.
+        let rockchip = Capabilities {
+            encoders: vec![
+                encoder("h264_rkmpp", HwAccel::Rkmpp),
+                hevc("hevc_rkmpp", HwAccel::Rkmpp, false),
+                encoder("libx264", HwAccel::None),
+                x265.clone(),
+            ],
+            hwaccels: vec!["rkmpp".into()],
+            tonemappers: vec![Tonemapper::Zscale],
+            hdr_transcode: true,
+            ..Default::default()
+        };
+        for accel in [HwAccel::Auto, HwAccel::Rkmpp] {
+            assert!(!keeps(&rockchip, accel), "{accel:?}: tone mapped into h264_rkmpp");
+            let using = accel_use(&rockchip, accel);
+            assert!(using.hdr_to_sdr);
+            // A download keeps it, in x265.
+            assert_eq!(using.software, ["hdr"]);
+            // Nothing would tone map it: x265 keeps it, as before.
+            assert!(keeps_hdr(&rockchip, accel, TonemapMode::None), "{accel:?}: tone mapping turned off");
+            let untouched = Capabilities { tonemappers: Vec::new(), ..rockchip.clone() };
+            assert!(keeps(&untouched, accel), "{accel:?}: no tone mapper");
+            assert!(!accel_use(&untouched, accel).hdr_to_sdr);
+        }
+        // Software encoding: x265 keeps it as before.
+        assert!(keeps(&rockchip, HwAccel::None));
+        assert!(!accel_use(&rockchip, HwAccel::None).hdr_to_sdr);
+        // A computer with no GPU encoder at all.
+        let cpu = Capabilities { encoders: vec![encoder("libx264", HwAccel::None), x265.clone()], ..rockchip.clone() };
+        assert!(ACCELS.iter().all(|accel| keeps(&cpu, *accel)));
+
+        // Quick Sync encodes Main 10 itself.
+        let mut intel = Capabilities { hdr_transcode: true, ..intel() };
+        intel.encoders.extend([hevc("hevc_qsv", HwAccel::Qsv, true), x265.clone()]);
+        assert!(keeps(&intel, HwAccel::Auto) && keeps(&intel, HwAccel::Qsv));
+        // Its HEVC in 8 bits only (an older one): tone mapped.
+        intel.encoders.retain(|e| e.name != "hevc_qsv");
+        intel.encoders.push(hevc("hevc_qsv", HwAccel::Qsv, false));
+        assert!(!keeps(&intel, HwAccel::Qsv));
+        // Vulkan encodes no HEVC: Automatic's encoders keep HDR, as the transcoder picks them.
+        intel.encoders.push(hevc("hevc_nvenc", HwAccel::Nvenc, true));
+        assert!(keeps(&intel, HwAccel::Vulkan));
+
+        // A transcoder that can't keep HDR never does.
+        let older = Capabilities { hdr_transcode: false, ..cpu };
+        assert!(!keeps(&older, HwAccel::None) && !accel_use(&older, HwAccel::None).hdr_to_sdr);
+        assert!(!keeps_hdr(&older, HwAccel::None, TonemapMode::None));
     }
 
     #[test]

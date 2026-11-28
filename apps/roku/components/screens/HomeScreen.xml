@@ -34,38 +34,39 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Avatar.brs" />
     <children>
         <!-- The backdrop, over the whole screen as on Android TV: the hero's,
              or that of the title focus rests on in the rows, under the
              scrim from the left (the text's side) and a fade to the
              background at the bottom (the rows' side). No edge cuts it. -->
         <Backdrop id="backdrop" />
-        <Poster id="scrimLeft" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
-        <Poster id="fadeDown" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" />
+        <Poster id="scrimLeft" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x0B0D10FF" />
+        <Poster id="fadeDown" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" blendColor="0x0B0D10FF" />
         <!-- At rest: the hero, the first row under it. Only the labels with
              text stay in it (layOut). From the page's gutter, x 192. -->
         <LayoutGroup id="hero" translation="[192, 96]" layoutDirection="vert" visible="false">
-            <Label id="heroTitle" width="1300" wrap="true" maxLines="2" color="0xEBEBEBFF" />
-            <Label id="heroContext" width="1100" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="heroTitle" width="1300" wrap="true" maxLines="2" color="0xE9EBEFFF" />
+            <Label id="heroContext" width="1100" maxLines="1" color="0xE9EBEFFF" />
             <MetaRow id="heroMeta" />
-            <Label id="heroLeft" width="1100" maxLines="1" color="0xEBEBEBFF" />
-            <Label id="heroSummary" width="928" wrap="true" maxLines="3" lineSpacing="6" color="0xEBEBEBFF" />
+            <Label id="heroLeft" width="1100" maxLines="1" color="0xE9EBEFFF" />
+            <Label id="heroSummary" width="928" wrap="true" maxLines="3" lineSpacing="6" color="0xE9EBEFFF" />
             <!-- Side by side, Left and Right between them: Resume (or Play)
                  a pill, the rest round icon buttons, as Android TV's. -->
             <ChipRow id="heroButtons" look="buttons" pad="64" />
         </LayoutGroup>
         <!-- In the rows: what the title focus rests on is, over them. -->
         <LayoutGroup id="info" translation="[192, 72]" layoutDirection="vert" visible="false">
-            <Label id="infoTitle" width="1300" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="infoTitle" width="1300" maxLines="1" color="0xE9EBEFFF" />
             <MetaRow id="infoMeta" />
-            <Label id="infoSummary" width="928" wrap="true" maxLines="2" lineSpacing="6" color="0xEBEBEBFF" />
+            <Label id="infoSummary" width="928" wrap="true" maxLines="2" lineSpacing="6" color="0xE9EBEFFF" />
         </LayoutGroup>
         <!-- The focused row's header at y 344 (Android TV's), the others
              scrolling past it; the rows scrolled past are cut at the top,
              under the info block's words. -->
-        <QuickRowList id="rows" translation="[168, 620]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="3" itemSpacing="[0, 56]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 28]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" clippingRect="[-48, -40, 1800, 1120]" visible="false" />
+        <QuickRowList id="rows" translation="[168, 620]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="3" itemSpacing="[0, 56]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 28]]" rowLabelColor="0xE9EBEFFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" clippingRect="[-48, -40, 1800, 1120]" visible="false" />
         <LayoutGroup id="message" translation="[192, 440]" layoutDirection="vert" itemSpacings="[16]">
-            <Label id="messageTitle" width="1632" wrap="true" horizAlign="center" color="0xEBEBEBFF" />
+            <Label id="messageTitle" width="1632" wrap="true" horizAlign="center" color="0xE9EBEFFF" />
             <Label id="messageText" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" />
         </LayoutGroup>
         <!-- Focus resting on a tile: the info block and the backdrop follow. -->

@@ -119,7 +119,7 @@ export function HistoryList({
   }
   return (
     <div>
-      <ul className="divide-y divide-white/[0.05] rounded-md border border-border">
+      <ul className="divide-y divide-fg/[0.05] rounded-md border border-border">
         {entries.map((entry) => (
           <HistoryRow
             key={entry.id}

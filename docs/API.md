@@ -2936,7 +2936,13 @@ doesn't show) stays HDR when:
 - the screen shows HDR10 (`hdr10` or `hdr10plus` in `hdr_types`) or HLG
   (`hlg`);
 - the server's transcoder can (`hdr_transcode` in its capabilities: a
-  10-bit HEVC encoder works);
+  10-bit HEVC encoder works), on a GPU where one encodes: with the
+  hardware acceleration chosen, HEVC Main 10 is a GPU's, or no GPU
+  encodes at all. Where a GPU encodes H.264 and only x265 encodes HEVC
+  Main 10 (Rockchip's chips, older graphics), HDR is tone mapped into the
+  GPU's H.264, which keeps up where x265 fell far behind, unless nothing
+  would tone map it (Settings → Transcoder → Tone mapping turned off, or
+  no tone mapper works). A download keeps HDR whatever encodes it;
 - no picture subtitles are burned in.
 
 The video is then HEVC Main 10, no bigger than the largest such decoder
@@ -5213,6 +5219,10 @@ interface SystemInfo {
                                     // decoder where an NVIDIA card encodes, VideoToolbox's on a Mac)
       software: ("h264" | "hevc" | "hdr")[]; // what it leaves to software encoders, where one works
                                     // ("hdr": HEVC Main 10, for transcodes that keep HDR)
+      hdr_to_sdr: boolean;          // HDR converted for playback is tone mapped with it, though the
+                                    // transcoder could keep it: only software encodes HEVC Main 10,
+                                    // a GPU encodes H.264 and a tone mapper works (HDR transcodes);
+                                    // not with tone mapping turned off; downloads keep it
       tonemappers: string[] | null; // the tone mappers that work with it, where the transcoder tried them
                                     // (a VAAPI encoder's, whose frames reached it, and zscale);
                                     // null: every one in `tonemapping`
@@ -5221,6 +5231,8 @@ interface SystemInfo {
     dolby_vision: boolean;          // Dolby Vision profile 5 can be tone-mapped correctly
     chromaprint: boolean;           // audio fingerprints find intros and credits; without, only chapters
     throttling: boolean;            // FFmpeg can throttle transcodes (6.1 and newer)
+    rockchip_chip_unknown: boolean; // Rockchip's MPP can't read the device tree it tells the chip by (a
+                                    // container that hides it): H.264 only, no HEVC, VP9 or AV1
     memory: { available: boolean; reason?: string; path?: string; budget_bytes: number } | null;
                                     // segments can be kept in RAM (`transcode_in_memory`), and at most how
                                     // much; reason: why not ("works on Linux only"); null while unavailable

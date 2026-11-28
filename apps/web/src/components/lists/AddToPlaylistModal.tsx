@@ -88,7 +88,7 @@ export function AddToPlaylistModal({ item, onClose }: { item: ItemSummary | null
                   type="button"
                   disabled={busy}
                   onClick={() => onAdd(p)}
-                  className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-white/5 disabled:opacity-50"
+                  className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-fg/5 disabled:opacity-50"
                 >
                   <PlaylistArt playlist={p} width={44} className="size-11 shrink-0" />
                   <span className="min-w-0 flex-1">

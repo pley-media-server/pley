@@ -233,7 +233,7 @@ function LibraryTab({
 
   return (
     <>
-      <div className="sticky top-16 z-10 mt-3 border-b border-white/[0.04] bg-bg/85 px-4 py-2.5 backdrop-blur-md sm:px-8">
+      <div className="sticky top-16 z-10 mt-3 border-b border-fg/[0.04] bg-bg/85 px-4 py-2.5 backdrop-blur-md sm:px-8">
         <div className="scrollbar-none -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0 [&>*]:shrink-0">
           <Select
             aria-label={t("library.sortBy")}

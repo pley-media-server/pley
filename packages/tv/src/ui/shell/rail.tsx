@@ -5,6 +5,7 @@ import { t } from "../../i18n";
 import { hasRequests, mayAsk, requestsCount, requestsTitle } from "../../requests";
 import { useUi } from "../context";
 import { nudge } from "../focus";
+import { ProfileAvatar } from "../kit/avatar";
 import { F, G } from "../kit/focusable";
 import { Icon, type IconName } from "../kit/icons";
 import type { PageKey } from "./navigator";
@@ -132,16 +133,6 @@ export function currentEntry(root: PageKey | null, entries: RailEntries): string
     default:
       return top.find((e) => e.key.name === root.name)?.id ?? null;
   }
-}
-
-/** A profile's color as CSS, or `null` when it isn't one ("#e07a5f" only). */
-export function profileColor(color: string | null | undefined): string | null {
-  return color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null;
-}
-
-export function initial(name: string): string {
-  const c = name.trim().charAt(0);
-  return c ? c.toUpperCase() : "?";
 }
 
 /**
@@ -322,7 +313,6 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
   );
 
   const me = p.me;
-  const color = profileColor(me?.avatar_color);
   return (
     <>
       {/* The pointer moving out of the rail over the page, or clicking the page, closes it: focus goes back to the page. */}
@@ -353,8 +343,8 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
           >
             <span data-rail="profile" style="display:contents" />
             <Pill />
-            <div class="rail-avatar t-label" style={color ? `background:${color}` : undefined}>
-              <span style="font-weight:700">{initial(me?.name ?? "")}</span>
+            <div class="rail-avatar">
+              <ProfileAvatar name={me?.name ?? ""} color={me?.avatar_color ?? null} picture={me?.avatar_url ?? null} size={32} />
             </div>
             {p.offline && (
               <div class="offline-mark" aria-hidden="true">

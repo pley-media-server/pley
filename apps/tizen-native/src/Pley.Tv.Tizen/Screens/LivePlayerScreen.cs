@@ -685,7 +685,7 @@ sealed class LivePlayerScreen : Sheet
     /// <summary>Live, red with a dot.</summary>
     static View LiveBadge()
     {
-        var label = LiveViews.Fitted(LiveText.Live.ToUpperInvariant(), PleyType.Badge, Color.White, 80);
+        var label = LiveViews.Fitted(LiveText.Live.ToUpperInvariant(), PleyType.Badge, PleyColors.DangerFg, 80);
         var width = 12 + 7 + 7 + label.SizeWidth / Ui.Scale + 12;
         var pill = new View
         {
@@ -698,7 +698,7 @@ sealed class LivePlayerScreen : Sheet
             Position = new Position(Ui.Dp(12), Ui.Dp(9)),
             Size = new Size(Ui.Dp(7), Ui.Dp(7)),
             CornerRadius = Ui.Dp(3.5f),
-            BackgroundColor = Color.White,
+            BackgroundColor = PleyColors.DangerFg,
         });
         label.Position = new Position(Ui.Dp(26), Ui.Dp(25) / 2 - label.SizeHeight / 2);
         pill.Add(label);

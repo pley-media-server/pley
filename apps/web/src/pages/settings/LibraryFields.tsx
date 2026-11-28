@@ -100,7 +100,7 @@ export function LibraryFields({
           </p>
         ) : null}
         {draft.paths.length ? (
-          <ul className="mb-2 divide-y divide-white/[0.05] rounded-md border border-border">
+          <ul className="mb-2 divide-y divide-fg/[0.05] rounded-md border border-border">
             {draft.paths.map((p) => (
               <li key={p} className="flex items-center gap-2 px-3 py-1.5">
                 <span className="min-w-0 flex-1 truncate font-mono text-xs" title={p}>

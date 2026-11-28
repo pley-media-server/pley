@@ -9,7 +9,7 @@
 use pley_base::mark::{self, MarkGlyph};
 use pley_base::{Color, Icon, ImageRequest, ImageState, Point, Priority, Rect, Size, TextOpts, TextStyle, Weight};
 use pley_ui::theme::{self, focus, radius};
-use pley_ui::{FocusOpts, Id, ImageOpts, Motion, Response, Shown, Ui};
+use pley_ui::{FocusOpts, Id, ImageOpts, Motion, Response, Shown, Ui, avatar};
 
 use crate::badge::{BADGE_HEIGHT, Badge, BadgeStyle};
 use crate::look::{focus_progress, free_line, register, spoken, text_mid, tile_focus_progress};
@@ -291,7 +291,7 @@ impl<'a> Tile<'a> {
                 // A person's circle is Surface2 (Android's `TvPersonScreen.kt`, the Samsung app's
                 // `TileView.cs`): the gradient is for a title, and a person shows none.
                 if shown.is_some_and(|s| s.opaque()) || self.kind.round() {
-                    ui.fill(rect, theme::SURFACE2, r);
+                    ui.fill(rect, theme::surface2(), r);
                 } else {
                     // No title on it: the caption names the tile.
                     placeholder(ui, rect, self.seed, "", self.mark.filter(|_| shown.is_none()), r);
@@ -302,15 +302,15 @@ impl<'a> Tile<'a> {
                 self.overlays(ui, rect);
             }
             Well::SeeAll(label) => {
-                ui.fill(rect, theme::SURFACE2, r);
+                ui.fill(rect, theme::surface2(), r);
                 let layout = ui.layout(label, &theme::LABEL, &TextOpts::line(rect.w - 16.0));
                 let block = 32.0 + 8.0 + layout.size.h;
                 let top = rect.y + (rect.h - block) / 2.0;
-                ui.icon(Rect::new(rect.center().x - 16.0, top, 32.0, 32.0), Icon::ArrowRight, theme::FG);
+                ui.icon(Rect::new(rect.center().x - 16.0, top, 32.0, 32.0), Icon::ArrowRight, theme::fg());
                 let x = rect.x + (rect.w - layout.size.w) / 2.0;
-                ui.draw_text(Point::new(x, top + 40.0), layout, theme::FG);
+                ui.draw_text(Point::new(x, top + 40.0), layout, theme::fg());
             }
-            Well::Skeleton => ui.fill(rect, theme::SURFACE2, r),
+            Well::Skeleton => ui.fill(rect, theme::surface2(), r),
             Well::Custom(draw) => draw(ui, rect),
         }
     }
@@ -327,7 +327,7 @@ impl<'a> Tile<'a> {
             bar = PROGRESS_HEIGHT;
             let track = Rect::new(rect.x, rect.bottom() - bar, rect.w, bar);
             ui.fill(track, theme::PROGRESS_TRACK_ON_ART, 0.0);
-            ui.fill(Rect::new(track.x, track.y, rect.w * p.min(1.0), bar), theme::ACCENT, 0.0);
+            ui.fill(Rect::new(track.x, track.y, rect.w * p.min(1.0), bar), theme::accent(), 0.0);
         }
         let right = rect.right() - INSET;
         if self.unwatched > 0 {
@@ -337,8 +337,8 @@ impl<'a> Tile<'a> {
             badge.show(ui, Point::new(right - w, rect.y + INSET));
         } else if self.watched {
             let tick = Rect::new(right - TICK_BOX, rect.y + INSET, TICK_BOX, TICK_BOX);
-            ui.fill(tick, theme::ON_ART, radius::BADGE);
-            ui.icon(tick.place(Size::new(TICK_GLYPH, TICK_GLYPH), 0.5, 0.5), Icon::Check, theme::ACCENT);
+            ui.fill(tick, theme::on_art(), radius::BADGE);
+            ui.icon(tick.place(Size::new(TICK_GLYPH, TICK_GLYPH), 0.5, 0.5), Icon::Check, theme::accent());
         } else if let Some(count) = self.count {
             let badge = Badge::new(count, BadgeStyle::OnArt);
             let w = badge.size(ui).w;
@@ -365,9 +365,9 @@ impl<'a> Tile<'a> {
                 // `SkeletonTile`: two bars, 60 % and 35 % of the width, 0.6 of a line tall.
                 let h = theme::CAPTION.line_height * 0.6;
                 let pad = (theme::CAPTION.line_height - h) / 2.0;
-                ui.fill(Rect::new(rect.x, y + pad, rect.w * 0.6, h), theme::SURFACE2, radius::BADGE);
+                ui.fill(Rect::new(rect.x, y + pad, rect.w * 0.6, h), theme::surface2(), radius::BADGE);
                 y += theme::CAPTION.line_height;
-                ui.fill(Rect::new(rect.x, y + pad, rect.w * 0.35, h), theme::SURFACE2, radius::BADGE);
+                ui.fill(Rect::new(rect.x, y + pad, rect.w * 0.35, h), theme::surface2(), radius::BADGE);
             }
             _ => caption(ui, Point::new(rect.x, y), rect.w, self.title, self.subtitle, focused),
         }
@@ -385,11 +385,11 @@ const TICK_GLYPH: f32 = 12.0;
 pub fn caption(ui: &mut Ui, at: Point, width: f32, title: &str, subtitle: &str, focused: bool) {
     let style: TextStyle = if focused { theme::CAPTION.with_weight(Weight::Bold) } else { theme::CAPTION };
     if !title.is_empty() {
-        ui.text(at, title, &style, &TextOpts::line(width), theme::FG);
+        ui.text(at, title, &style, &TextOpts::line(width), theme::fg());
     }
     if !subtitle.is_empty() {
         let y = at.y + theme::CAPTION.line_height;
-        ui.text(Point::new(at.x, y), subtitle, &theme::CAPTION, &TextOpts::line(width), theme::MUTED);
+        ui.text(Point::new(at.x, y), subtitle, &theme::CAPTION, &TextOpts::line(width), theme::muted());
     }
 }
 
@@ -421,7 +421,7 @@ pub fn ring(ui: &mut Ui, rect: Rect, kind: TileKind, look: &TileLook) {
     let grown = rect.scale_about(rect.center(), look.scale);
     let r = grown.expand(focus::RING_OFFSET);
     let corner = if kind.round() { r.w / 2.0 } else { radius::TILE * look.scale + focus::RING_OFFSET };
-    ui.stroke(r, focus::RING_COLOR.alpha(look.progress), corner, focus::RING_STROKE);
+    ui.stroke(r, focus::ring_color().alpha(look.progress), corner, focus::RING_STROKE);
 }
 
 /// The first of `art` that hasn't failed, as it can show now (asking for it at `priority`); `None`
@@ -503,13 +503,16 @@ fn placeholder_style(title: &str, avail: f32) -> TextStyle {
 }
 
 /// A profile on Who's watching? (`TvProfilesScreen.kt`): a circle of `size` (100) holding the
-/// profile's picture, or its initial on its color; its name 12 below in `Tv.Label`, centered, bold
-/// when focused. Focused it grows to 1.1 with the tile ring; PIN profiles carry a lock badge.
+/// profile's picture, or, without one or while it loads or fails, its initial on its color
+/// ([`pley_ui::avatar`]); its name 12 below in `Tv.Label`, centered, bold when focused. Focused it
+/// grows to 1.1 with the tile ring; PIN profiles carry a lock badge. Every avatar the app draws is
+/// one of these or its circle alone ([`ProfileTile::avatar`]).
 #[derive(Clone, Copy, Debug)]
 pub struct ProfileTile<'a> {
     pub name: &'a str,
-    /// Its color, or the one its name gives ([`theme::profile_color`]).
-    pub color: Option<Color>,
+    /// Its own color as the server gives it (`avatar_color`); without a valid one, the one its
+    /// name gives ([`avatar::color`]).
+    pub color: Option<&'a str>,
     pub picture: &'a [ImageRequest],
     pub locked: bool,
     pub size: f32,
@@ -523,8 +526,8 @@ impl<'a> ProfileTile<'a> {
         ProfileTile { name, color: None, picture: &[], locked: false, size: 100.0, dimmed: false }
     }
 
-    /// The profile's own color.
-    pub fn color(self, color: Option<Color>) -> ProfileTile<'a> {
+    /// The profile's own color (`avatar_color`).
+    pub fn color(self, color: Option<&'a str>) -> ProfileTile<'a> {
         ProfileTile { color, ..self }
     }
 
@@ -548,18 +551,18 @@ impl<'a> ProfileTile<'a> {
         ProfileTile { dimmed, ..self }
     }
 
-    /// Draws the circle alone (no focus, no name) in `rect`.
+    /// Draws the circle alone (no focus, no name) in `rect`: the picture, else the initial on the
+    /// profile's color in the ink that reads best on it, whatever the theme.
     pub fn avatar(&self, ui: &mut Ui, rect: Rect) {
-        let fill = self.color.unwrap_or_else(|| theme::profile_color(self.name));
+        let fill = avatar::color(self.name, self.color);
         let r = radius::circle(rect.w);
         let shown = first_art(ui, self.picture, Priority::Visible);
         if !shown.is_some_and(|s| s.opaque()) {
             ui.fill(rect, fill, r);
-            let initial: String = self.name.chars().next().map(|c| c.to_uppercase().collect()).unwrap_or_default();
             let style = TextStyle { size: rect.w * 0.44, line_height: rect.w * 0.5, ..theme::PAGE_TITLE };
-            let layout = ui.layout(&initial, &style, &free_line());
+            let layout = ui.layout(&avatar::initial(self.name), &style, &free_line());
             let x = rect.x + (rect.w - layout.size.w) / 2.0;
-            text_mid(ui, x, rect.y, rect.h, layout, theme::content_on(fill));
+            text_mid(ui, x, rect.y, rect.h, layout, avatar::ink(fill));
         }
         if let Some(s) = shown {
             ui.draw_image(rect, &s, &ImageOpts::cover().rounded(r));
@@ -582,9 +585,9 @@ impl<'a> ProfileTile<'a> {
                     // a Surface3 disc with a 14 dp lock.
                     let c = Point::new(rect.x + rect.w * 0.86, rect.y + rect.h * 0.86);
                     let badge = Rect::new(c.x - 14.0, c.y - 14.0, 28.0, 28.0);
-                    ui.fill(badge, theme::BG, 14.0);
-                    ui.fill(badge.expand(-2.0), theme::SURFACE3, 12.0);
-                    ui.icon(badge.place(Size::new(14.0, 14.0), 0.5, 0.5), Icon::Lock, theme::FG);
+                    ui.fill(badge, theme::bg(), 14.0);
+                    ui.fill(badge.expand(-2.0), theme::surface3(), 12.0);
+                    ui.icon(badge.place(Size::new(14.0, 14.0), 0.5, 0.5), Icon::Lock, theme::fg());
                 }
             });
             ring(ui, rect, TileKind::Avatar, &look);
@@ -596,7 +599,7 @@ impl<'a> ProfileTile<'a> {
                 self.name,
                 &style,
                 &opts,
-                theme::FG,
+                theme::fg(),
             );
         });
         response

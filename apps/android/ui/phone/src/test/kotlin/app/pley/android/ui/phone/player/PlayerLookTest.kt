@@ -2,7 +2,7 @@ package app.pley.android.ui.phone.player
 
 import app.pley.android.data.Settings
 import app.pley.android.data.SubtitleBackground
-import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.theme.PleyPalette
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.player.ChapterMark
 import app.pley.android.player.subtitles.CaptionLook
@@ -16,11 +16,11 @@ class PlayerLookTest {
     @Test
     fun badgesAreGreenForDirectPlayBlueForDirectStreamsAndAccentForTranscodes() {
         // The session's words for them: PlayerWordsTest.
-        assertEquals(PleyColors.Success, PlayerLook.badgeColors(PlaybackMethod.Direct).text)
-        assertEquals(PleyColors.Info, PlayerLook.badgeColors(PlaybackMethod.Remux).text)
-        assertEquals(PleyColors.Accent, PlayerLook.badgeColors(PlaybackMethod.Transcode).text)
+        assertEquals(PleyPalette.Default.success, PlayerLook.badgeColors(PlaybackMethod.Direct, PleyPalette.Default).text)
+        assertEquals(PleyPalette.Default.info, PlayerLook.badgeColors(PlaybackMethod.Remux, PleyPalette.Default).text)
+        assertEquals(PleyPalette.Default.accent, PlayerLook.badgeColors(PlaybackMethod.Transcode, PleyPalette.Default).text)
         // The fill is the text's color at 20 %.
-        val badge = PlayerLook.badgeColors(PlaybackMethod.Direct)
+        val badge = PlayerLook.badgeColors(PlaybackMethod.Direct, PleyPalette.Default)
         assertEquals(0.2f, badge.fill.alpha, 0.01f)
         assertEquals(badge.text.copy(alpha = 0.2f), badge.fill)
     }

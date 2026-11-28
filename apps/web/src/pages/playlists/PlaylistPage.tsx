@@ -83,7 +83,7 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
   return (
     <div className="animate-fade-in px-4 pb-16 pt-8 sm:px-8">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
-        <PlaylistArt playlist={p} width={240} className="w-44 shrink-0 shadow-2xl shadow-black/60 sm:w-52 lg:w-60" />
+        <PlaylistArt playlist={p} width={240} className="w-44 shrink-0 shadow-2xl shadow-shade/60 sm:w-52 lg:w-60" />
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex items-center gap-2 text-sm font-medium text-muted">
             {video ? t("playlist.video") : t("playlist.music")}
@@ -131,8 +131,8 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
                   {...(editable ? rowProps(i) : {})}
                   onDoubleClick={() => playFrom(i)}
                   className={cn(
-                    "group flex items-center gap-3 rounded-md border-y-2 border-transparent px-2 py-1.5 transition-colors hover:bg-white/[0.04]",
-                    current && "bg-white/[0.04]",
+                    "group flex items-center gap-3 rounded-md border-y-2 border-transparent px-2 py-1.5 transition-colors hover:bg-fg/[0.04]",
+                    current && "bg-fg/[0.04]",
                     dragging === i && "opacity-40",
                     mark === "before" && "border-t-accent",
                     mark === "after" && "border-b-accent",
@@ -146,7 +146,7 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
                     type="button"
                     onClick={() => playFrom(i)}
                     aria-label={t("playTitle", { title })}
-                    className={cn("relative shrink-0 overflow-hidden rounded ring-1 ring-white/5", video ? "w-24 sm:w-32" : "w-12")}
+                    className={cn("relative shrink-0 overflow-hidden rounded ring-1 ring-fg/5", video ? "w-24 sm:w-32" : "w-12")}
                   >
                     <Artwork
                       candidates={video ? thumbCandidates(item) : posterCandidates(item)}

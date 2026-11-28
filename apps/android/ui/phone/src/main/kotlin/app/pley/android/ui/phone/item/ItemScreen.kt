@@ -245,15 +245,16 @@ internal fun BackdropTopBar(title: String, list: LazyListState, onBack: () -> Un
     fun scrolled(): Float = if (list.firstVisibleItemIndex > 0) Float.POSITIVE_INFINITY else list.firstVisibleItemScrollOffset.toFloat()
     fun solid(): Float = ((scrolled() - (meets - fade)) / fade).coerceIn(0f, 1f)
     fun titleShown(): Float = ((scrolled() - (meets + under)) / fade).coerceIn(0f, 1f)
+    val palette = PleyColors.palette
     Column(Modifier.fillMaxWidth()) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .drawBehind {
-                    drawRect(Brush.verticalGradient(0f to PleyColors.Bg.copy(alpha = 0.6f), 1f to Color.Transparent, endY = 96.dp.toPx()))
+                    drawRect(Brush.verticalGradient(0f to palette.bg.copy(alpha = 0.6f), 1f to Color.Transparent, endY = 96.dp.toPx()))
                     val a = solid()
-                    if (a > 0f) drawRect(PleyColors.Bg.copy(alpha = a))
-                    if (a >= 1f) drawLine(PleyColors.Surface4, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
+                    if (a > 0f) drawRect(palette.bg.copy(alpha = a))
+                    if (a >= 1f) drawLine(palette.border, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
                 }
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
         ) {

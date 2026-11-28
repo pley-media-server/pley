@@ -679,7 +679,7 @@ function ArtworkGrid({
           type="button"
           disabled={disabled}
           onClick={() => onPick(o.url)}
-          className="group relative overflow-hidden rounded-md bg-surface-3 ring-1 ring-white/5 transition hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
+          className="group relative overflow-hidden rounded-md bg-surface-3 ring-1 ring-fg/5 transition hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
         >
           <img
             src={o.preview_url}

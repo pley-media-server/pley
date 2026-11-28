@@ -4,11 +4,12 @@ import type { HouseholdProfile, User } from "../../../api/types";
 import { SignedOutError, TokenError } from "../../../auth/tokens";
 import { t } from "../../../i18n";
 import { useUi } from "../../context";
+import { ProfileAvatar } from "../../kit/avatar";
 import { Pill, TextButton } from "../../kit/buttons";
 import { F, G } from "../../kit/focusable";
 import { sentence, useApp } from "../common";
 import { ApproveContent } from "./link";
-import { keyId, NumberPad, PIN_KEYS, ProfileAvatar, type PadKey } from "./kit";
+import { keyId, NumberPad, PIN_KEYS, type PadKey } from "./kit";
 
 type Step =
   | { kind: "pick" }

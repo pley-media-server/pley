@@ -203,6 +203,22 @@ describe("TranscoderSettings on this server's hardware", () => {
     renderWithProviders(<TranscoderSettings />);
     expect(await screen.findByRole("option", { name: "Automatic · Rockchip MPP" })).toBeEnabled();
     expect(option(/^Rockchip MPP$/)).toBeEnabled();
+    expect(screen.queryByText(/can't read which chip/)).not.toBeInTheDocument();
+  });
+
+  it("says what a container that hides the device tree costs Rockchip", async () => {
+    const board = {
+      ...intel,
+      encoders: ["h264_rkmpp", "libx264"],
+      active_encoder: "h264_rkmpp",
+      hwaccels: ["rkmpp", "drm"],
+      accels: ["rkmpp"],
+      rockchip_chip_unknown: true,
+    };
+    mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => system(board, "linux") });
+    renderWithProviders(<TranscoderSettings />);
+    expect(await screen.findByText(/can't read which chip they are on, so they decode and encode H\.264 but not HEVC/)).toBeInTheDocument();
+    expect(screen.getByText(/systempaths=unconfined/)).toBeInTheDocument();
   });
 
   describe("in memory", () => {

@@ -6,15 +6,18 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
+import app.pley.android.designsystem.theme.LocalPleyPalette
+import app.pley.android.designsystem.theme.PleyPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -119,8 +122,10 @@ private data class TileGlowElement(val kind: TileKind, val alpha: () -> Float) :
     }
 }
 
-private class TileGlowNode(var kind: TileKind, var alpha: () -> Float) : Modifier.Node(), DrawModifierNode {
-    private val tint = ColorFilter.tint(PleyColors.Accent)
+private class TileGlowNode(var kind: TileKind, var alpha: () -> Float) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
+    // The accent's, made again after a pick changes it (the node redraws as the palette changes).
+    private var tint: ColorFilter? = null
+    private var tintOf: PleyPalette? = null
     private var loading = false
 
     override fun ContentDrawScope.draw() {
@@ -134,7 +139,7 @@ private class TileGlowNode(var kind: TileKind, var alpha: () -> Float) : Modifie
                     dstOffset = IntOffset(-reach, -reach),
                     dstSize = IntSize(size.width.toInt() + 2 * reach, size.height.toInt() + 2 * reach),
                     alpha = a.coerceAtMost(1f),
-                    colorFilter = tint,
+                    colorFilter = tintFor(currentValueOf(LocalPleyPalette)),
                 )
             } else if (!loading && isAttached) {
                 loading = true
@@ -148,4 +153,10 @@ private class TileGlowNode(var kind: TileKind, var alpha: () -> Float) : Modifie
         }
         drawContent()
     }
+
+    private fun tintFor(palette: PleyPalette): ColorFilter =
+        tint?.takeIf { tintOf === palette } ?: ColorFilter.tint(palette.accent).also {
+            tint = it
+            tintOf = palette
+        }
 }

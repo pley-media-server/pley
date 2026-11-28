@@ -423,7 +423,7 @@ function PlaylistPage(p: { entry: Entry; pl: Playlist & { entries: PlaylistEntry
           onDismiss={() => setOverlay(null)}
           buttons={[
             { label: t("common.actions.cancel"), initial: true, onSelect: () => setOverlay(null) },
-            { label: t("common.actions.delete"), color: "var(--danger-text)", onSelect: del },
+            { label: t("common.actions.delete"), color: "var(--danger)", onSelect: del },
           ]}
         />
       )}

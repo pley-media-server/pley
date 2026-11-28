@@ -1,4 +1,5 @@
 sub init()
+    m.c = uiColors()
     m.top.focusable = true
     m.mark = m.top.findNode("mark")
     m.labels = []
@@ -54,21 +55,21 @@ sub onLook()
     for i = 0 to m.labels.Count() - 1
         label = m.labels[i]
         if i = marked and focused
-            label.color = "0x16191EFF"
+            label.color = m.c.accentFg
         else if i = marked
-            label.color = "0xEBEBEBFF"
+            label.color = m.c.fg
         else if i < has.Count() and has[i] = true
-            label.color = "0xA1A9B6FF"
+            label.color = m.c.muted
         else
-            label.color = "0x4B5261FF"
+            label.color = m.c.border
         end if
     end for
     m.mark.translation = [0, marked * rowHeight()]
     m.mark.visible = marked >= 0 and marked < m.labels.Count()
     if focused
-        m.mark.color = "0x38BDF8FF"
+        m.mark.color = m.c.accent
     else
-        m.mark.color = "0x2E3440FF"
+        m.mark.color = m.c.surface3
     end if
 end sub
 

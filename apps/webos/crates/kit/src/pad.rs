@@ -133,8 +133,8 @@ impl Keypad {
                     } else {
                         0.0
                     };
-                    let fill = mix(mix(theme::SURFACE3, theme::ACCENT, p), theme::SURFACE4, flash);
-                    let content = mix(mix(theme::FG, theme::ON_ACCENT, p), theme::FG, flash);
+                    let fill = mix(mix(theme::surface3(), theme::accent(), p), theme::surface4(), flash);
+                    let content = mix(mix(theme::fg(), theme::on_accent(), p), theme::fg(), flash);
                     ui.transform(Point::ZERO, 1.0 + 0.08 * p, rect.center(), |ui| {
                         ui.fill(rect, fill, radius::CONTROL);
                         let glyph = rect.place(Size::new(28.0, 28.0), 0.5, 0.5);
@@ -200,9 +200,9 @@ impl PinDots {
         for i in 0..n {
             let r = Rect::new(x0 + i as f32 * (PinDots::DOT + PinDots::GAP), y, PinDots::DOT, PinDots::DOT);
             if i < self.typed {
-                ui.fill(r, theme::FG, PinDots::DOT / 2.0);
+                ui.fill(r, theme::fg(), PinDots::DOT / 2.0);
             } else {
-                ui.stroke(r.expand(-1.0), theme::CONTROL, PinDots::DOT / 2.0 - 1.0, 2.0);
+                ui.stroke(r.expand(-1.0), theme::control(), PinDots::DOT / 2.0 - 1.0, 2.0);
             }
         }
     }

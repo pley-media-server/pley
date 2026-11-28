@@ -96,18 +96,18 @@ impl Notices {
         let head_h = text_h.max(if art.is_some() { 60.0 } else { 0.0 });
         let h = PAD + head_h + 14.0 + theme::BUTTON_HEIGHT + PAD;
         let card = Rect::new(theme::CANVAS_W - RIGHT - W, theme::CANVAS_H - BOTTOM - h, W, h);
-        ui.fill(card, theme::alpha(theme::SURFACE2, 0.96), radius::CARD);
-        ui.fill(Rect::new(card.x + radius::CARD, card.y, card.w - 2.0 * radius::CARD, 1.0), theme::SURFACE4, 0.0);
+        ui.fill(card, theme::alpha(theme::surface2(), 0.96), radius::CARD);
+        ui.fill(Rect::new(card.x + radius::CARD, card.y, card.w - 2.0 * radius::CARD, 1.0), theme::surface4(), 0.0);
         if let Some(req) = &art {
             let rect = Rect::new(card.x + PAD, card.y + PAD, 40.0, 60.0);
-            ui.fill(rect, theme::SURFACE3, 4.0);
+            ui.fill(rect, theme::surface3(), 4.0);
             ui.image(rect, req, &ImageOpts { radius: 4.0, ..ImageOpts::default() });
         }
         let top = card.y + PAD + (head_h - text_h).max(0.0) / 2.0;
         let icon = Rect::new(card.x + text_x, top, theme::ICON_SIZE, theme::ICON_SIZE);
-        ui.icon(icon, Icon::CircleCheck, theme::SUCCESS);
+        ui.icon(icon, Icon::CircleCheck, theme::success());
         let at = Point::new(icon.right() + 10.0, top);
-        ui.text(at, &notice.text, &theme::BODY, &opts, theme::FG);
+        ui.text(at, &notice.text, &theme::BODY, &opts, theme::fg());
 
         let root = ui.id("request-notice");
         ui.announce_once(root.with("read"), || notice.text.clone());

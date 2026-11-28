@@ -11,7 +11,10 @@ import app.pley.android.common.AppLanguage
 import app.pley.android.common.TraceNames
 import app.pley.android.common.perf.FrameRate
 import app.pley.android.common.perf.StartupSignals
+import app.pley.android.data.ProfileScope
+import app.pley.android.data.SessionState
 import app.pley.android.designsystem.PleyImageLoader
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.downloads.AppDownloads
 import app.pley.android.downloads.DownloadsOwner
 import app.pley.android.player.PlayerGraph
@@ -30,8 +33,11 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The app. Starting builds nothing on the main thread: it starts the one
@@ -72,6 +78,7 @@ class PleyApplication : Application(), PleyGraphOwner, PlayerGraphOwner, Downloa
             super.onCreate()
             AppBuild.commit = BuildConfig.COMMIT
             AppLanguage.started(this)
+            Appearance.attach(this)
             language = LanguageSync(this)
             if (BuildConfig.DEBUG) watchForSlowCalls()
             // The frame-rate counter's switch, read in the background; off, it only follows the activities.
@@ -123,6 +130,25 @@ class PleyApplication : Application(), PleyGraphOwner, PlayerGraphOwner, Downloa
             }
             graph.data
             launch { language.follow(graph.data.language) }
+            // The theme kept for the profile signed in on this device, once it is known. Signed in
+            // while who is watching isn't known yet, or signed out: Midnight, and no profile to keep
+            // a pick for. While the session is still read at start, the first frame's stays.
+            launch {
+                graph.data.session.state
+                    .mapNotNull { state ->
+                        when (state) {
+                            SessionState.Starting -> null
+                            is SessionState.SignedIn -> state.session.me?.id?.let { ProfileScope.serverKey(state.session.issuer) to it } ?: NO_PROFILE
+                            else -> NO_PROFILE
+                        }
+                    }
+                    .distinctUntilChanged()
+                    .collect { (server, id) ->
+                        withContext(Dispatchers.Main.immediate) {
+                            if (id == NO_PROFILE.second) Appearance.noProfile() else Appearance.showProfile(this@PleyApplication, server, id)
+                        }
+                    }
+            }
             val start = startup.await()
             val server = start.server
             if (server != null && start.signedIn) {
@@ -160,6 +186,9 @@ class PleyApplication : Application(), PleyGraphOwner, PlayerGraphOwner, Downloa
 
         /** A key no picture has: looking it up opens the picture cache and finds nothing. */
         const val WARM_UP_KEY = "pley-warm-up"
+
+        /** No profile known (signed out, or who is watching not heard yet): profile ids are positive. */
+        val NO_PROFILE: Pair<String, Long> = "" to -1L
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

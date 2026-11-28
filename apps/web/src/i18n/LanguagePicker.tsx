@@ -40,7 +40,7 @@ export function LanguagePicker() {
           aria-label={t("language.choose")}
           aria-expanded={open}
           title={t(`language.names.${shown}`)}
-          className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-white/5 hover:text-fg"
+          className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg"
         >
           <Globe className="size-3.5" />
           <span lang={shown}>{languageMark(shown)}</span>

@@ -763,6 +763,12 @@ pub struct Capabilities {
     /// works, only if the filter rewrote its stream in a start-up test).
     #[serde(default)]
     pub hevc_metadata: bool,
+    /// Rockchip's video engines are here, but their library (MPP) can't
+    /// read the device tree it tells the chip by: a container that hides it
+    /// (Docker, without `systempaths=unconfined`). MPP then takes the chip
+    /// for one with H.264 and none of HEVC, VP9 or AV1.
+    #[serde(default)]
+    pub rockchip_chip_unknown: bool,
     /// Live channels: an MPEG-TS stream sent in as it comes made into a
     /// live HLS stream (`/v1/live`). Older transcoders lack it.
     #[serde(default)]

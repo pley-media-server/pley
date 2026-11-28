@@ -6,6 +6,7 @@ import { keys } from "@/api/hooks";
 import { apiError, LocationDisplay, mockApi, renderWithProviders, testUser } from "@/test/render";
 import { lastProfile } from "@/lib/lastProfile";
 import { makeRequest, makeRequestList, makeSummary } from "@/test/requests";
+import { startTheme } from "@/theme";
 import { RequireAdmin, RequireAuth, useAuth } from "./auth";
 
 beforeEach(() => {
@@ -48,6 +49,19 @@ describe("RequireAuth", () => {
     await waitFor(() => expect(lastProfile()).toBe(4));
   });
 
+  it("draws the page in the profile's own theme on this device", async () => {
+    startTheme();
+    localStorage.setItem("pley.theme.7", "nightshade");
+    localStorage.setItem("pley.accent.7", "gold");
+    mockApi({ "GET /api/server": () => server, "GET /api/auth/me": () => ({ ...testUser, id: 7, name: "Sam" }) });
+    renderApp();
+    expect(await screen.findByText("Hello Sam")).toBeInTheDocument();
+    expect(document.documentElement.dataset.theme).toBe("nightshade");
+    expect(document.documentElement.dataset.accent).toBe("gold");
+    startTheme();
+    delete document.documentElement.dataset.accent;
+  });
+
   it("sends everyone else to sign in, and back afterwards", async () => {
     mockApi({ "GET /api/server": () => server, "GET /api/auth/me": () => apiError(401, "unauthorized", "not signed in") });
     renderApp();
@@ -75,9 +89,21 @@ describe("RequireAuth", () => {
     renderApp();
 
     expect(await screen.findByText("Can't reach the Pley server")).toBeInTheDocument();
+    expect(screen.getByText("Starting up")).toBeInTheDocument();
     up = true;
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Hello Admin")).toBeInTheDocument();
+  });
+
+  it("says where to look when the server doesn't answer at all", async () => {
+    mockApi({
+      "GET /api/server": () => {
+        throw new TypeError("Failed to fetch");
+      },
+    });
+    renderApp();
+    expect(await screen.findByText("Can't reach the Pley server")).toBeInTheDocument();
+    expect(screen.getByText("Check that the server is on and that this device is on its network.")).toBeInTheDocument();
   });
 
   it("explains other failures", async () => {

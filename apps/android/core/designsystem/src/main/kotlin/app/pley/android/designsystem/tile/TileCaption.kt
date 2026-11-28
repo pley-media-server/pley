@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,16 +46,18 @@ fun TileCaption(
     modifier: Modifier = Modifier,
     emphasized: Boolean = false,
 ) {
+    val palette = PleyColors.palette
     if (style == TileStyle.Tv && inCaptionFont(title) && inCaptionFont(subtitle)) {
-        Spacer(modifier.tvCaption(title, subtitle, emphasized))
+        val colors = remember(palette) { CaptionColors(palette.fg.toArgb(), palette.muted.toArgb()) }
+        Spacer(modifier.tvCaption(title, subtitle, emphasized, colors))
         return
     }
     val floor = LocalMinTextSize.current
     val titleLines = if (style == TileStyle.Phone && (LocalDensity.current.fontScale > 1.3f || floor.isSpecified)) 2 else 1
-    val titleStyle = remember(style, emphasized, floor) {
-        style.captionTitle.atLeast(floor).copy(color = PleyColors.Fg, fontWeight = if (emphasized) PleyType.Bold else style.captionTitle.fontWeight)
+    val titleStyle = remember(style, emphasized, floor, palette) {
+        style.captionTitle.atLeast(floor).copy(color = palette.fg, fontWeight = if (emphasized) PleyType.Bold else style.captionTitle.fontWeight)
     }
-    val subtitleStyle = remember(style, floor) { style.captionSubtitle.atLeast(floor).copy(color = PleyColors.Muted) }
+    val subtitleStyle = remember(style, floor, palette) { style.captionSubtitle.atLeast(floor).copy(color = palette.muted) }
     Column(modifier.clearAndSetSemantics {}) {
         if (titleLines > 1) {
             // On two lines, a word too wide for the tile makes the title smaller rather than break in two; not under a floor.
@@ -83,7 +86,8 @@ fun QualityBadge(
     onArt: Boolean = false,
 ) {
     val floor = LocalMinTextSize.current
-    val textStyle = remember(style, onArt, floor) { style.badgeText.atLeast(floor).copy(color = if (onArt) PleyColors.Fg else PleyColors.Muted) }
+    val palette = PleyColors.palette
+    val textStyle = remember(style, onArt, floor, palette) { style.badgeText.atLeast(floor).copy(color = if (onArt) palette.fg else palette.muted) }
     val look = if (onArt) {
         Modifier.background(PleyColors.OnArt, PleyShape.Badge)
     } else {

@@ -413,7 +413,6 @@ sealed class ToastView : View
 /// </summary>
 sealed class MethodBadge : View
 {
-    static readonly Color Info = new Color(0x4C / 255f, 0x9A / 255f, 1f, 1f);
 
     readonly View tint = new View();
     readonly TextLabel text;
@@ -437,7 +436,7 @@ sealed class MethodBadge : View
     {
         if (text.Text == method) return;
         var colour = method == SessionText.MethodDirect ? PleyColors.Success
-            : method.StartsWith(SessionText.MethodRemux, StringComparison.Ordinal) ? Info
+            : method.StartsWith(SessionText.MethodRemux, StringComparison.Ordinal) ? PleyColors.Info
             : PleyColors.Accent;
         text.Text = method;
         text.TextColor = colour;

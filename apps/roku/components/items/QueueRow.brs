@@ -1,4 +1,6 @@
 sub init()
+    m.c = uiColors()
+    uiRecolor(m.top, m.c)
     m.background = m.top.findNode("background")
     m.bar = m.top.findNode("bar")
     m.number = m.top.findNode("number")
@@ -36,12 +38,12 @@ sub onFocus()
     m.bar.visible = focused
     m.background.visible = focused or m.isCurrent
     if focused
-        m.background.color = "0x2E3440FF"
-        m.title.color = "0x7DD3FCFF"
+        m.background.color = m.c.surface3
+        m.title.color = m.c.accentHover
     else
-        m.background.color = "0x1E222AFF"
-        m.title.color = "0xEBEBEBFF"
-        if m.isCurrent then m.title.color = "0x38BDF8FF"
+        m.background.color = m.c.surface
+        m.title.color = m.c.fg
+        if m.isCurrent then m.title.color = m.c.accent
     end if
 end sub
 

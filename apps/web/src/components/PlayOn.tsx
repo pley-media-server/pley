@@ -338,7 +338,7 @@ export function PlayOn({
           aria-describedby={whyId}
           tabIndex={-1}
           className={cn(
-            "absolute z-40 max-h-[min(36rem,var(--room,calc(100dvh-6rem)))] w-72 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 p-4 shadow-xl shadow-black/50 outline-none",
+            "absolute z-40 max-h-[min(36rem,var(--room,calc(100dvh-6rem)))] w-72 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 p-4 shadow-xl shadow-shade/50 outline-none",
             askSide === "below" ? "top-full mt-2" : "bottom-full mb-2",
             align === "right" ? "right-0" : "left-0",
           )}
@@ -403,7 +403,7 @@ function DeviceItem({ device, onClick }: { device: OtherDevice; onClick: () => v
       aria-label={device.name}
       aria-describedby={lineId}
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-3.5 py-2 text-left outline-none transition-colors hover:bg-white/5 focus-visible:bg-white/10"
+      className="flex w-full items-center gap-3 px-3.5 py-2 text-left outline-none transition-colors hover:bg-fg/5 focus-visible:bg-fg/10"
     >
       <DeviceSummary device={device} lineId={lineId} />
     </button>

@@ -91,7 +91,7 @@ export function CheckRow({
   return (
     <label
       htmlFor={id}
-      className={cn("flex items-center gap-3 rounded px-2 py-1.5 text-sm", disabled ? "opacity-55" : "cursor-pointer hover:bg-white/5")}
+      className={cn("flex items-center gap-3 rounded px-2 py-1.5 text-sm", disabled ? "opacity-55" : "cursor-pointer hover:bg-fg/5")}
     >
       <input id={id} type="checkbox" className="peer sr-only" checked={checked} disabled={disabled} onChange={onChange} />
       <Checkbox checked={checked} />
@@ -662,7 +662,7 @@ export function RequestCard({
               alt=""
               title=""
               mark={markGlyph(request.kind)}
-              className="aspect-[2/3] w-14 rounded ring-1 ring-white/5"
+              className="aspect-[2/3] w-14 rounded ring-1 ring-fg/5"
             />
           </Link>
         ) : null}

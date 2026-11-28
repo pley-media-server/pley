@@ -11,6 +11,14 @@ sub init()
     m.open = false
     m.list.observeField("itemSelected", "onSelected")
     m.top.observeField("focusedChild", "onFocus")
+    ' Its shadow in the theme's shade (the scene makes it in the theme).
+    m.top.findNode("shadow").blendColor = uiColors().shade
+end sub
+
+sub onSidebar()
+    sidebar = m.top.findNode("sidebar")
+    sidebar.uri = m.top.sidebar
+    sidebar.visible = m.top.sidebar <> ""
 end sub
 
 ' An entry's key: its action, a library's with its id.

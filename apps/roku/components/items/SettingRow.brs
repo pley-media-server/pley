@@ -1,4 +1,6 @@
 sub init()
+    m.c = uiColors()
+    uiRecolor(m.top, m.c)
     m.pill = m.top.findNode("pill")
     m.icon = m.top.findNode("icon")
     m.label = m.top.findNode("label")
@@ -78,42 +80,42 @@ sub onFocus()
     m.pill.visible = focused or held
     if m.category then m.chevron.visible = focused or held
     if held
-        m.pill.blendColor = "0x262B35FF"
+        m.pill.blendColor = m.c.surface2
     else
-        m.pill.blendColor = "0x38BDF8FF"
+        m.pill.blendColor = m.c.accent
     end if
     if focused
-        m.label.color = "0x16191EFF"
-        m.value.color = "0x16191ECC"
-        m.icon.blendColor = "0x16191EFF"
-        m.chevron.blendColor = "0x16191EFF"
+        m.label.color = m.c.accentFg
+        m.value.color = themeAlpha(m.c.accentFg, "CC")
+        m.icon.blendColor = m.c.accentFg
+        m.chevron.blendColor = m.c.accentFg
     else
-        m.label.color = "0xEBEBEBFF"
-        if m.danger then m.label.color = "0xEB6B70FF"
-        m.value.color = "0xA1A9B6FF"
-        m.icon.blendColor = "0xA1A9B6FF"
-        if m.danger then m.icon.blendColor = "0xEB6B70FF"
-        m.chevron.blendColor = "0x8B95A5FF"
+        m.label.color = m.c.fg
+        if m.danger then m.label.color = m.c.danger
+        m.value.color = m.c.muted
+        m.icon.blendColor = m.c.muted
+        if m.danger then m.icon.blendColor = m.c.danger
+        m.chevron.blendColor = m.c.subtle
     end if
     ' The switch: the accent track with its thumb at the right when on; on
     ' the accent row, dark instead.
     if m.checked
         m.thumb.translation = [42, 6]
         if focused
-            m.track.blendColor = "0x16191EFF"
-            m.thumb.blendColor = "0x38BDF8FF"
+            m.track.blendColor = m.c.accentFg
+            m.thumb.blendColor = m.c.accent
         else
-            m.track.blendColor = "0x38BDF8FF"
-            m.thumb.blendColor = "0x16191EFF"
+            m.track.blendColor = m.c.accent
+            m.thumb.blendColor = m.c.accentFg
         end if
     else
         m.thumb.translation = [6, 6]
         if focused
-            m.track.blendColor = "0x16191E66"
-            m.thumb.blendColor = "0x16191EFF"
+            m.track.blendColor = themeAlpha(m.c.accentFg, "66")
+            m.thumb.blendColor = m.c.accentFg
         else
-            m.track.blendColor = "0x2E3440FF"
-            m.thumb.blendColor = "0xA1A9B6FF"
+            m.track.blendColor = m.c.surface3
+            m.thumb.blendColor = m.c.muted
         end if
     end if
 end sub

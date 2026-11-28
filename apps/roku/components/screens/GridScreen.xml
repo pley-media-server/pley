@@ -21,7 +21,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <children>
-        <Label id="title" translation="[192, 56]" width="1200" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[192, 56]" width="1200" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
         <!-- New playlist: a pill with its plus, as a page's buttons are,
              ending at the right margin. -->
         <ChipRow id="buttons" look="buttons" pad="64" visible="false" />

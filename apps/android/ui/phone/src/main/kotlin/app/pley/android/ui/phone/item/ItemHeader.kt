@@ -86,6 +86,7 @@ import app.pley.android.ui.phone.theme.WidthClass
  */
 @Composable
 internal fun ItemHeader(page: ItemPage, actions: PageActions, requests: @Composable () -> Unit = {}) {
+    val palette = PleyColors.palette
     val metrics = LocalPhoneMetrics.current
     val tier = LocalPhoneDeviceTier.current
     val wide = metrics.widthClass != WidthClass.Compact
@@ -101,8 +102,8 @@ internal fun ItemHeader(page: ItemPage, actions: PageActions, requests: @Composa
                 .drawWithCache {
                     val fade = Brush.verticalGradient(
                         0f to Color.Transparent,
-                        0.45f to PleyColors.Bg.copy(alpha = 0.35f),
-                        1f to PleyColors.Bg,
+                        0.45f to palette.bg.copy(alpha = 0.35f),
+                        1f to palette.bg,
                         startY = size.height * 0.4f,
                         endY = size.height,
                     )

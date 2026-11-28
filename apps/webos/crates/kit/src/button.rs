@@ -165,12 +165,12 @@ impl<'a> Button<'a> {
 
     fn look(&self) -> focus::ControlLook {
         let mut look = match self.kind {
-            ButtonKind::Pill => focus::PILL,
-            ButtonKind::Text => focus::TEXT_BUTTON,
-            ButtonKind::Link | ButtonKind::Small => focus::LINK,
-            ButtonKind::Chip => focus::CHIP,
-            ButtonKind::Tab | ButtonKind::SeasonTab if self.selected => focus::TAB_CURRENT,
-            ButtonKind::Tab | ButtonKind::SeasonTab => focus::TAB,
+            ButtonKind::Pill => focus::pill(),
+            ButtonKind::Text => focus::text_button(),
+            ButtonKind::Link | ButtonKind::Small => focus::link(),
+            ButtonKind::Chip => focus::chip(),
+            ButtonKind::Tab | ButtonKind::SeasonTab if self.selected => focus::tab_current(),
+            ButtonKind::Tab | ButtonKind::SeasonTab => focus::tab(),
         };
         if let Some(c) = self.color {
             look.content = c;
@@ -243,7 +243,7 @@ impl<'a> Button<'a> {
     }
 
     fn paint(&self, ui: &mut Ui, rect: Rect, s: &Shade) {
-        let check_color = mix(theme::ACCENT, theme::ON_ACCENT, s.progress);
+        let check_color = mix(theme::accent(), theme::on_accent(), s.progress);
         ui.transform(Point::ZERO, s.scale, rect.center(), |ui| {
             ui.fill(rect, s.fill, radius::CONTROL);
             if let Some(edge) = s.edge {
@@ -320,7 +320,7 @@ impl<'a> RoundButton<'a> {
     /// Draws the button with its square's top-left corner at `at`.
     pub fn show(&self, ui: &mut Ui, id: Id, at: Point) -> Response {
         let rect = Rect::new(at.x, at.y, ROUND_SIZE, ROUND_SIZE);
-        let look = if self.on_art { focus::ROUND_ON_ART } else { focus::ROUND };
+        let look = if self.on_art { focus::round_on_art() } else { focus::round() };
         if !self.enabled {
             ui.opacity(theme::DISABLED_ALPHA, |ui| self.paint(ui, rect, &Shade::rest(&look)));
             return unregistered(id);
@@ -335,7 +335,7 @@ impl<'a> RoundButton<'a> {
             if reveal > 0.0 && !self.label.is_empty() {
                 let layout = ui.layout(self.label, &theme::CAPTION, &free_line());
                 let x = rect.center().x - layout.size.w / 2.0;
-                ui.opacity(reveal, |ui| ui.draw_text(Point::new(x, at.y + ROUND_LABEL_TOP), layout, theme::FG));
+                ui.opacity(reveal, |ui| ui.draw_text(Point::new(x, at.y + ROUND_LABEL_TOP), layout, theme::fg()));
             }
         }
         r

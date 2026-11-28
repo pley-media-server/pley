@@ -94,7 +94,7 @@ sealed class TvShell : Sheet
     /// <summary>Whether the person asked for less motion (Settings): nothing turns or slides by itself.</summary>
     public bool ReduceMotion => state.Settings.Value.ReduceMotion;
 
-    public TvShell(AppState state, Action<RailItem> onRail, Action onProfile) : base("shell", Axis.Row)
+    public TvShell(AppState state, Images images, Action<RailItem> onRail, Action onProfile) : base("shell", Axis.Row)
     {
         this.state = state;
         View.BackgroundColor = PleyColors.Bg;
@@ -105,7 +105,7 @@ sealed class TvShell : Sheet
             Size = new Size(Ui.Dp(PleyTv.RailFadeClearFrom), Ui.Dp(PleyTv.CanvasHeight)),
             Background = Gradients.Horizontal(PleyColors.Bg, new Color(PleyColors.Bg.R, PleyColors.Bg.G, PleyColors.Bg.B, 0), PleyTv.RailFadeSolidUntil / PleyTv.RailFadeClearFrom),
         });
-        Rail = new RailView(Tree, () => state.Settings.Value.ReduceMotion, onRail, onProfile);
+        Rail = new RailView(Tree, images, () => state.Settings.Value.ReduceMotion, onRail, onProfile);
         View.Add(Rail.Scrim);
         View.Add(Rail);
         Root.Add(Rail.Group);
@@ -130,7 +130,16 @@ sealed class TvShell : Sheet
 
         Back = OnBack;
         watches.Add(state.Libraries.Watch(_ => RailItems()));
-        watches.Add(state.Me.Watch(me => Rail.SetProfile(me == null ? null : new RailProfile(me.Name, AvatarView.Rgb(ProfileColors.Of(me.Name, me.AvatarColor))))));
+        watches.Add(state.Me.Watch(me =>
+        {
+            if (me == null)
+            {
+                Rail.SetProfile(null);
+                return;
+            }
+            var picture = string.IsNullOrEmpty(me.AvatarUrl) ? null : Artwork.Absolute(me.AvatarUrl!, state.Server.Value ?? "");
+            Rail.SetProfile(new RailProfile(me.Name, me.AvatarColor, picture));
+        }));
         Gone += () =>
         {
             foreach (var w in watches) w.Dispose();
@@ -147,6 +156,9 @@ sealed class TvShell : Sheet
 
     /// <summary>The page the stack starts at, which the rail shows as current.</summary>
     public PageKey? RootKey => stack.Count > 0 ? stack[0].Key : null;
+
+    /// <summary>The pages, the stack's root first.</summary>
+    public IReadOnlyList<ShellPage> Pages => stack;
 
     /// <summary>The pages' keys, the stack's root first: to open them again (in another language).</summary>
     public IReadOnlyList<PageKey> Keys => stack.ConvertAll(p => p.Key);

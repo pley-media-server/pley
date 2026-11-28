@@ -129,6 +129,7 @@
   },
   "connectionBanner": {
     "offline": "Pley is offline",
+    "retrying": "Reconnecting…",
     "downloads": "Downloads"
   },
   "folderPicker": {

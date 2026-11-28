@@ -73,7 +73,7 @@ function StreamTable({ streams }: { streams: MediaStream[] }) {
             <th className="py-1.5 pr-4 font-semibold">{t("mediaInfo.columns.details")}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/[0.05]">
+        <tbody className="divide-y divide-fg/[0.05]">
           {streams.map((s) => (
             <tr key={`${s.kind}-${s.index}`} className="align-top">
               {/* Only the first letter goes up: `capitalize` would make the French "sous-titres" "Sous-Titres". */}

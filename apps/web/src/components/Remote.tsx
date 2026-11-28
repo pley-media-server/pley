@@ -240,7 +240,7 @@ export function RemoteButton() {
         aria-label={label}
         aria-expanded={open}
         className={cn(
-          "flex size-9 items-center justify-center rounded-full transition-colors hover:bg-white/5 hover:text-fg",
+          "flex size-9 items-center justify-center rounded-full transition-colors hover:bg-fg/5 hover:text-fg",
           open ? "text-accent" : "text-muted",
         )}
       >
@@ -257,7 +257,7 @@ export function RemoteButton() {
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget)) focusInPanel.current = false;
           }}
-          className="fixed inset-x-4 top-16 z-40 max-h-[calc(100dvh-5rem)] animate-pop-in overflow-y-auto rounded-lg border border-border bg-surface-2 shadow-xl shadow-black/50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96"
+          className="fixed inset-x-4 top-16 z-40 max-h-[calc(100dvh-5rem)] animate-pop-in overflow-y-auto rounded-lg border border-border bg-surface-2 shadow-xl shadow-shade/50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96"
         >
           <div className="p-2">
             <h2 id={headingId} className="px-2 pb-1 pt-1 text-xs font-medium text-subtle">
@@ -308,8 +308,8 @@ function DeviceRow({ device, chosen, onChoose }: { device: OtherDevice; chosen: 
       aria-current={chosen || undefined}
       onClick={onChoose}
       className={cn(
-        "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-white/5",
-        chosen && "bg-white/[0.06]",
+        "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-fg/5",
+        chosen && "bg-fg/[0.06]",
       )}
     >
       <DeviceSummary device={device} lineId={lineId} chosen={chosen} />
@@ -589,7 +589,7 @@ function PlayingControls({
               {toggle === "play" ? <Play className="ml-0.5 size-5 fill-current" /> : <Pause className="size-5 fill-current" />}
             </button>
           ) : null}
-          <div className="flex items-center gap-0.5 rounded-full bg-white/5 p-1 ring-1 ring-inset ring-border">
+          <div className="flex items-center gap-0.5 rounded-full bg-fg/5 p-1 ring-1 ring-inset ring-border">
             <IconButton label={t("remote.previousChannelOn", { device: name })} size="sm" disabled={!can("previous")} onClick={() => send("previous")}>
               <ChevronDown className="size-5" />
             </IconButton>
@@ -664,7 +664,7 @@ function PlayingControls({
               aria-haspopup="menu"
               aria-expanded={picking === p}
               onClick={() => setPicking(picking === p ? null : p)}
-              className={cn(picking === p && "bg-white/10")}
+              className={cn(picking === p && "bg-fg/10")}
             >
               <PickerIcon picker={p} />
             </IconButton>
@@ -739,7 +739,7 @@ function SkipOffer({ marker, name, onSkip }: { marker: Marker; name: string; onS
       type="button"
       aria-label={t(`remote.skipOn.${marker.kind}`, { device: name })}
       onClick={onSkip}
-      className="flex h-9 shrink-0 animate-fade-in items-center gap-1 whitespace-nowrap rounded-full border border-border bg-surface-3 px-3 text-xs font-medium text-fg transition-colors hover:bg-white/10"
+      className="flex h-9 shrink-0 animate-fade-in items-center gap-1 whitespace-nowrap rounded-full border border-border bg-surface-3 px-3 text-xs font-medium text-fg transition-colors hover:bg-fg/10"
     >
       {t(`remote.skip.${marker.kind}`)}
       <ChevronsRight aria-hidden className="size-3.5" />
@@ -774,7 +774,7 @@ function StopConfirm({ name, onCancel, onStop }: { name: string; onCancel: () =>
       <button
         type="button"
         onClick={onCancel}
-        className="h-7 rounded-full px-3 text-xs font-medium text-muted transition-colors hover:bg-white/10 hover:text-fg"
+        className="h-7 rounded-full px-3 text-xs font-medium text-muted transition-colors hover:bg-fg/10 hover:text-fg"
       >
         {t("common:actions.cancel")}
       </button>
@@ -782,7 +782,7 @@ function StopConfirm({ name, onCancel, onStop }: { name: string; onCancel: () =>
         ref={stopRef}
         type="button"
         onClick={onStop}
-        className="h-7 rounded-full bg-danger px-3 text-xs font-semibold text-white transition-colors hover:bg-danger/90"
+        className="h-7 rounded-full bg-danger px-3 text-xs font-semibold text-danger-fg transition-colors hover:bg-danger/90"
       >
         {t("remote.stop")}
       </button>
@@ -883,7 +883,7 @@ function TrackMenu({
           role="menuitemradio"
           aria-checked={o.key === current}
           onClick={() => onPick(o.key)}
-          className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-fg outline-none transition-colors hover:bg-white/5 focus-visible:bg-white/10"
+          className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-fg outline-none transition-colors hover:bg-fg/5 focus-visible:bg-fg/10"
         >
           <Check className={cn("size-4 shrink-0 text-accent", o.key !== current && "invisible")} />
           <span className="min-w-0 flex-1 truncate">{o.label}</span>

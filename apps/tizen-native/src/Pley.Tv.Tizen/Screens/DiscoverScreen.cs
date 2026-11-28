@@ -577,7 +577,7 @@ sealed class DiscoverScreen : ShellPage
         }
     }
 
-    static readonly Color Summary = new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.85f);
+    static Color Summary => PleyColors.Alpha(PleyColors.Fg, 0.85f);
 }
 
 /// <summary>

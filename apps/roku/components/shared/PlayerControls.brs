@@ -2,6 +2,7 @@
 ' player's: what the player sets, nothing more. Sizes are its dp doubled.
 
 sub init()
+    m.c = uiPlayerColors()
     m.controls = m.top.findNode("controls")
     m.title = m.top.findNode("title")
     m.line = m.top.findNode("line")
@@ -137,7 +138,7 @@ sub onChapters()
             gap.translation = [96 + x - 2, 846]
             gap.width = 4
             gap.height = 8
-            gap.color = "0x16191EE6"
+            gap.color = themeAlpha(m.c.bg, "E6")
         end if
     end for
 end sub
@@ -177,9 +178,9 @@ sub onPreview()
     ' The well until a picture shows, then dark where the picture doesn't
     ' reach, as the video is letterboxed.
     if m.top.previewUri <> ""
-        m.previewWell.color = "0x16191EFF"
+        m.previewWell.color = m.c.bg
     else
-        m.previewWell.color = "0x262B35FF"
+        m.previewWell.color = m.c.surface2
     end if
     m.previewChapter.text = m.top.previewChapter
 end sub
@@ -231,20 +232,20 @@ sub placeRow(buttons as object, x as integer, gap as integer)
         group = m.row.createChild("Group")
         group.translation = [x, y]
         fill = group.createChild("Poster")
-        fill.uri = "pkg:/images/ui/r12.9.png"
+        fill.uri = "pkg:/images/ui/r8.9.png"
         fill.width = size
         fill.height = size
-        fill.blendColor = "0x38BDF8FF"
+        fill.blendColor = m.c.accent
         fill.visible = false
         icon = group.createChild("Poster")
         icon.width = iconSize
         icon.height = iconSize
         icon.translation = [(size - iconSize) / 2, (size - iconSize) / 2]
-        icon.blendColor = "0xEBEBEBFF"
+        icon.blendColor = m.c.fg
         icon.uri = "pkg:/images/ui/icon-" + button.icon + "-" + iconSize.ToStr() + ".png"
         label = group.createChild("Label")
         label.font = uiType("caption")
-        label.color = "0xEBEBEBFF"
+        label.color = m.c.fg
         label.text = button.label
         ' Its name 16 px under it, centered, while focused.
         textWidth = Int(label.boundingRect().width)
@@ -293,9 +294,9 @@ sub paintButton(node as object, focused as boolean)
     node.fill.visible = focused
     node.label.visible = focused and node.named
     if focused
-        node.icon.blendColor = "0x16191EFF"
+        node.icon.blendColor = m.c.accentFg
     else
-        node.icon.blendColor = "0xEBEBEBFF"
+        node.icon.blendColor = m.c.fg
     end if
 end sub
 

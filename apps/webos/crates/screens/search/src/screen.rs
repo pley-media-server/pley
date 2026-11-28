@@ -442,7 +442,7 @@ impl SearchScreen {
         if self.query.searching() {
             let y = FIELD_AT.y + (pley_kit::keyboard::FIELD_HEIGHT - theme::CAPTION.line_height) / 2.0;
             let x = FIELD_AT.x + FIELD_WIDTH + SEARCHING_GAP;
-            ui.text(Point::new(x, y), searching(), &theme::CAPTION, &TextOpts::default(), theme::MUTED);
+            ui.text(Point::new(x, y), searching(), &theme::CAPTION, &TextOpts::default(), theme::muted());
         }
         if self.typing {
             return;
@@ -664,12 +664,12 @@ fn unix_now() -> i64 {
 fn notice(ui: &mut Ui, title: &str, body: &str, lines: u16) -> f32 {
     let title = ui.layout(title, &theme::TITLE, &TextOpts::wrap(NOTICE_WIDTH, 2));
     let mut y = NOTICE_TOP + title.size.h;
-    ui.draw_text(Point::new(theme::GUTTER, NOTICE_TOP), title, theme::FG);
+    ui.draw_text(Point::new(theme::GUTTER, NOTICE_TOP), title, theme::fg());
     if !body.is_empty() {
         y += theme::space::S;
         let body = ui.layout(body, &theme::BODY, &TextOpts::wrap(NOTICE_WIDTH, lines));
         let h = body.size.h;
-        ui.draw_text(Point::new(theme::GUTTER, y), body, theme::MUTED);
+        ui.draw_text(Point::new(theme::GUTTER, y), body, theme::muted());
         y += h;
     }
     y
@@ -708,7 +708,7 @@ fn skeletons(ui: &mut Ui) {
 /// goes to: the chip focused last while it is still there, else the first.
 fn recents(ui: &mut Ui, ids: &Ids, recents: &[String], offset: &mut f32, act: &mut Option<Act>) -> Option<Id> {
     let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
-    ui.text(Point::new(theme::GUTTER, ROWS_TOP), recent_title(), &theme::SECTION, &TextOpts::line(width), theme::FG);
+    ui.text(Point::new(theme::GUTTER, ROWS_TOP), recent_title(), &theme::SECTION, &TextOpts::line(width), theme::fg());
     let y = ROWS_TOP + theme::SECTION.line_height + RECENT_GAP + CHIP_ROOM;
     let chips: Vec<Button> =
         recents.iter().map(|q| Button::chip(q).icon(Icon::History).max_label_width(CHIP_LABEL_WIDTH)).collect();
@@ -792,7 +792,7 @@ fn results(
             (NONE_KEY, ..) => {
                 let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
                 let at = Point::new(theme::GUTTER, top);
-                ui.text(at, none_in_libraries(), &theme::BODY, &TextOpts::line(width), theme::MUTED);
+                ui.text(at, none_in_libraries(), &theme::BODY, &TextOpts::line(width), theme::muted());
             }
             (TMDB_KEY, _, Some(d)) => discover_row(ui, ids, tmdb_row, top, d, act),
             (_, Some(found), _) => {
@@ -921,13 +921,13 @@ fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Disc
                 discover_title(),
                 &theme::SECTION,
                 &TextOpts::line(width),
-                theme::FG,
+                theme::fg(),
             );
             let (title, body, retry) = tmdb_problem(e, d.manage);
             let mut y = top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES;
-            ui.text(Point::new(theme::GUTTER, y), &title, &theme::TITLE, &TextOpts::line(width), theme::FG);
+            ui.text(Point::new(theme::GUTTER, y), &title, &theme::TITLE, &TextOpts::line(width), theme::fg());
             y += theme::TITLE.line_height + 4.0;
-            ui.text(Point::new(theme::GUTTER, y), &body, &theme::BODY, &TextOpts::wrap(width, 2), theme::MUTED);
+            ui.text(Point::new(theme::GUTTER, y), &body, &theme::BODY, &TextOpts::wrap(width, 2), theme::muted());
             y += 2.0 * theme::BODY.line_height + 16.0;
             if retry {
                 let pill = Button::pill(retry_label()).icon(Icon::RefreshCw);
@@ -944,7 +944,7 @@ fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Disc
                 discover_title(),
                 &theme::SECTION,
                 &TextOpts::line(width),
-                theme::FG,
+                theme::fg(),
             );
             let y = top + theme::ROW_HEADER_HEIGHT;
             skeleton_row(ui, y, Size::new(0.0, 0.0), theme::HEADER_TO_TILES, TileKind::Poster, TMDB_SKELETONS);
@@ -965,7 +965,7 @@ fn paint_tmdb_tile(ui: &mut Ui, slot: &TileSlot, t: &TmdbTile) {
         let r = TileKind::Poster.radius();
         let shown = first_art(ui, &t.art, priority);
         if shown.is_some_and(|s| s.opaque()) {
-            ui.fill(rect, theme::SURFACE2, r);
+            ui.fill(rect, theme::surface2(), r);
         } else {
             placeholder(ui, rect, &t.title, "", shown.is_none().then_some(mark), r);
         }
@@ -1062,7 +1062,7 @@ fn channel_tile(ui: &mut Ui, slot: &TileSlot, found: &ChannelResult, now: i64) {
         if shown.is_none_or(|s| matches!(s.state, ImageState::Failed)) {
             placeholder(ui, rect, &channel.name, &channel.name, None, radius::TILE);
         } else {
-            ui.fill(rect, theme::SURFACE3, radius::TILE);
+            ui.fill(rect, theme::surface3(), radius::TILE);
             if let Some(s) = shown {
                 ui.draw_image(rect.expand(-LOGO_INSET), &s, &ImageOpts::contain());
             }
@@ -1072,7 +1072,7 @@ fn channel_tile(ui: &mut Ui, slot: &TileSlot, found: &ChannelResult, now: i64) {
         }
         if channel.favorite {
             let star = Rect::new(rect.right() - MARK_INSET - STAR_SIZE, rect.y + MARK_INSET, STAR_SIZE, STAR_SIZE);
-            ui.icon(star, Icon::Star, theme::ACCENT);
+            ui.icon(star, Icon::Star, theme::accent());
         }
         if let Some(p) = progress {
             ProgressBar::on_art().show(ui, Rect::new(rect.x, rect.bottom() - PROGRAM_LINE, rect.w, PROGRAM_LINE), p);

@@ -436,18 +436,18 @@ impl Guide {
                     None => {
                         ui.fill(
                             Rect::new(area.x, y + 4.0, CHANNEL_W - 8.0, ROW_H - 8.0),
-                            theme::SURFACE2,
+                            theme::surface2(),
                             radius::CONTROL,
                         );
                         let x = area.x + CHANNEL_W + 2.0;
-                        ui.fill(Rect::new(x, y + 4.0, END - x, ROW_H - 8.0), theme::SURFACE2, radius::CONTROL);
+                        ui.fill(Rect::new(x, y + 4.0, END - x, ROW_H - 8.0), theme::surface2(), radius::CONTROL);
                     }
                 }
             }
         });
         // Now, down the grid.
         let now_x = grid_x + (now - self.start) as f32 * DP_PER_SECOND - shown_x;
-        ui.clip(grid, |ui| ui.fill(Rect::new(now_x - 1.0, rows.y, 2.0, rows.h), theme::ACCENT.alpha(0.85), 0.0));
+        ui.clip(grid, |ui| ui.fill(Rect::new(now_x - 1.0, rows.y, 2.0, rows.h), theme::accent().alpha(0.85), 0.0));
         out
     }
 
@@ -483,7 +483,7 @@ impl Guide {
         let name = channel_name(channel, Some(data.category));
         let top = area.y + 4.0;
         let logo = Rect::new(END - 120.0, top, 120.0, 68.0);
-        channel_tile(ui, cx, logo, channel, Well::PAGE.named());
+        channel_tile(ui, cx, logo, channel, Well::page().named());
         let x = area.x;
         let width = logo.x - 24.0 - x;
         let title_h = theme::SECTION.line_height;
@@ -495,7 +495,7 @@ impl Guide {
             }
         }
         let title = program.map_or(name.as_str(), |p| p.title.as_str());
-        ui.text(Point::new(tx, top), title, &theme::SECTION, &TextOpts::line(x + width - tx), theme::FG);
+        ui.text(Point::new(tx, top), title, &theme::SECTION, &TextOpts::line(x + width - tx), theme::fg());
         let mut meta: Vec<String> = Vec::new();
         let number = channel.number.clone().filter(|n| !n.is_empty());
         if let Some(p) = program {
@@ -512,7 +512,7 @@ impl Guide {
             meta.push(if channel.has_guide { t!("livetv.guide.noInfo") } else { t!("livetv.guide.noGuide") }.into());
         }
         let meta_y = top + title_h + 2.0;
-        ui.text(Point::new(x, meta_y), &meta.join("  ·  "), &theme::LABEL, &TextOpts::line(width), theme::MUTED);
+        ui.text(Point::new(x, meta_y), &meta.join("  ·  "), &theme::LABEL, &TextOpts::line(width), theme::muted());
         let text = program.map(|p| {
             [p.subtitle.as_deref(), p.description.as_deref()]
                 .into_iter()
@@ -524,7 +524,7 @@ impl Guide {
         if let Some(text) = text.filter(|t| !t.is_empty()) {
             let y = meta_y + theme::LABEL.line_height + 6.0;
             let text = shortened(&text, DESCRIPTION_CHARS);
-            ui.text(Point::new(x, y), &text, &theme::BODY, &TextOpts::wrap(width.min(560.0), 2), theme::MUTED);
+            ui.text(Point::new(x, y), &text, &theme::BODY, &TextOpts::wrap(width.min(560.0), 2), theme::muted());
         }
     }
 
@@ -532,7 +532,16 @@ impl Guide {
     fn ruler(&self, ui: &mut Ui, area: Rect, shown_x: f32, clock: &Clock) {
         let top = area.y + INFO_H;
         let day = clock.day(self.cursor.left.max(self.start));
-        line_mid(ui, &day, &theme::CAPTION, area.x + CHANNEL_INSET, top, RULER_H, CHANNEL_W - CHANNEL_INSET, theme::FG);
+        line_mid(
+            ui,
+            &day,
+            &theme::CAPTION,
+            area.x + CHANNEL_INSET,
+            top,
+            RULER_H,
+            CHANNEL_W - CHANNEL_INSET,
+            theme::fg(),
+        );
         let grid_x = area.x + CHANNEL_W;
         ui.clip(Rect::new(grid_x, top, END - grid_x, RULER_H), |ui| {
             let mut t = slot(self.cursor.left - VIEW_S);
@@ -540,7 +549,7 @@ impl Guide {
                 if t >= self.start {
                     let x = grid_x + (t - self.start) as f32 * DP_PER_SECOND - shown_x + 6.0;
                     let (text, color) =
-                        if clock.midnight(t) { (clock.day(t), theme::FG) } else { (clock.time(t), theme::MUTED) };
+                        if clock.midnight(t) { (clock.day(t), theme::fg()) } else { (clock.time(t), theme::muted()) };
                     let opts = TextOpts { max_width: None, ellipsis: false, ..TextOpts::default() };
                     let layout = ui.layout(&text, &theme::CAPTION, &opts);
                     crate::draw::text_mid(ui, x, top, RULER_H, layout, color);
@@ -567,27 +576,27 @@ impl Guide {
     ) {
         let now = data.clock.now;
         let row_focused = focused_start.is_some();
-        ui.fill(Rect::new(area.x, y + ROW_H - 1.0, theme::CANVAS_W - area.x, 1.0), theme::SURFACE4.alpha(0.6), 0.0);
+        ui.fill(Rect::new(area.x, y + ROW_H - 1.0, theme::CANVAS_W - area.x, 1.0), theme::surface4().alpha(0.6), 0.0);
 
         // The channel's cell.
         let cell = Rect::new(area.x, y + 4.0, CHANNEL_W, ROW_H - 8.0);
         if row_focused {
-            ui.fill(cell, theme::SURFACE3, radius::CONTROL);
+            ui.fill(cell, theme::surface3(), radius::CONTROL);
         }
         let logo = Rect::new(cell.x + CHANNEL_INSET, y + (ROW_H - 34.0) / 2.0, 56.0, 34.0);
-        channel_tile(ui, cx, logo, c, Well::PAGE);
+        channel_tile(ui, cx, logo, c, Well::page());
         let tx = logo.right() + 10.0;
         let tw = cell.right() - 8.0 - tx;
         let block = theme::CAPTION.line_height + theme::LABEL.line_height;
         let ty = y + (ROW_H - block) / 2.0;
         let number = c.number.as_deref().unwrap_or("");
-        let nw = line_mid(ui, number, &theme::CAPTION, tx, ty, theme::CAPTION.line_height, tw, theme::SUBTLE);
+        let nw = line_mid(ui, number, &theme::CAPTION, tx, ty, theme::CAPTION.line_height, tw, theme::subtle());
         if c.favorite {
             let sx = tx + nw + if number.is_empty() { 0.0 } else { 4.0 };
-            ui.icon(Rect::new(sx, ty + 2.5, 12.0, 12.0), pley_base::Icon::Star, theme::ACCENT);
+            ui.icon(Rect::new(sx, ty + 2.5, 12.0, 12.0), pley_base::Icon::Star, theme::accent());
         }
         let name = channel_name(c, Some(data.category));
-        let name_color = if row_focused { theme::FG } else { theme::MUTED };
+        let name_color = if row_focused { theme::fg() } else { theme::muted() };
         ui.text(Point::new(tx, ty + theme::CAPTION.line_height), &name, &theme::LABEL, &TextOpts::line(tw), name_color);
 
         // Its programs, as far as the grid may move a screen either way.
@@ -608,9 +617,9 @@ impl Guide {
             if !any && answered {
                 let focused = focused_start == Some(-1);
                 let inner = Rect::new(grid.x + 2.0, y + 4.0, grid.w - 4.0, ROW_H - 8.0);
-                ui.fill(inner, if focused { theme::ACCENT } else { theme::SURFACE.alpha(0.6) }, radius::CONTROL);
+                ui.fill(inner, if focused { theme::accent() } else { theme::surface().alpha(0.6) }, radius::CONTROL);
                 let label = if c.has_guide { t!("livetv.guide.noInfo").to_string() } else { name.clone() };
-                let color = if focused { theme::ON_ACCENT } else { theme::SUBTLE };
+                let color = if focused { theme::on_accent() } else { theme::subtle() };
                 line_mid(ui, &label, &theme::CAPTION, inner.x + 12.0, inner.y, inner.h, inner.w - 24.0, color);
             } else if focused_start == Some(-1) && any {
                 // Focus in a stretch the guide says nothing of: that stretch, in the accent.
@@ -622,7 +631,7 @@ impl Guide {
                 let x = grid.x + (gap_start - self.start) as f32 * DP_PER_SECOND - shown_x;
                 let w = (gap_stop - gap_start) as f32 * DP_PER_SECOND;
                 let inner = Rect::new(x + 2.0, y + 4.0, (w - 4.0).max(0.0), ROW_H - 8.0);
-                ui.fill(inner, theme::ACCENT, radius::CONTROL);
+                ui.fill(inner, theme::accent(), radius::CONTROL);
                 if inner.w > MIN_TEXT {
                     let lx = inner.x.max(grid.x) + 10.0;
                     line_mid(
@@ -633,7 +642,7 @@ impl Guide {
                         inner.y,
                         inner.h,
                         inner.right() - 10.0 - lx,
-                        theme::ON_ACCENT,
+                        theme::on_accent(),
                     );
                 }
             }
@@ -654,15 +663,15 @@ fn programme(ui: &mut Ui, rect: Rect, p: &LiveProgram, focused: bool, now: i64, 
     let alpha = if p.stop <= now && !focused { 0.55 } else { 1.0 };
     ui.opacity(alpha, |ui| {
         let fill = if focused {
-            theme::ACCENT
+            theme::accent()
         } else if airing {
-            theme::PRIMARY_CONTAINER
+            theme::primary_container()
         } else {
-            theme::SURFACE2
+            theme::surface2()
         };
         ui.fill(inner, fill, radius::CONTROL);
         if airing && !focused {
-            ui.stroke(inner.expand(-0.5), theme::ACCENT.alpha(0.35), radius::CONTROL - 0.5, 1.0);
+            ui.stroke(inner.expand(-0.5), theme::accent().alpha(0.35), radius::CONTROL - 0.5, 1.0);
         }
         if rect.w > MIN_TEXT {
             let room = (rect.w - KEEP_TITLE).max(0.0);
@@ -672,8 +681,11 @@ fn programme(ui: &mut Ui, rect: Rect, p: &LiveProgram, focused: bool, now: i64, 
             let block = theme::LABEL.line_height + theme::CAPTION.line_height;
             let top = inner.y + (inner.h - block) / 2.0;
             let weight = if airing || focused { Weight::Bold } else { Weight::Medium };
-            let (title, span) =
-                if focused { (theme::ON_ACCENT, theme::ON_ACCENT.alpha(0.8)) } else { (theme::FG, theme::SUBTLE) };
+            let (title, span) = if focused {
+                (theme::on_accent(), theme::on_accent().alpha(0.8))
+            } else {
+                (theme::fg(), theme::subtle())
+            };
             ui.clip(inner, |ui| {
                 let style = theme::LABEL.with_weight(weight);
                 ui.text(Point::new(x, top), &p.title, &style, &TextOpts::line(w), title);
@@ -683,7 +695,7 @@ fn programme(ui: &mut Ui, rect: Rect, p: &LiveProgram, focused: bool, now: i64, 
         }
         if airing {
             let bar = Rect::new(inner.x, inner.bottom() - 2.0, inner.w * p.progress_at(now), 2.0);
-            ui.fill(bar, if focused { theme::ON_ACCENT } else { theme::ACCENT }, 0.0);
+            ui.fill(bar, if focused { theme::on_accent() } else { theme::accent() }, 0.0);
         }
     });
 }

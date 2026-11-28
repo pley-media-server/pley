@@ -1,6 +1,5 @@
 package app.pley.android.ui.phone.kit
 
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.ui.phone.theme.PhoneMetrics
@@ -10,7 +9,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Card widths, grid columns, page metrics and avatar colors, as the design spec and the web give them. */
+/** Card widths, grid columns and page metrics, as the design spec and the web give them. */
 class KitMeasuresTest {
     /** A 412 dp phone less its two 16 dp margins. */
     private val phone = 380.dp
@@ -67,21 +66,5 @@ class KitMeasuresTest {
         // Beside the 80 dp rail.
         assertEquals(720.dp, tablet.contentWidth)
         assertEquals(32.dp, PhoneMetrics.of(1280.dp).margin)
-    }
-
-    @Test
-    fun avatarsUseTheWebsColours() {
-        assertEquals(Color(0xFFA78BFA), AvatarColors.of("Alex", "#a78bfa"))
-        assertEquals(Color(0xFFAABBCC), AvatarColors.of("Alex", "abc"))
-        // The web's hash: "A" is 65, and 65 % 8 is 1.
-        assertEquals(AvatarColors.palette[1], AvatarColors.of("A", null))
-        assertEquals(AvatarColors.palette[1], AvatarColors.of("A", "not a color"))
-    }
-
-    @Test
-    fun avatarTextIsDarkOnLightColours() {
-        assertEquals(Color.White, AvatarColors.textOn(Color(0xFF7C3AED)))
-        assertEquals(Color(0xFF0B0D10), AvatarColors.textOn(Color(0xFFFACC15)))
-        assertEquals(Color(0xFF0B0D10), AvatarColors.textOn(Color(0xFF38BDF8)))
     }
 }

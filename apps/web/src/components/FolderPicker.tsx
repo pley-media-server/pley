@@ -96,14 +96,14 @@ export function FolderPicker({
         ) : fs.data.entries.length === 0 ? (
           <div className="flex h-full items-center justify-center p-6 text-sm text-subtle">{t("folderPicker.empty")}</div>
         ) : (
-          <ul className="divide-y divide-white/[0.04]">
+          <ul className="divide-y divide-fg/[0.04]">
             {fs.data.entries.map((e) => (
               <li key={e.path}>
                 <button
                   type="button"
                   onClick={() => setPath(e.path)}
                   onDoubleClick={() => onSelect(e.path)}
-                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-fg/5"
                 >
                   {atRoots ? <HardDrive className="size-4 shrink-0 text-subtle" /> : <Folder className="size-4 shrink-0 text-accent/80" />}
                   <span className="min-w-0 flex-1 truncate">{e.name}</span>

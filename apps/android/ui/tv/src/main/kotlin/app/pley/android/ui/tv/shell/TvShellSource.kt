@@ -1,7 +1,6 @@
 package app.pley.android.ui.tv.shell
 
 import androidx.compose.runtime.Immutable
-import androidx.compose.ui.graphics.Color
 import app.pley.android.auth.AuthEvent
 import app.pley.android.data.RequestNotice
 import app.pley.android.data.RequestsRepository
@@ -121,22 +120,10 @@ data class TvNotice(val notice: RequestNotice, val poster: ArtworkImage? = null)
 @Immutable
 data class RailProfile(
     val name: String,
-    /** The circle behind the initial; `null`: pley's default. */
-    val color: Color? = null,
+    /** The profile's `avatar_color` ("#e07a5f"); `null`, or one that isn't a color: picked from [name], as every avatar's. */
+    val color: String? = null,
     val picture: ArtworkImage? = null,
-) {
-    val initial: String get() = name.trim().firstOrNull()?.uppercase() ?: "?"
-
-    companion object {
-        /** "#e07a5f" as a color; `null` when it isn't one. */
-        fun parseColor(hex: String?): Color? {
-            val digits = hex?.removePrefix("#") ?: return null
-            if (digits.length != 6) return null
-            val rgb = digits.toLongOrNull(16) ?: return null
-            return Color(0xFF000000 or rgb)
-        }
-    }
-}
+)
 
 private class GraphShellSource(
     private val graph: ScreensGraph,
@@ -179,7 +166,7 @@ private class GraphShellSource(
         val me = session?.me ?: return@map null
         RailProfile(
             name = me.name,
-            color = RailProfile.parseColor(me.avatarColor),
+            color = me.avatarColor,
             picture = ArtworkImage.of(me.avatarUrl, session.issuer),
         )
     }.distinctUntilChanged()

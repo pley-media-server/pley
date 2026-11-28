@@ -1,4 +1,6 @@
 sub init()
+    m.c = uiColors()
+    uiRecolor(m.top, m.c)
     m.pill = m.top.findNode("pill")
     m.mark = m.top.findNode("mark")
     m.icon = m.top.findNode("icon")
@@ -7,6 +9,8 @@ sub init()
     m.count = m.top.findNode("count")
     m.avatar = m.top.findNode("avatar")
     m.initial = m.top.findNode("initial")
+    m.frame = m.top.findNode("frame")
+    m.picture = m.top.findNode("picture")
     m.current = false
     m.danger = false
 end sub
@@ -15,9 +19,23 @@ sub onContent()
     entry = m.top.itemContent
     if entry = invalid then return
     m.name.text = entry.title
-    ' The profile: its initial in a circle, where the others have an icon.
+    ' The profile: its avatar, where the others have an icon; its picture
+    ' over its initial on its color, which shows while the picture loads,
+    ' or when it fails, in the profile's colors whatever the theme.
     initial = ""
     if entry.hasField("initial") then initial = entry.initial
+    picture = ""
+    if initial <> ""
+        m.avatar.blendColor = entry.color
+        m.initial.color = entry.ink
+        picture = entry.image
+    end if
+    if picture <> m.picture.uri
+        ' The scene's agent carries the token, which the picture needs.
+        if picture <> "" then m.picture.setHttpAgent(m.top.getScene().getHttpAgent())
+        m.picture.uri = picture
+    end if
+    m.frame.visible = picture <> ""
     ' Set with each entry, so a language that changed the family of type
     ' (the rail's entries come again in it) shows in its fonts; a library's
     ' or a profile's name in Chinese has a font with its characters.
@@ -61,6 +79,7 @@ sub onHeight()
     m.icon.translation = [52, (h - 40) / 2]
     m.avatar.translation = [44, (h - 56) / 2]
     m.initial.translation = [44, (h - 56) / 2]
+    m.frame.translation = [44, (h - 56) / 2]
     onWidth()
 end sub
 
@@ -89,36 +108,36 @@ sub onFocus()
     if w <= 0 then w = 456
     if focused
         m.pill.visible = true
-        m.pill.blendColor = "0x38BDF8FF"
+        m.pill.blendColor = m.c.accent
         m.pill.width = w - 48
         m.pill.translation = [24, 0]
-        m.icon.blendColor = "0x16191EFF"
-        m.name.color = "0x16191EFF"
+        m.icon.blendColor = m.c.accentFg
+        m.name.color = m.c.accentFg
     else if m.current and open
         m.pill.visible = true
-        m.pill.blendColor = "0x2E3440FF"
+        m.pill.blendColor = m.c.surface3
         m.pill.width = w - 48
         m.pill.translation = [24, 0]
-        m.icon.blendColor = "0xEBEBEBFF"
-        m.name.color = "0xEBEBEBFF"
+        m.icon.blendColor = m.c.fg
+        m.name.color = m.c.fg
     else
         m.pill.visible = false
-        m.name.color = "0xEBEBEBFF"
+        m.name.color = m.c.fg
         if m.current
-            m.icon.blendColor = "0xEBEBEBFF"
+            m.icon.blendColor = m.c.fg
         else
-            m.icon.blendColor = "0xA1A9B6FF"
+            m.icon.blendColor = m.c.muted
         end if
     end if
     ' On the accent pill, an accent number is dark instead.
     if m.danger
-        m.countBack.blendColor = "0xEB6B70FF"
-        m.count.color = "0x16191EFF"
+        m.countBack.blendColor = m.c.danger
+        m.count.color = m.c.dangerFg
     else if focused
-        m.countBack.blendColor = "0x16191EFF"
-        m.count.color = "0x7DD3FCFF"
+        m.countBack.blendColor = m.c.accentFg
+        m.count.color = m.c.accentHover
     else
-        m.countBack.blendColor = "0x38BDF8FF"
-        m.count.color = "0x16191EFF"
+        m.countBack.blendColor = m.c.accent
+        m.count.color = m.c.accentFg
     end if
 end sub

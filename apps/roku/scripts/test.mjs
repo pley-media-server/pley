@@ -12,6 +12,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkLocales } from "./locales.mjs";
+import { checkBroadcastSafe } from "./broadcast-check.mjs";
 
 const require = createRequire(import.meta.url);
 const brs = require("brs-node");
@@ -22,6 +23,12 @@ const verbose = process.argv.includes("--verbose");
 const wordProblems = checkLocales(root);
 for (const problem of wordProblems) console.log(`words: ${problem}`);
 console.log(`words: ${wordProblems.length === 0 ? "every language has every word" : `${wordProblems.length} problems`}`);
+
+// The splash screen and the store artwork, broadcast-safe as Roku's
+// certification asks (broadcast-check.mjs).
+const safeProblems = checkBroadcastSafe(root);
+for (const problem of safeProblems) console.log(`broadcast-safe: ${problem}`);
+console.log(`broadcast-safe: ${safeProblems.length === 0 ? "the splash and the artwork are within the range" : `${safeProblems.length} problems`}`);
 
 const brsFiles = (dir) =>
   readdirSync(join(root, dir))
@@ -64,7 +71,7 @@ files.set("source/run.brs", new Blob([main]));
 // The rules every TV app shares (packages/tv/test/fixtures), which the
 // tests read as pkg:/fixtures/<name>.json.
 const fixtures = join(root, "../../packages/tv/test/fixtures");
-for (const name of ["remote.json", "language.json"]) {
+for (const name of ["remote.json", "language.json", "avatar.json"]) {
   files.set(`fixtures/${name}`, new Blob([readFileSync(join(fixtures, name))]));
 }
 // Pley's placeholder mark as every app draws it, and the pictures of it
@@ -72,6 +79,12 @@ for (const name of ["remote.json", "language.json"]) {
 files.set("placeholder/placeholder.json", new Blob([readFileSync(join(root, "../../packages/placeholder/placeholder.json"))]));
 for (const name of readdirSync(join(root, "images")).filter((n) => n.startsWith("placeholder-"))) {
   files.set(`images/${name}`, new Blob([readFileSync(join(root, "images", name))]));
+}
+// Pley's themes and accents as every app draws them (pkg:/themes/themes.json).
+files.set("themes/themes.json", new Blob([readFileSync(join(root, "../../packages/themes/themes.json"))]));
+// The Live TV guide's pictures in every theme's colors (pkg:/images/guide).
+for (const name of readdirSync(join(root, "images/guide"))) {
+  files.set(`images/guide/${name}`, new Blob([readFileSync(join(root, "images/guide", name))]));
 }
 // The words, as the package has them (pkg:/locales/<language>/<area>.json).
 for (const language of readdirSync(join(root, "locales"))) {
@@ -118,4 +131,4 @@ if (summary === null) {
   process.exit(1);
 }
 console.log(summary);
-process.exit(failed || wordProblems.length > 0 ? 1 : 0);
+process.exit(failed || wordProblems.length > 0 || safeProblems.length > 0 ? 1 : 0);

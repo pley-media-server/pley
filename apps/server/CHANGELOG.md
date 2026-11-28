@@ -9,17 +9,45 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Themes: Account → Appearance picks Midnight, Midday, Twilight, Starlight,
+  Moonlight, Nightshade, Greenlight, Sunshine (a bright one for children)
+  or Blacklight (black and white), and an accent over any of them (Sky,
+  Violet, Miami, Gold, Mint or Amber) that colors the logo too, kept for
+  each profile on each device.
+
 ### Changed
 
+- A profile's initial on its avatar is dark or white, whichever reads
+  better on its color.
 - The web player's Up Next card shows the next title's name without its
   picture, so it covers less of the credits.
 - Skip Intro and Skip Credits show on their own for 8 seconds as the intro
   or credits begin, then only with the player's controls, so they don't sit
   over the picture the whole time.
+- When the server can't be reached, the web app says what to check, and
+  "Pley is offline" floats over the page instead of pushing it down.
+- Account is laid out as Settings is: its sections down the side, one at a
+  time. In a narrow window, both pick their section from one menu.
+- HDR video converted for playback stays HDR only where a GPU encodes
+  10-bit HEVC, where no GPU encodes at all, or with tone mapping turned
+  off. A GPU that encodes H.264 but not 10-bit HEVC (Rockchip's chips,
+  older Intel and NVIDIA graphics) has it tone mapped to SDR, which keeps
+  up, rather than encoded on the CPU, which fell far behind. Settings →
+  Transcoder says so; downloads still keep HDR.
 
 ### Removed
 
 - The web app no longer has a sleep timer, for videos or audiobooks.
+
+### Fixed
+
+- Rockchip in Docker decodes HEVC, VP9 and AV1 on the chip, and encodes
+  HEVC there: `compose.rockchip.yaml` shows Rockchip's MPP the device tree
+  it tells the chip by (`security_opt: systempaths=unconfined`), which
+  Docker hides. An installation set up before needs the new file; until
+  then Settings → Transcoder says what is missing.
 
 ## [0.1.18] - 2026-11-27
 

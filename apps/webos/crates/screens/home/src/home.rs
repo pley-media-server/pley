@@ -220,8 +220,8 @@ impl HomeToast {
         let size = Size::new(layout.size.w + 40.0, layout.size.h + 20.0);
         let at = Point::new(theme::GUTTER, theme::CANVAS_H - theme::SAFE_Y - size.h);
         ui.opacity(alpha.clamp(0.0, 1.0), |ui| {
-            ui.fill(Rect::from_origin_size(at, size), theme::SURFACE3, radius::CONTROL);
-            ui.draw_text(Point::new(at.x + 20.0, at.y + 10.0), layout, theme::FG);
+            ui.fill(Rect::from_origin_size(at, size), theme::surface3(), radius::CONTROL);
+            ui.draw_text(Point::new(at.x + 20.0, at.y + 10.0), layout, theme::fg());
         });
     }
 }
@@ -766,7 +766,7 @@ fn draw_info(ui: &mut Ui, info: &HomeInfo) {
     let r = InfoBlock::RECT;
     let title = ui.layout(&info.title, &theme::PAGE_TITLE, &TextOpts::line(r.w));
     let h = title.size.h;
-    ui.draw_text(Point::new(r.x, r.y + INFO_TITLE_BOX - h), title, theme::FG);
+    ui.draw_text(Point::new(r.x, r.y + INFO_TITLE_BOX - h), title, theme::fg());
     let mut y = r.y + INFO_TITLE_BOX + 10.0;
     let line = meta_line(info, &info.context);
     if !line.is_empty() {
@@ -774,7 +774,7 @@ fn draw_info(ui: &mut Ui, info: &HomeInfo) {
         y += META_LINE + 8.0;
     }
     if !info.summary.is_empty() {
-        ui.text(Point::new(r.x, y), &info.summary, &theme::BODY, &TextOpts::wrap(r.w, 2), theme::SUMMARY);
+        ui.text(Point::new(r.x, y), &info.summary, &theme::BODY, &TextOpts::wrap(r.w, 2), theme::summary());
     }
 }
 
@@ -825,12 +825,12 @@ fn hero_column(ui: &mut Ui, info: &HomeInfo, mut y: f32, draw: bool) -> f32 {
         let opts = TextOpts { balance: true, ..TextOpts::wrap(TEXT_COLUMN, 2) };
         let title = ui.layout(&info.title, &theme::HERO_TITLE, &opts);
         let h = title.size.h;
-        ui.draw_text(Point::new(x, y + HERO_TITLE_BOX - h), title, theme::FG);
+        ui.draw_text(Point::new(x, y + HERO_TITLE_BOX - h), title, theme::fg());
     }
     y += HERO_TITLE_BOX;
     if !info.context.is_empty() {
         y += 10.0;
-        y += text(ui, y, &info.context, &theme::TITLE, TextOpts::line(TEXT_COLUMN), theme::FG);
+        y += text(ui, y, &info.context, &theme::TITLE, TextOpts::line(TEXT_COLUMN), theme::fg());
     }
     let line = meta_line(info, "");
     if !line.is_empty() {
@@ -842,11 +842,11 @@ fn hero_column(ui: &mut Ui, info: &HomeInfo, mut y: f32, draw: bool) -> f32 {
     }
     if info.in_progress && !info.time_left.is_empty() {
         y += 10.0;
-        y += text(ui, y, &info.time_left, &theme::CAPTION, TextOpts::line(TEXT_COLUMN), theme::FG);
+        y += text(ui, y, &info.time_left, &theme::CAPTION, TextOpts::line(TEXT_COLUMN), theme::fg());
     }
     if !info.summary.is_empty() {
         y += 10.0;
-        y += text(ui, y, &info.summary, &theme::BODY_LARGE, TextOpts::wrap(TEXT_COLUMN, 3), theme::SUMMARY);
+        y += text(ui, y, &info.summary, &theme::BODY_LARGE, TextOpts::wrap(TEXT_COLUMN, 3), theme::summary());
     }
     y + 20.0
 }

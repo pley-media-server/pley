@@ -5,9 +5,10 @@
 //! server's web app in the same window. That web app leads back to the picker
 //! through `/__app/servers`, which the window catches; links to other sites
 //! open in the browser (web links only: no other kind of address is handed
-//! to the system). Pages from servers get no access to the app's commands:
-//! only the picker, bundled with the app, has it. The files a server's page
-//! downloads are fetched by the app, to play while the server is away
+//! to the system). Pages from servers may only tell the app the theme they
+//! show: its other commands are the picker's, bundled with the app. The
+//! files a server's page downloads are fetched by the app, to play while
+//! the server is away
 //! (`downloads`), and the system's notifications tell of requests while the
 //! window isn't in front (`notices`), in the language of the server's pages
 //! (`words`). Before the app opens a server, and
@@ -17,7 +18,9 @@
 //! leaves a plain-http server at once and opens it again through a proof.
 //! What the app writes for the picker (why a server didn't answer, why a
 //! download failed) goes by key, which the picker says in the computer's
-//! language (`said`).
+//! language (`said`). The window's title bar and its icon follow the theme
+//! the server's pages show, and are Midnight while the picker, outside any
+//! profile, shows (`theme`).
 
 mod discovery;
 mod downloads;
@@ -25,6 +28,7 @@ mod notices;
 mod proofs;
 mod said;
 mod servers;
+mod theme;
 mod words;
 
 use std::sync::Mutex;
@@ -36,8 +40,19 @@ use url::Url;
 
 /// Where the web app sends people who want another server.
 const SWITCH_SERVER: &str = "/__app/servers";
-/// Tells the web app it runs in this app (src/lib/shell.ts over there).
-const INIT_SCRIPT: &str = "window.__PLEY_APP__ = 'desktop';";
+/// Tells the web app it runs in this app (src/lib/shell.ts over there), and
+/// gives it a way to tell the app the theme it shows ([`theme_picked`]). The
+/// server's Content-Security-Policy allows connections to the server alone,
+/// so Tauri's own channel is refused on a page's first call, with one CSP
+/// warning in its console, and the call goes over Tauri's other one: the
+/// policy stays as narrow as a browser's.
+const INIT_SCRIPT: &str = "window.__PLEY_APP__ = 'desktop';
+window.__PLEY_DESKTOP__ = Object.freeze({
+  theme(theme, accent) {
+    const args = { theme: String(theme), accent: accent == null ? null : String(accent) };
+    window.__TAURI_INTERNALS__?.invoke('theme_picked', args).catch(() => {});
+  },
+});";
 
 /// Where the window is.
 #[derive(Debug, Default)]
@@ -186,9 +201,53 @@ async fn route_to(server: Url) -> Option<std::net::IpAddr> {
 fn leave_for<R: Runtime>(window: &WebviewWindow<R>, picker: Option<Url>) {
     window.state::<Pages>().0.lock().unwrap().server = None;
     window.state::<notices::Notices>().follow(None);
+    // The picker is outside any profile: Midnight, whatever the server's pages showed.
+    show(window, theme::Pick::default());
     if let Some(picker) = picker {
         let _ = window.navigate(picker);
     }
+}
+
+fn title_bar(pick: &theme::Pick) -> tauri::Theme {
+    match pick.kind() {
+        theme::Kind::Dark => tauri::Theme::Dark,
+        theme::Kind::Light => tauri::Theme::Light,
+    }
+}
+
+/// The window's icon in `pick`: the app's own in Pley's own look, the logo
+/// drawn in the theme's colors otherwise, as the web app's tab icon is.
+fn icon<R: Runtime>(window: &WebviewWindow<R>, pick: &theme::Pick) {
+    let icon = if pick.is_own() {
+        let Some(own) = window.app_handle().default_window_icon() else { return };
+        tauri::image::Image::new_owned(own.rgba().to_vec(), own.width(), own.height())
+    } else {
+        pick.logo(64)
+    };
+    let _ = window.set_icon(icon);
+}
+
+/// Draws the window around its pages in `pick`: its background before a
+/// page draws, its title bar and its icon.
+fn show<R: Runtime>(window: &WebviewWindow<R>, pick: theme::Pick) {
+    if !window.state::<theme::Shown>().change(pick.clone()) {
+        return;
+    }
+    let _ = window.set_background_color(Some(pick.background()));
+    let _ = window.set_theme(Some(title_bar(&pick)));
+    icon(window, &pick);
+}
+
+/// The theme and accent the server's pages show: a profile's pick, or
+/// Midnight outside a profile. Only the server shown tells it; ids the app
+/// doesn't know are Midnight and the theme's own accent.
+#[tauri::command]
+fn theme_picked(window: WebviewWindow, theme: String, accent: Option<String>) {
+    let shown = window.state::<Pages>().0.lock().unwrap().server.clone();
+    if !window.url().is_ok_and(|url| shown.is_some_and(|shown| same_origin(&shown, &url))) {
+        return;
+    }
+    show(&window, theme::Pick::new(&theme, accent.as_deref()));
 }
 
 /// Opens a web or mail link in the browser; any other kind of address (a
@@ -255,7 +314,8 @@ pub fn run() {
             downloads::play_download,
             downloads::show_download,
             downloads::remove_download,
-            downloads::retry_download
+            downloads::retry_download,
+            theme_picked
         ])
         .setup(|app| {
             // While developing, the picker comes from Vite's dev server.
@@ -266,14 +326,19 @@ pub fn run() {
             app.manage(proofs::Proofs::load(app.path().app_local_data_dir()?.join("proofs.json")));
             let list = app.path().app_data_dir()?.join("downloads.json");
             app.manage(downloads::Downloads::load(list, downloads::folder(app.handle())));
+            app.manage(theme::Shown::default());
             let handle = app.handle().clone();
             let opener = app.handle().clone();
             // The picker's address is known once it loads (see `navigation`):
-            // until then, the window's address is about:blank.
+            // until then, the window's address is about:blank. It opens on
+            // the picker, outside any profile: in Midnight.
+            let midnight = theme::Pick::default();
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Pley")
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(720.0, 480.0)
+                .background_color(midnight.background())
+                .theme(Some(title_bar(&midnight)))
                 .initialization_script(INIT_SCRIPT)
                 .on_navigation(move |url| {
                     let decision = navigation(url, &mut handle.state::<Pages>().0.lock().unwrap());

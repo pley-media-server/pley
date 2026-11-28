@@ -213,14 +213,17 @@ impl Screen for TitlesScreen {
                 let x = theme::GUTTER + TileKind::Poster.size().w + 28.0;
                 let y = LIST_TOP + theme::GRID_CONTENT_TOP + 40.0;
                 let w = theme::CANVAS_W - x - theme::SAFE_X;
-                let h = ui.text(Point::new(x, y), &title, &theme::TITLE, &TextOpts::wrap(w, 2), theme::FG).h;
-                ui.text(Point::new(x, y + h + 8.0), &body, &theme::BODY, &TextOpts::wrap(w, 3), theme::MUTED);
+                let h = ui.text(Point::new(x, y), &title, &theme::TITLE, &TextOpts::wrap(w, 2), theme::fg()).h;
+                ui.text(Point::new(x, y + h + 8.0), &body, &theme::BODY, &TextOpts::wrap(w, 3), theme::muted());
             }
         }
 
-        // The page's title over the grid, which scrolls under it.
-        ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, LIST_TOP), theme::BG, 0.0);
-        ui.text(title_at, &self.words.title, &theme::PAGE_TITLE, &TextOpts::line(width), theme::FG);
+        // The page's title over the grid, which scrolls under it, on the page's color and the
+        // theme's backdrop, as the rest of the screen.
+        let band = Rect::new(0.0, 0.0, theme::CANVAS_W, LIST_TOP);
+        ui.fill(band, theme::bg(), 0.0);
+        ui.clip(band, pley_kit::theme_glow);
+        ui.text(title_at, &self.words.title, &theme::PAGE_TITLE, &TextOpts::line(width), theme::fg());
         self.sign_in.show(ui, cx, page.with("sign-in"));
     }
 

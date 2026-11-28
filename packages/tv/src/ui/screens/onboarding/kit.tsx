@@ -15,19 +15,22 @@ export function BrandGlow(p: { children: ComponentChildren }) {
   return <div class="brand-glow">{p.children}</div>;
 }
 
-/** The Pley mark: three posters on a shelf, play cut out of the front one, on its tile (the web's LogoMark). */
+/**
+ * The Pley mark: three posters on a shelf, play cut out of the front one, on
+ * its tile (the web's LogoMark), in the theme's colors (`--brand-*`).
+ */
 export function LogoMark(p: { size: number }) {
   return (
     <svg width={p.size} height={p.size} viewBox="0 0 64 64" aria-hidden="true" style="flex:none">
       <defs>
         <linearGradient id="pley-mark" x1="12" y1="15" x2="34" y2="49" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stop-color="#bae6fd" />
-          <stop offset="1" stop-color="#38bdf8" />
+          <stop offset="0" style="stop-color:var(--brand-light)" />
+          <stop offset="1" style="stop-color:var(--brand)" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="15" fill="#0a1622" />
-      <path fill="#0c4a6e" d="M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z" />
-      <path fill="#0284c7" d="M36 18.5h4.5a3.5 3.5 0 0 1 3.5 3.5v20a3.5 3.5 0 0 1-3.5 3.5H36z" />
+      <rect width="64" height="64" rx="15" style="fill:var(--brand-tile)" />
+      <path style="fill:var(--brand-far)" d="M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z" />
+      <path style="fill:var(--brand-deep)" d="M36 18.5h4.5a3.5 3.5 0 0 1 3.5 3.5v20a3.5 3.5 0 0 1-3.5 3.5H36z" />
       <path fill="url(#pley-mark)" fill-rule="evenodd" d="M16 15.5h14a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4v-25a4 4 0 0 1 4-4zM19 27v10a1 1 0 0 0 1.51.86l8.5-5a1 1 0 0 0 0-1.72l-8.5-5A1 1 0 0 0 19 27z" />
     </svg>
   );
@@ -183,65 +186,6 @@ export function QrCode(p: { text: string; size: number }) {
     }
   }, [p.text, device]);
   return <canvas ref={canvas} style={`width:${p.size}px;height:${p.size}px;display:block`} aria-hidden="true" />;
-}
-
-/** Colors offered for profiles; also the one picked from a name (the web's Avatar). */
-export const AVATAR_COLORS = ["#38bdf8", "#a78bfa", "#f472b6", "#fb923c", "#facc15", "#4ade80", "#2dd4bf", "#f87171"];
-
-/** The profile's color when it is one ("#rgb", "#rrggbb"), else one from its name. */
-export function avatarColor(name: string, color: string | null | undefined): string {
-  if (color && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) return color;
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (Math.imul(h, 31) + name.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length]!;
-}
-
-/** Bg on light colors, white on dark ones. */
-export function textOn(hex: string): string {
-  const m = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(hex);
-  if (!m) return "#ffffff";
-  const d = m[1]!;
-  const full = d.length === 3 ? d.split("").map((c) => c + c).join("") : d;
-  const ch = (at: number) => parseInt(full.slice(at, at + 2), 16) / 255;
-  return 0.2126 * ch(0) + 0.7152 * ch(2) + 0.0722 * ch(4) > 0.45 ? "#0b0d10" : "#ffffff";
-}
-
-export function initialOf(name: string): string {
-  const c = name.trim().charAt(0);
-  return c ? c.toUpperCase() : "?";
-}
-
-/**
- * A profile's avatar (ProfileAvatar): its color, its picture over it
- * (fetched with the app's token), else its initial; the lock badge when it
- * has a PIN.
- */
-export function ProfileAvatar(p: { name: string; color: string | null; picture: string | null; size: number; locked?: boolean }) {
-  const ui = useUi();
-  const fill = avatarColor(p.name, p.color);
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    setSrc(null);
-    if (!p.picture || !ui.images) return;
-    const url = ui.images.url(p.picture, p.size * ui.scale);
-    return ui.images.load(url, (objectUrl) => setSrc(objectUrl), -1);
-  }, [p.picture]);
-  return (
-    <div class="profile-avatar" style={`width:${p.size}px;height:${p.size}px;background:${fill}`}>
-      {p.picture ? (
-        src && <img src={src} alt="" />
-      ) : (
-        <span style={`font-size:${p.size * 0.44}px;line-height:${p.size * 0.5}px;font-weight:700;color:${textOn(fill)}`}>{initialOf(p.name)}</span>
-      )}
-      {p.locked && (
-        <span class="lock-badge">
-          <span>
-            <Icon name="lock" size={14} />
-          </span>
-        </span>
-      )}
-    </div>
-  );
 }
 
 /** A key of a number pad: a digit, or Delete / OK. */

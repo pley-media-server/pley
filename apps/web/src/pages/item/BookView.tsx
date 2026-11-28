@@ -192,8 +192,8 @@ function PartRow({ part, current, playing, onPlay }: { part: ChildItem; current:
         aria-label={playing ? t("pauseTitle", { title: part.title }) : t("playTitle", { title: part.title })}
         aria-current={current ? "true" : undefined}
         className={cn(
-          "group grid w-full grid-cols-[2.5rem_1fr_5rem] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/[0.05]",
-          current && "bg-white/[0.04]",
+          "group grid w-full grid-cols-[2.5rem_1fr_5rem] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-fg/[0.05]",
+          current && "bg-fg/[0.04]",
         )}
       >
         <span className="flex justify-end text-subtle">
@@ -246,8 +246,8 @@ function Chapters({ part, parts }: { part: ChildItem; parts: ChildItem[] }) {
                 onClick={() => at(c)}
                 aria-current={isNow ? "true" : undefined}
                 className={cn(
-                  "grid w-full grid-cols-[2.5rem_1fr_5rem] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/[0.05]",
-                  isNow && "bg-white/[0.04] text-accent",
+                  "grid w-full grid-cols-[2.5rem_1fr_5rem] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-fg/[0.05]",
+                  isNow && "bg-fg/[0.04] text-accent",
                 )}
               >
                 <span className="text-right tabular-nums text-subtle">{i + 1}</span>

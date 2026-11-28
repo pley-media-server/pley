@@ -166,12 +166,12 @@ pub fn message(ui: &mut Ui, id: Id, icon: Icon, title: &str, body: &str, action:
     let total = 40.0 + 16.0 + title_h + body_h + 24.0 + theme::BUTTON_HEIGHT;
     let x = theme::GUTTER;
     let mut y = ((theme::CANVAS_H - total) / 2.0).max(theme::SAFE_Y);
-    ui.icon(Rect::new(x, y, 40.0, 40.0), icon, theme::MUTED);
+    ui.icon(Rect::new(x, y, 40.0, 40.0), icon, theme::muted());
     y += 56.0;
-    ui.text(Point::new(x, y), title, &theme::PAGE_TITLE, &TextOpts::wrap(width, 2).balanced(), theme::FG);
+    ui.text(Point::new(x, y), title, &theme::PAGE_TITLE, &TextOpts::wrap(width, 2).balanced(), theme::fg());
     y += title_h;
     if !body.is_empty() {
-        ui.text(Point::new(x, y + 8.0), body, &theme::BODY, &TextOpts::wrap(width, 4), theme::MUTED);
+        ui.text(Point::new(x, y + 8.0), body, &theme::BODY, &TextOpts::wrap(width, 4), theme::muted());
         y += body_h;
     }
     y += 24.0;
@@ -184,7 +184,7 @@ pub fn message(ui: &mut Ui, id: Id, icon: Icon, title: &str, body: &str, action:
 
 /// A still block of what is coming (`Block` in `TvItemScreen.kt`): Surface2, 2 dp corners.
 pub fn block(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
-    ui.fill(Rect::new(x, y, w, h), theme::SURFACE2, radius::BADGE);
+    ui.fill(Rect::new(x, y, w, h), theme::surface2(), radius::BADGE);
 }
 
 /// A change asked of the server for a title.

@@ -184,6 +184,9 @@ public sealed class AppState
     const string LanguageKey = "pley.language";
     /// <summary>The language picked on this TV with the globe, under the web apps' key.</summary>
     const string DeviceLanguageKey = "pley.deviceLanguage";
+    /// <summary>Each profile's theme and accent on this TV, under the web apps' keys with its server and id.</summary>
+    const string ThemeKey = "pley.theme";
+    const string AccentKey = "pley.accent";
 
     static readonly JsonSerializerOptions Camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     static readonly JsonSerializerOptions SettingsJson = new JsonSerializerOptions
@@ -244,7 +247,9 @@ public sealed class AppState
         this.scheduler = scheduler ?? new ContextScheduler();
         store = platform.Storage;
         Settings = new Signal<Settings>(Read<Settings>(SettingsKey, SettingsJson)?.Allowed() ?? new Settings());
+        Theme = new Signal<Ui.ThemePick>(Ui.ThemePick.Default);
         Me.Changed += _ => ChooseLanguage();
+        Me.Changed += _ => ShowTheme();
         var server = store.Get(ServerKey);
         if (!string.IsNullOrEmpty(server)) Use(server!);
     }
@@ -766,6 +771,56 @@ public sealed class AppState
         Write(SettingsKey, Settings.Value, SettingsJson);
     }
 
+    /// <summary>
+    /// The theme and accent this TV shows (docs/THEMES.md), kept on the TV for each profile and never
+    /// sent to the server: inside a profile, its pick on this TV, Midnight in its own accent where it
+    /// picked none here; outside one (<see cref="ShowingOutside"/>: the servers, signing in, Who's
+    /// watching?), and until who is watching is known, Midnight in its own accent. A start with the
+    /// profile saved is in its pick from the first page. An id this app doesn't know shows as
+    /// Midnight, or the theme's own accent.
+    /// </summary>
+    public Signal<Ui.ThemePick> Theme { get; }
+
+    /// <summary>A screen outside a profile shows: Midnight in its own accent, whoever was watching.</summary>
+    bool outside;
+
+    /// <summary>
+    /// A screen outside a profile shows (true: the servers, signing in, Who's watching? with its PIN
+    /// and approval) or the profile's pages (false): the theme follows.
+    /// </summary>
+    public void ShowingOutside(bool value)
+    {
+        outside = value;
+        ShowTheme();
+    }
+
+    /// <summary>Shows <paramref name="theme"/> for the profile, keeping the accent picked, and keeps it on this TV.</summary>
+    public void ChooseTheme(string theme) => KeepTheme(Ui.ThemePick.Of(theme, Theme.Value.Accent));
+
+    /// <summary>Shows <paramref name="accent"/> over the theme's own (null: the theme's own again), and keeps it as a theme is kept.</summary>
+    public void ChooseAccent(string? accent) => KeepTheme(Ui.ThemePick.Of(Theme.Value.Theme, accent));
+
+    /// <summary>Kept for the profile inside which it was picked; outside one, there is none to keep it for.</summary>
+    void KeepTheme(Ui.ThemePick pick)
+    {
+        if (outside || Server.Value is not { } server || Me.Value is not { } me) return;
+        store.Set(SavedKey(ThemeKey, server, me.Id), pick.Theme);
+        if (pick.Accent is { } accent) store.Set(SavedKey(AccentKey, server, me.Id), accent);
+        else store.Remove(SavedKey(AccentKey, server, me.Id));
+        ShowTheme();
+    }
+
+    /// <summary>The profile's pick inside it, Midnight in its own accent outside one or before it is known.</summary>
+    void ShowTheme()
+    {
+        if (outside || Server.Value is not { } server || Me.Value is not { } me)
+        {
+            Theme.Value = Ui.ThemePick.Default;
+            return;
+        }
+        var theme = store.Get(SavedKey(ThemeKey, server, me.Id));
+        Theme.Value = theme == null ? Ui.ThemePick.Default : Ui.ThemePick.Of(theme, store.Get(SavedKey(AccentKey, server, me.Id)));
+    }
     // ---- what the server has
 
     /// <summary>

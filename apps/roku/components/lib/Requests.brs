@@ -452,11 +452,12 @@ function reqTitleBadge(status as string, itemId as dynamic, words = invalid as d
     return words.declined
 end function
 
-' The badge's color: green in a library, the accent asked for, red
-' declined.
+' The badge's color, in Midnight's (a screen draws it in the theme's,
+' Paint.brs's uiThemed): success in a library, the accent asked for,
+' danger declined.
 function reqBadgeColor(status as string, itemId as dynamic) as string
     if status = "library" or (status = "partial" and httpNumber(itemId, 0) > 0) then return "0x3FB27FFF"
-    if status = "declined" then return "0xEB6B70FF"
+    if status = "declined" then return "0xED6C6DFF"
     return "0x38BDF8FF"
 end function
 
@@ -883,7 +884,7 @@ function reqSeasonState(season as object, byId as object, withStage as boolean, 
     else if httpTrue(season.declined)
         out.text = t("requests.season.declined")
         out.badge = out.text
-        out.color = "0xEB6B70FF"
+        out.color = "0xED6C6DFF"
     else if state = "unaired"
         out.text = t("requests.season.notAired")
         day = fmtDateText(season.air_date, now, zone)
@@ -1240,11 +1241,12 @@ function reqProgress(value as dynamic) as float
     return progress
 end function
 
-' A stage's color: pending amber; approved, waiting, searching,
-' downloading and importing blue; partial and available green; declined
-' and failed red; gone gray.
+' A stage's color, in Midnight's (a screen draws it in the theme's):
+' pending the warning; approved, waiting, searching, downloading and
+' importing the accent; partial and available success; declined and failed
+' danger; gone subtle.
 function reqToneColor(tone as string) as string
-    colors = { pending: "0xE8B04BFF", active: "0x38BDF8FF", ready: "0x3FB27FFF", problem: "0xEB6B70FF", gone: "0x8B95A5FF" }
+    colors = { pending: "0xF0A83CFF", active: "0x38BDF8FF", ready: "0x3FB27FFF", problem: "0xED6C6DFF", gone: "0x7E8795FF" }
     if colors.DoesExist(tone) then return colors[tone]
     return "0xA1A9B6FF"
 end function

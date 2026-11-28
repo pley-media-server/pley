@@ -143,7 +143,7 @@ export const MediaCard = memo(function MediaCard({
         <Link
           to={to}
           className={cn(
-            "relative block overflow-hidden bg-surface-2 outline-none ring-1 ring-white/5 transition duration-200 hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent",
+            "relative block overflow-hidden bg-surface-2 outline-none ring-1 ring-fg/5 transition duration-200 hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent",
             round ? "rounded-full" : "rounded-md",
           )}
           aria-label={name}
@@ -159,7 +159,7 @@ export const MediaCard = memo(function MediaCard({
           />
           <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-200 group-hover/card:bg-black/30" />
           {watchedLeaf || watchedContainer ? (
-            <span className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-black/75 text-accent shadow">
+            <span className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-bg/80 text-accent shadow">
               <Check className="size-3.5" strokeWidth={3} />
             </span>
           ) : null}
@@ -193,7 +193,7 @@ export const MediaCard = memo(function MediaCard({
             title={t("common:actions.play")}
             onClick={() => void play(item)}
             {...playIntent(item.kind, () => prefetchPlay(item))}
-            className="absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 scale-90 items-center justify-center rounded-full bg-accent text-accent-fg opacity-0 shadow-lg shadow-black/50 transition duration-200 hover:bg-accent-hover group-hover/card:scale-100 group-hover/card:opacity-100 group-has-focus-visible/card:scale-100 group-has-focus-visible/card:opacity-100"
+            className="absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 scale-90 items-center justify-center rounded-full bg-accent text-accent-fg opacity-0 shadow-lg shadow-shade/50 transition duration-200 hover:bg-accent-hover group-hover/card:scale-100 group-hover/card:opacity-100 group-has-focus-visible/card:scale-100 group-has-focus-visible/card:opacity-100"
           >
             <Play className="ml-0.5 size-5 fill-current" />
           </button>

@@ -231,8 +231,8 @@ function TrackRow({
         role="row"
         onDoubleClick={onPlay}
         className={cn(
-          "group grid grid-cols-[2.5rem_1fr_4rem] items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-white/[0.05]",
-          current && "bg-white/[0.04]",
+          "group grid grid-cols-[2.5rem_1fr_4rem] items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-fg/[0.05]",
+          current && "bg-fg/[0.04]",
           highlighted && !current && "bg-accent/10",
         )}
       >

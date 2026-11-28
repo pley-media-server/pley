@@ -53,23 +53,23 @@ fn a_toast_fades_in_stays_and_goes() {
     let f = h.idle(&mut screen);
     // 16 characters of 7.1 with 20 either side, its right edge at 912, 27 from the top.
     let w = 16.0 * 7.1 + 40.0;
-    assert!(fills_of(&f.list, theme::SURFACE3).iter().any(|r| (r.x - (912.0 - w)).abs() < 0.01 && r.y == 27.0));
+    assert!(fills_of(&f.list, theme::surface3()).iter().any(|r| (r.x - (912.0 - w)).abs() < 0.01 && r.y == 27.0));
     assert!(f.list.cmds.contains(&Cmd::PushOpacity(0.0)));
     h.wait(1.0, &mut screen);
     let f = h.idle(&mut screen);
     assert!(!f.list.cmds.iter().any(|c| matches!(c, Cmd::PushOpacity(_))));
     h.wait(3.0, &mut screen);
     let f = h.idle(&mut screen);
-    assert!(fills_of(&f.list, theme::SURFACE3).is_empty());
+    assert!(fills_of(&f.list, theme::surface3()).is_empty());
     assert_eq!(state.borrow().text(), None);
     // An error stays 6 s, in DangerText, at the bottom left on Home.
     state.borrow_mut().show("Couldn't add it", true, h.time());
     h.wait(4.0, &mut screen);
     let f = h.idle(&mut screen);
-    assert_eq!(text_color(&f.list, "Couldn't add it"), Some(theme::DANGER_TEXT));
+    assert_eq!(text_color(&f.list, "Couldn't add it"), Some(theme::danger()));
     let mut screen = |ui: &mut Ui| toast(ui, &mut state.borrow_mut(), ToastPlacement::BottomLeft);
     let f = h.idle(&mut screen);
-    let r = fills_of(&f.list, theme::SURFACE3)[0];
+    let r = fills_of(&f.list, theme::surface3())[0];
     assert_eq!((r.x, r.bottom()), (96.0, 513.0));
 }
 
@@ -88,7 +88,7 @@ fn a_page_message_centres_itself_and_focuses_its_button() {
     // 34 + 12 + 20 + 24 + 40 tall, in the middle of the page; centered in x 96–912.
     let top = (540.0 - 130.0) / 2.0;
     assert_eq!(text_at(&f.list, "Couldn't load your home screen"), Some(Point::new(272.0, top)));
-    let pill = fills_of(&f.list, theme::ACCENT)[0];
+    let pill = fills_of(&f.list, theme::accent())[0];
     assert_eq!((pill.y, pill.w), (top + 90.0, 128.0));
     assert!((pill.center().x - 504.0).abs() < 0.01);
 }
@@ -108,7 +108,7 @@ fn an_item_message_leads_with_its_icon_at_the_gutter() {
         _ => None,
     });
     let top = (540.0 - (56.0 + 34.0 + 8.0 + 20.0 + 24.0 + 40.0)) / 2.0;
-    assert_eq!(icon, Some((Rect::new(96.0, top, 40.0, 40.0), theme::MUTED)));
+    assert_eq!(icon, Some((Rect::new(96.0, top, 40.0, 40.0), theme::muted())));
     assert_eq!(text_at(&f.list, "Item not found"), Some(Point::new(96.0, top + 56.0)));
 }
 
@@ -129,14 +129,14 @@ fn badges_and_the_metadata_line() {
     let mut h = Harness::new();
     let f = h.idle(&mut screen);
     // LIVE: Danger with Bg text, 5 × 2 of padding: 13 + 4 tall.
-    assert_eq!(text_color(&f.list, "LIVE"), Some(theme::BG));
-    let live = fills_of(&f.list, theme::DANGER);
+    assert_eq!(text_color(&f.list, "LIVE"), Some(theme::bg()));
+    let live = fills_of(&f.list, theme::danger());
     assert_eq!(live.len(), 1);
     assert!(super::close_rect(live[0], Rect::new(96.0, 20.0, 4.0 * 5.9 + 10.0, 17.0)));
     // The lead in Fg first; the others Muted; "·" between them in Subtle.
-    assert_eq!(text_color(&f.list, "S2 · E5 · The Long Night"), Some(theme::FG));
-    assert_eq!(text_color(&f.list, "2019"), Some(theme::MUTED));
-    assert_eq!(text_color(&f.list, "·"), Some(theme::SUBTLE));
+    assert_eq!(text_color(&f.list, "S2 · E5 · The Long Night"), Some(theme::fg()));
+    assert_eq!(text_color(&f.list, "2019"), Some(theme::muted()));
+    assert_eq!(text_color(&f.list, "·"), Some(theme::subtle()));
     assert!(width.get() <= 464.0 + 0.01);
     // Too long: the lead gives way, cut with "…", and the rest keeps its place.
     let line_w = Cell::new(0.0);
@@ -195,7 +195,13 @@ fn the_info_block_fades_with_focus() {
     let visible = Cell::new(false);
     let mut screen = |ui: &mut Ui| {
         InfoBlock::show(ui, Id::new("info"), visible.get(), |ui| {
-            ui.text(Point::new(96.0, 28.0), "Arrival", &theme::PAGE_TITLE, &pley_base::TextOpts::default(), theme::FG);
+            ui.text(
+                Point::new(96.0, 28.0),
+                "Arrival",
+                &theme::PAGE_TITLE,
+                &pley_base::TextOpts::default(),
+                theme::fg(),
+            );
         });
     };
     let mut h = Harness::new();

@@ -301,10 +301,11 @@ fn draw_notes(ui: &mut Ui, at: Point, notes: &[Note], width: f32) {
     for n in notes {
         let (opts, indent) = note_opts(n, width);
         if let Some(icon) = n.icon {
-            let tint = if n.danger { theme::DANGER_TEXT } else { theme::MUTED };
+            let tint = if n.danger { theme::danger() } else { theme::muted() };
             ui.icon(Rect::new(at.x, y + 2.0, NOTE_ICON, NOTE_ICON), icon, tint);
         }
-        let size = ui.text(Point::new(at.x + indent, y), &keep_last_words(&n.text), &theme::BODY, &opts, theme::MUTED);
+        let size =
+            ui.text(Point::new(at.x + indent, y), &keep_last_words(&n.text), &theme::BODY, &opts, theme::muted());
         y += size.h + 4.0;
     }
 }

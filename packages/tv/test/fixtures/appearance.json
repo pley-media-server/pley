@@ -1,0 +1,77 @@
+{
+  "screens": [
+    { "name": "choosing a server", "screen": "servers", "outside": true },
+    { "name": "signing in with a code", "screen": "link", "outside": true },
+    { "name": "Who's watching? and its PIN", "screen": "profiles", "outside": true },
+    { "name": "Home", "screen": "home", "outside": false },
+    { "name": "Settings, and Appearance in it", "screen": "settings", "outside": false },
+    { "name": "a player, in its theme's dark twin", "screen": "player", "outside": false }
+  ],
+  "shown": [
+    {
+      "name": "a fresh install, outside a profile",
+      "kept": {},
+      "profile": null,
+      "outside": true,
+      "out": { "theme": "midnight", "accent": null }
+    },
+    {
+      "name": "a launch with a saved signed-in profile: its pick from the first frame",
+      "kept": { "pley.theme.http://pley.local:7539.7": "twilight", "pley.accent.http://pley.local:7539.7": "mint" },
+      "profile": { "server": "http://pley.local:7539", "id": 7 },
+      "outside": false,
+      "out": { "theme": "twilight", "accent": "mint" }
+    },
+    {
+      "name": "outside a profile: Midnight, though the profile shown before picked another",
+      "kept": { "pley.theme.http://pley.local:7539.7": "twilight", "pley.accent.http://pley.local:7539.7": "mint" },
+      "profile": { "server": "http://pley.local:7539", "id": 7 },
+      "outside": true,
+      "out": { "theme": "midnight", "accent": null }
+    },
+    {
+      "name": "inside, before the profile is known",
+      "kept": { "pley.theme.http://pley.local:7539.7": "twilight" },
+      "profile": null,
+      "outside": false,
+      "out": { "theme": "midnight", "accent": null }
+    },
+    {
+      "name": "a profile new to this device: Midnight in its own accent",
+      "kept": { "pley.theme.http://pley.local:7539.7": "twilight", "pley.accent.http://pley.local:7539.7": "mint" },
+      "profile": { "server": "http://pley.local:7539", "id": 9 },
+      "outside": false,
+      "out": { "theme": "midnight", "accent": null }
+    },
+    {
+      "name": "the same user id on another server is another profile",
+      "kept": { "pley.theme.http://pley.local:7539.7": "twilight", "pley.accent.http://pley.local:7539.7": "mint", "pley.theme.http://den.local:7539.7": "blacklight" },
+      "profile": { "server": "http://den.local:7539", "id": 7 },
+      "outside": false,
+      "out": { "theme": "blacklight", "accent": null }
+    },
+    {
+      "name": "ids this build doesn't know",
+      "kept": { "pley.theme.http://pley.local:7539.7": "aurora", "pley.accent.http://pley.local:7539.7": "sunset" },
+      "profile": { "server": "http://pley.local:7539", "id": 7 },
+      "outside": false,
+      "out": { "theme": "midnight", "accent": null }
+    }
+  ],
+  "picks": [
+    {
+      "name": "a pick is the profile's alone",
+      "kept": { "pley.theme.http://pley.local:7539.9": "midday" },
+      "profile": { "server": "http://pley.local:7539", "id": 7 },
+      "pick": { "theme": "greenlight", "accent": "amber" },
+      "out": { "pley.theme.http://pley.local:7539.7": "greenlight", "pley.accent.http://pley.local:7539.7": "amber", "pley.theme.http://pley.local:7539.9": "midday" }
+    },
+    {
+      "name": "the theme's own accent keeps no accent",
+      "kept": { "pley.theme.http://pley.local:7539.7": "greenlight", "pley.accent.http://pley.local:7539.7": "amber" },
+      "profile": { "server": "http://pley.local:7539", "id": 7 },
+      "pick": { "theme": "greenlight", "accent": null },
+      "out": { "pley.theme.http://pley.local:7539.7": "greenlight" }
+    }
+  ]
+}

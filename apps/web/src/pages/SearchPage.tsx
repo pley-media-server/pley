@@ -68,7 +68,7 @@ function ResultSection<T>({
               aria-controls={`${id}-results`}
               aria-describedby={`${id}-title`}
               onClick={toggle}
-              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-medium text-muted transition-colors hover:bg-white/[0.06] hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-medium text-muted transition-colors hover:bg-fg/[0.06] hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               {open ? t("search.showFewer") : t("search.showAll", { n: items.length })}
               <ChevronDown className={cn("size-4 transition-transform duration-200", open && "rotate-180")} aria-hidden />
@@ -150,7 +150,7 @@ function ChannelResults({ channels }: { channels: Channel[] }) {
                     {on ? (
                       <>
                         <div className="truncate text-xs text-muted">{on.title}</div>
-                        <div className="mt-1 h-0.5 overflow-hidden rounded-full bg-white/10">
+                        <div className="mt-1 h-0.5 overflow-hidden rounded-full bg-fg/10">
                           <div className="h-full bg-accent" style={{ width: `${programProgress(on, now) * 100}%` }} />
                         </div>
                       </>

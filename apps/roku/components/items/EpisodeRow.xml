@@ -9,16 +9,18 @@
         <field id="width" type="float" onChange="onWidth" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/EpisodeRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
-        <Rectangle id="background" width="1124" height="196" color="0x1E222AFF" />
+        <Rectangle id="background" width="1124" height="196" color="0x12151AFF" />
         <Rectangle id="bar" width="6" height="196" color="0x38BDF8FF" visible="false" />
-        <Rectangle id="frame" translation="[16, 14]" width="298" height="168" color="0x262B35FF" />
+        <Rectangle id="frame" translation="[16, 14]" width="298" height="168" color="0x191D24FF" />
         <Poster id="thumb" translation="[16, 14]" width="298" height="168" loadWidth="298" loadHeight="168" loadDisplayMode="scaleToZoom" />
-        <Rectangle id="track" translation="[16, 172]" width="298" height="10" color="0x16191ECC" visible="false" />
+        <Rectangle id="track" translation="[16, 172]" width="298" height="10" color="0x000000CC" visible="false" />
         <Rectangle id="fill" translation="[16, 172]" width="0" height="10" color="0x38BDF8FF" visible="false" />
-        <Label id="title" translation="[340, 16]" width="760" color="0xEBEBEBFF">
+        <Label id="title" translation="[340, 16]" width="760" color="0xE9EBEFFF">
             <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="30" />
         </Label>
         <Label id="subtitle" translation="[340, 60]" width="760" color="0xA1A9B6FF" font="font:SmallestSystemFont" />

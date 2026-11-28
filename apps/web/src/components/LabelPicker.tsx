@@ -110,14 +110,14 @@ export function LabelPicker({
         {value.map((label) => (
           <span
             key={label}
-            className="inline-flex items-center gap-1 rounded bg-white/10 py-0.5 pl-2 pr-0.5 text-xs font-semibold text-fg/90"
+            className="inline-flex items-center gap-1 rounded bg-fg/10 py-0.5 pl-2 pr-0.5 text-xs font-semibold text-fg/90"
           >
             {label}
             <button
               type="button"
               aria-label={removeLabel(label)}
               onClick={() => onChange(value.filter((v) => v !== label))}
-              className="rounded p-0.5 text-subtle hover:bg-white/10 hover:text-fg"
+              className="rounded p-0.5 text-subtle hover:bg-fg/10 hover:text-fg"
             >
               <X className="size-3" />
             </button>
@@ -155,7 +155,7 @@ export function LabelPicker({
         role="listbox"
         aria-label={t("labelPicker.suggestions")}
         hidden={!shown}
-        className="absolute z-40 mt-1 max-h-56 w-full animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-black/50"
+        className="absolute z-40 mt-1 max-h-56 w-full animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-shade/50"
       >
         {shown
           ? choices.map((choice, i) => (
@@ -170,7 +170,7 @@ export function LabelPicker({
                 onClick={() => add(choice.label)}
                 className={cn(
                   "flex cursor-pointer items-center justify-between gap-3 px-3 py-1.5 text-sm text-fg",
-                  i === current && "bg-white/10",
+                  i === current && "bg-fg/10",
                 )}
               >
                 {choice.items === undefined ? (

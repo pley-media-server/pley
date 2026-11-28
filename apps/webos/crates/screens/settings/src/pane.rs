@@ -7,9 +7,13 @@ use pley_core::model::{QUALITY_PRESETS, SubtitleMode, TrackDefaults, quality_pre
 use pley_core::requests::tmdb_notice;
 use pley_core::store::{
     PassthroughChoice, PassthroughFormat, Settings, SubtitleBackground, SubtitleFont, SubtitlePosition, SubtitleSize,
+    ThemePick,
 };
 use pley_i18n::{Language, t};
 use pley_shell::SettingsSection;
+use pley_ui::theme::{Accent, Theme};
+
+use crate::appearance::{accent_name, theme_name};
 
 /// The languages a profile's defaults offer (ISO 639-2/B, `MeViewModel.kt:213-225`). The panel
 /// names them in the language shown and lists them by those names ([`languages`]).
@@ -45,6 +49,7 @@ pub fn category_look(c: SettingsSection) -> (&'static str, Icon) {
         SettingsSection::Playback => Icon::Play,
         SettingsSection::Audio => Icon::AudioLines,
         SettingsSection::SubtitlesAndDisplay => Icon::Captions,
+        SettingsSection::Appearance => Icon::Palette,
         SettingsSection::Server => Icon::Server,
         SettingsSection::Diagnostics => Icon::Activity,
         SettingsSection::About => Icon::Info,
@@ -146,6 +151,8 @@ pub struct Facts {
     pub always_start_as: Option<i64>,
     /// This TV's settings.
     pub settings: Settings,
+    /// The profile's theme and accent on this TV.
+    pub theme: ThemePick,
     /// The server in use, as `host:port`.
     pub server: Option<String>,
     /// The device's facts for the Diagnostics category, label and value.
@@ -368,6 +375,17 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
                 Toggle::ReduceMotion,
                 f,
             ));
+        }
+        SettingsSection::Appearance => {
+            // Both open the page of themes and accents, on the one chosen.
+            out.push(Item::Intro(t!("settings.appearance.hint").into()));
+            let theme = theme_name(Theme::from_id(Some(&f.theme.theme)));
+            let accent = accent_name(Accent::from_id(f.theme.accent.as_deref()));
+            let open = |accents| RowAction::Open(pley_shell::Route::Appearance { accents });
+            let label = t!("settings.appearance.theme");
+            out.push(Item::Row(Row::new(Some(Icon::Palette), label, theme, open(false)).chevron()));
+            let label = t!("settings.appearance.accent.title");
+            out.push(Item::Row(Row::new(Some(Icon::Droplet), label, accent, open(true)).chevron()));
         }
         SettingsSection::Server => {
             let name = f.server.clone().unwrap_or_else(|| t!("settings.server.unknown").into());
@@ -848,6 +866,8 @@ mod tests {
         let icons = |c| rows(&items(c, &f)).iter().map(|r| r.icon).collect::<Vec<_>>();
         let display = [Icon::Captions, Icon::Square, Icon::Pencil, Icon::ArrowUp, Icon::Sparkles].map(Some);
         assert_eq!(icons(SettingsSection::SubtitlesAndDisplay), display);
+        // Theme and Accent, as on every TV app (docs/THEMES.md).
+        assert_eq!(icons(SettingsSection::Appearance), [Some(Icon::Palette), Some(Icon::Droplet)]);
         assert!(icons(SettingsSection::Audio).iter().all(|i| *i == Some(Icon::Volume2)));
         assert_eq!(icons(SettingsSection::Diagnostics)[0], Some(Icon::Activity));
         assert_eq!(category_look(SettingsSection::Diagnostics).1, Icon::Activity);

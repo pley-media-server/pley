@@ -46,6 +46,22 @@ impl TestApp {
         route: Route,
         prepare: impl FnOnce(&FixtureServer),
     ) -> TestApp {
+        let mut app = TestApp::launch(profile, scope, route, prepare, |_, _| {});
+        assert!(app.until(|a| a.state.me().is_some()), "who is watching never came");
+        app.settle();
+        app
+    }
+
+    /// The app signed in as `profile` on `route`, the server set up by `prepare` and what the TV
+    /// kept by `keep` (given the store and the server's address) before the app starts, after its
+    /// first frame alone: nothing heard from the server yet.
+    pub fn launch(
+        profile: i64,
+        scope: Option<&str>,
+        route: Route,
+        prepare: impl FnOnce(&FixtureServer),
+        keep: impl FnOnce(&Store, &str),
+    ) -> TestApp {
         let options = Options { scan_every: None, ..Options::default() };
         let server = FixtureServer::start_with(options).unwrap();
         prepare(&server);
@@ -53,6 +69,7 @@ impl TestApp {
         let store = Store::open(device.data_dir().join("store")).unwrap();
         let http = Http::network("pleyLG/0.1.0 (webOS 22; test)");
         sign_in(&server, profile, scope, &store, &http);
+        keep(&store, server.url());
         let mut registry = Registry::new();
         registry.add(pley_settings::screen);
         let state = AppState::new(device, store, http, Tasks::new(Waker::noop()));
@@ -67,8 +84,6 @@ impl TestApp {
         };
         app.shell.start(&mut app.state, &mut app.ui, route);
         app.frame(Vec::new());
-        assert!(app.until(|a| a.state.me().is_some()), "who is watching never came");
-        app.settle();
         app
     }
 

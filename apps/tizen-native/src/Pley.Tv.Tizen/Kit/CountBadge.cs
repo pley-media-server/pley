@@ -32,6 +32,6 @@ sealed class CountBadge : View
     {
         if (Disposed) return;
         BackgroundColor = alarm ? PleyColors.Danger : on ? PleyColors.OnAccent : PleyColors.Accent;
-        number.TextColor = alarm ? PleyColors.Bg : on ? PleyColors.AccentBright : PleyColors.OnAccent;
+        number.TextColor = alarm ? PleyColors.DangerFg : on ? PleyColors.AccentBright : PleyColors.OnAccent;
     }
 }

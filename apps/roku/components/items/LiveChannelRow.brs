@@ -1,4 +1,6 @@
 sub init()
+    m.c = uiPlayerColors()
+    uiRecolor(m.top, m.c)
     m.back = m.top.findNode("back")
     m.mark = m.top.findNode("mark")
     m.number = m.top.findNode("number")
@@ -74,15 +76,15 @@ sub onFocus()
     focused = m.top.itemHasFocus and m.top.listHasFocus
     m.mark.visible = focused
     if focused
-        m.back.color = "0x2E3440FF"
+        m.back.color = m.c.surface3
     else if m.current
-        m.back.color = "0x38BDF826"
+        m.back.color = themeAlpha(m.c.accent, "26")
     else
-        m.back.color = "0x16191E00"
+        m.back.color = themeAlpha(m.c.bg, "00")
     end if
     if m.current
-        m.title.color = "0x7DD3FCFF"
+        m.title.color = m.c.accentHover
     else
-        m.title.color = "0xEBEBEBFF"
+        m.title.color = m.c.fg
     end if
 end sub

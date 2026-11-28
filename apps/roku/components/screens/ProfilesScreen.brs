@@ -184,6 +184,7 @@ sub onPicked(event as object)
     say("")
     choice = profChoice(profile, m.me, not m.top.getScene().profileChosen)
     if choice = "done"
+        m.picked = profile
         done()
     else if choice = "switch"
         switchTo(profile, "")
@@ -289,5 +290,5 @@ end function
 ' The profile chosen: Home, everything as that profile sees it.
 sub done()
     m.top.getScene().profileChosen = true
-    uiNavigate({ to: "home", reset: true })
+    uiNavigate({ to: "home", reset: true, profile: m.picked.itemId })
 end sub

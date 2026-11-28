@@ -1,6 +1,7 @@
 {
   "auth": {
     "cantReachServer": "无法连接到 Pley 服务器",
+    "cantReachHint": "检查服务器是否已开启，且本设备是否与其在同一网络中。",
     "adminsOnly": "仅管理员",
     "adminsOnlyHint": "需要管理员账户才能管理这台服务器。"
   },
@@ -183,6 +184,12 @@
   },
   "account": {
     "title": "账户",
+    "nav": {
+      "profile": "个人资料与安全",
+      "appearance": "外观",
+      "language": "语言",
+      "history": "观看记录"
+    },
     "profile": {
       "nameSaved": "名称已保存",
       "notAPicture": "请选择图片（JPEG、PNG、WebP 或 GIF）。",
@@ -198,8 +205,46 @@
       "memberSince": "@{{username}} · 自 {{date}} 起加入",
       "displayName": "显示名称",
       "color": "颜色",
-      "colorNamed": "颜色 {{color}}",
-      "colorFallback": "无法显示头像时作为替代。"
+      "colorNamed": "颜色 {{color}}"
+    },
+    "theme": {
+      "title": "主题",
+      "hint": "你在此设备上看到的 Pley 外观。每个配置文件各自保存。",
+      "names": {
+        "midnight": "午夜",
+        "midday": "正午",
+        "starlight": "星光",
+        "twilight": "暮光",
+        "moonlight": "月光",
+        "nightshade": "夜影",
+        "greenlight": "绿光",
+        "sunshine": "阳光",
+        "blacklight": "黑光"
+      },
+      "about": {
+        "midnight": "关灯，爆米花就位",
+        "midday": "午夜，但在吃早午餐",
+        "starlight": "香槟，不宿醉",
+        "twilight": "看日落，不晒伤",
+        "moonlight": "燕尾服模式",
+        "nightshade": "潜伏在蕨丛里",
+        "greenlight": "足不出户，摸摸草",
+        "sunshine": "果汁盒认证",
+        "blacklight": "零色彩，零烦恼"
+      },
+      "accent": {
+        "title": "强调色",
+        "hint": "应用于按钮、链接和其他焦点元素。",
+        "own": "默认",
+        "names": {
+          "sky": "天蓝",
+          "violet": "紫罗兰",
+          "miami": "迈阿密",
+          "gold": "金色",
+          "mint": "薄荷",
+          "amber": "琥珀"
+        }
+      }
     },
     "playback": {
       "title": "音频和字幕",

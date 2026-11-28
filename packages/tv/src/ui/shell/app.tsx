@@ -14,13 +14,13 @@ import { AppContext, Dialog, sentence } from "../screens/common";
 import { Screen } from "../screens/screens";
 import { Icon } from "../kit/icons";
 import { Toast } from "../kit/toast";
-import { Navigator, type Entry, type PageKey } from "./navigator";
+import { Navigator, outsideProfile, type Entry, type PageKey } from "./navigator";
 import { RequestNotices, type NoticeApi } from "./notice";
 import { currentEntry, Rail, railEntries, requestsEntry, type RailApi } from "./rail";
 
 /** Pages without the rail: sign-in, "Who's watching?" and the players. */
 function railless(key: PageKey | undefined): boolean {
-  return !key || key.name === "servers" || key.name === "link" || key.name === "profiles" || isPlayer(key);
+  return outsideProfile(key) || isPlayer(key);
 }
 
 function isPlayer(key: PageKey | undefined): boolean {
@@ -237,6 +237,19 @@ export function App(p: ShellProps) {
     if (lastTop.current !== null && lastTop.current !== top.id && !reduced) curtain.value++;
     lastTop.current = top.id;
   }, [top?.id]);
+  // Outside a profile (a server, signing in, "Who's watching?"), Midnight; back inside, the profile's pick. Before the
+  // first frame, as the page changes.
+  const outside = outsideProfile(stack[0]?.key);
+  useLayoutEffect(() => {
+    state.outside.value = outside;
+  }, [outside]);
+  // The players stay dark: in a light theme they, and the toasts and dialogs over them, take its dark twin's colors.
+  const onPlayer = isPlayer(top?.key);
+  useLayoutEffect(() => {
+    const app = document.getElementById("app");
+    if (onPlayer) app?.setAttribute("data-dark", "");
+    else app?.removeAttribute("data-dark");
+  }, [onPlayer]);
 
   useEffect(() => {
     if (!toast.value) return;

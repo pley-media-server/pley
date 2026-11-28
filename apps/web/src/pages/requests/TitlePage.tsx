@@ -59,11 +59,9 @@ function Backdrop({ title }: { title: DiscoverDetail }) {
         alt=""
         title={title.title}
         eager
-        className="size-full opacity-70"
+        className="size-full backdrop-fade"
         imgClassName="object-cover object-[center_20%]"
       />
-      <div className="absolute inset-0 bg-linear-to-t from-bg via-bg/75 to-bg/10" />
-      <div className="absolute inset-0 bg-linear-to-r from-bg/95 via-bg/50 to-transparent" />
     </div>
   );
 }
@@ -281,7 +279,7 @@ function SeasonRow({ season, title, manage }: { season: DiscoverSeason; title: D
         alt=""
         title=""
         mark="shows"
-        className="aspect-[2/3] w-10 shrink-0 rounded ring-1 ring-white/5"
+        className="aspect-[2/3] w-10 shrink-0 rounded ring-1 ring-fg/5"
       />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">
@@ -376,7 +374,7 @@ function TitleView({ title, picking, setPicking }: { title: DiscoverDetail; pick
               title={title.title}
               mark={markGlyph(title.kind)}
               eager
-              className="aspect-[2/3] w-full rounded-lg shadow-2xl shadow-black/60 ring-1 ring-white/10"
+              className="aspect-[2/3] w-full rounded-lg shadow-2xl shadow-shade/60 ring-1 ring-fg/10"
             />
           </div>
           <div className="min-w-0 flex-1 space-y-4">
@@ -411,7 +409,7 @@ function TitleView({ title, picking, setPicking }: { title: DiscoverDetail; pick
               {t("title.requests", { count: title.requests.length })}{" "}
               {title.requests.length > 1 ? <span className="ml-1 text-sm font-normal text-subtle">{title.requests.length}</span> : null}
             </SectionTitle>
-            <ul className="divide-y divide-white/[0.05] rounded-lg border border-border bg-surface/80">
+            <ul className="divide-y divide-fg/[0.05] rounded-lg border border-border bg-surface/80">
               {title.requests.map((r) => (
                 <RequestCard key={r.id} request={r} summary={summary.data} showTitle={false} />
               ))}

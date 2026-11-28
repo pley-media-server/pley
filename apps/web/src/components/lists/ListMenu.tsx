@@ -150,7 +150,7 @@ function CardMenu({
       aria-label={item.title}
       style={{ left: pos.left, top: pos.top }}
       onContextMenu={(e) => e.preventDefault()}
-      className="fixed z-[55] min-w-52 max-w-72 animate-pop-in overflow-hidden rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-black/50"
+      className="fixed z-[55] min-w-52 max-w-72 animate-pop-in overflow-hidden rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-shade/50"
     >
       <div className="truncate px-3.5 pb-1.5 pt-1 text-xs font-semibold text-subtle">{item.title}</div>
       <MenuItem icon={<Play />} onClick={run(() => void play(item))}>

@@ -78,7 +78,7 @@ describe("StagePill", () => {
     expect(screen.getByText("Ready to watch").parentElement).toHaveClass("bg-success/15");
     unmount();
     renderWithProviders(<StagePill request={makeRequest({ status: "available", stage: "gone" })} manage={false} />);
-    expect(screen.getByText("No longer in a library").parentElement).toHaveClass("bg-white/10");
+    expect(screen.getByText("No longer in a library").parentElement).toHaveClass("bg-fg/10");
   });
 });
 

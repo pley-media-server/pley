@@ -50,6 +50,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.key.Key
@@ -141,6 +142,7 @@ fun TvRow(
     state: LazyListState = rememberTvRowState(),
     current: Long? = null,
 ) {
+    val ring = PleyColors.AccentBright
     val density = LocalDensity.current
     val gate = LocalKeyRepeatGate.current
     val rail = LocalTvRailFocus.current
@@ -219,7 +221,7 @@ fun TvRow(
                     .railOnLeftStopOnRight(rail)
                     .focusRestorer(if (entry != null) enter else FocusRequester.Default)
                     .onPreviewKeyEvent(motion::onKey)
-                    .drawWithCache { motion.drawRing(this, kind) },
+                    .drawWithCache { motion.drawRing(this, kind, ring) },
                 contentPadding = PaddingValues(
                     start = PleyTv.Gutter,
                     end = TvSafeArea.Horizontal + kind.tvWidth,
@@ -298,6 +300,7 @@ internal fun <T> TvTileRow(
     state: LazyListState = rememberTvRowState(),
     tile: @Composable (item: T, slot: Modifier) -> Unit,
 ) {
+    val ring = PleyColors.AccentBright
     val density = LocalDensity.current
     val gate = LocalKeyRepeatGate.current
     val rail = LocalTvRailFocus.current
@@ -332,7 +335,7 @@ internal fun <T> TvTileRow(
                 .railOnLeftStopOnRight(rail)
                 .focusRestorer()
                 .onPreviewKeyEvent(motion::onKey)
-                .drawWithCache { motion.drawRing(this, kind) },
+                .drawWithCache { motion.drawRing(this, kind, ring) },
             contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal + kind.tvWidth, top = TileBleed, bottom = TileBleed),
             horizontalArrangement = Arrangement.spacedBy(kind.tvGap),
         ) {
@@ -458,12 +461,12 @@ internal class RowMotion(val state: LazyListState, private val gate: KeyRepeatGa
     }
 
     /** The ring that stays still at the gutter while the row slides; the tiles' wells' top is [TileBleed] down. */
-    fun drawRing(cache: CacheDrawScope, kind: TileKind): DrawResult = with(cache) {
+    fun drawRing(cache: CacheDrawScope, kind: TileKind, color: Color): DrawResult = with(cache) {
         val stroke = Stroke(PleyFocus.RingStroke.toPx())
         val at = Offset(PleyTv.Gutter.roundToPx().toFloat(), TileBleed.roundToPx().toFloat())
         onDrawWithContent {
             drawContent()
-            if (quiet.on) drawStillRing(kind, at, stroke)
+            if (quiet.on) drawStillRing(kind, at, stroke, color)
         }
     }
 
@@ -905,11 +908,18 @@ private fun Modifier.focusedRowOnTop(row: RowFocus): Modifier = layout { measura
  * [shown] (read as it draws: a row that has scrolled). The focused tile's
  * ring sits right of it.
  */
-fun Modifier.railFade(shown: () -> Boolean = { true }): Modifier = drawWithContent {
-    drawContent()
-    // A stretched picture rather than a gradient shader (GradientBitmaps): it is
-    // drawn every frame, over the whole height.
-    if (shown()) drawStretched(RailFade, Offset.Zero, Size(PleyTv.RailFadeClearFrom.toPx(), size.height))
+@Composable
+fun Modifier.railFade(shown: () -> Boolean = { true }): Modifier {
+    val bg = PleyColors.Bg
+    val fade = remember(bg) { railFade(bg) }
+    return this then remember(fade, shown) {
+        Modifier.drawWithContent {
+            drawContent()
+            // A stretched picture rather than a gradient shader (GradientBitmaps): it is
+            // drawn every frame, over the whole height.
+            if (shown()) drawStretched(fade, Offset.Zero, Size(PleyTv.RailFadeClearFrom.toPx(), size.height))
+        }
+    }
 }
 
 /**
@@ -918,13 +928,13 @@ fun Modifier.railFade(shown: () -> Boolean = { true }): Modifier = drawWithConte
  * starts to go, nor where the page shows through whole, 4 dp short of the
  * gutter and the focused tile.
  */
-private val RailFade by lazy {
+private fun railFade(bg: Color): ImageBitmap {
     val solid = PleyTv.RailFadeSolidUntil.value / PleyTv.RailFadeClearFrom.value
     val stops = (0..FADE_STEPS).map { i ->
         val t = i / FADE_STEPS.toFloat()
-        (solid + (1f - solid) * t) to PleyColors.Bg.copy(alpha = 1f - t * t * (3f - 2f * t))
+        (solid + (1f - solid) * t) to bg.copy(alpha = 1f - t * t * (3f - 2f * t))
     }
-    GradientBitmaps.horizontal(0f to PleyColors.Bg, *stops.toTypedArray())
+    return GradientBitmaps.horizontal(0f to bg, *stops.toTypedArray())
 }
 
 /** The straight pieces the fade's curve is made of. */

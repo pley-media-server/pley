@@ -217,6 +217,7 @@ private sealed interface Overlay {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PlaylistContent(page: PlaylistPage<ArtworkTileModel>, vm: PlaylistViewModel<ArtworkTileModel>, toasts: TvToastState) {
+    val palette = PleyColors.palette
     val navigator = LocalTvNavigator.current
     val resources = LocalResources.current
     val rail = LocalTvRailFocus.current
@@ -264,7 +265,7 @@ private fun PlaylistContent(page: PlaylistPage<ArtworkTileModel>, vm: PlaylistVi
                 drawContent()
                 // The list passes over the backdrop: it darkens as the top scrolls away (one rect, drawn).
                 val scrolled = if (list.firstVisibleItemIndex > 0) 1f else (list.firstVisibleItemScrollOffset / heroPx).coerceIn(0f, 1f)
-                if (scrolled > 0f) drawRect(PleyColors.Bg.copy(alpha = scrolled * 0.92f))
+                if (scrolled > 0f) drawRect(palette.bg.copy(alpha = scrolled * 0.92f))
             },
         )
         val spec = remember(density, list) { TvScrolling.page(density, RowAnchor, list, HeroHeight) }
@@ -468,6 +469,7 @@ private fun EntryRow(
     onMove: (Int) -> Unit,
     onDrop: () -> Unit,
 ) {
+    val palette = PleyColors.palette
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     val bring = remember { BringIntoViewRequester() }
@@ -520,7 +522,7 @@ private fun EntryRow(
                         val stroke = PleyFocus.RingStroke.toPx()
                         val r = PleyShape.CardRadius.toPx()
                         drawRoundRect(
-                            PleyColors.AccentBright,
+                            palette.accentHover,
                             topLeft = Offset(stroke / 2, stroke / 2),
                             size = Size(size.width - stroke, size.height - stroke),
                             cornerRadius = CornerRadius(r, r),

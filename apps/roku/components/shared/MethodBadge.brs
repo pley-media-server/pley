@@ -2,6 +2,8 @@
 ' Android TV badge's dp doubled.
 
 sub init()
+    ' Only in the players: in their colors, a light theme's twin's.
+    m.c = uiPlayerColors()
     m.back = m.top.findNode("methodBack")
     m.tint = m.top.findNode("methodTint")
     m.words = m.top.findNode("methodText")
@@ -14,12 +16,12 @@ sub onLook()
     if m.words = invalid then return
     ' Success for a file played as it is, info for a stream copied, the
     ' accent for a conversion.
-    colors = { text: "0x38BDF8FF", tint: "0x38BDF833" }
-    if m.top.kind = "direct" then colors = { text: "0x3FB27FFF", tint: "0x3FB27F33" }
-    if m.top.kind = "remux" then colors = { text: "0x4C9AFFFF", tint: "0x4C9AFF33" }
+    color = m.c.accent
+    if m.top.kind = "direct" then color = m.c.success
+    if m.top.kind = "remux" then color = m.c.info
     m.words.text = m.top.text
-    m.words.color = colors.text
-    m.tint.blendColor = colors.tint
+    m.words.color = color
+    m.tint.blendColor = themeAlpha(color, "33")
     ' The label keeps no width of its own, as wide as its words: held to
     ' the width it measured, Roku cut the last letters for an ellipsis.
     m.words.width = 0

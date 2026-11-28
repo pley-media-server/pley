@@ -29,11 +29,11 @@ pub enum BackdropScrim {
 
 impl BackdropScrim {
     /// The scrim's ramp along y.
-    pub fn ramp(self) -> &'static Ramp {
+    pub fn ramp(self) -> Ramp {
         match self {
-            BackdropScrim::Hero => &theme::BOTTOM_SCRIM_HERO,
-            BackdropScrim::Rows => &theme::BOTTOM_SCRIM_ROWS,
-            BackdropScrim::Item => &theme::BOTTOM_SCRIM_ITEM,
+            BackdropScrim::Hero => theme::bottom_scrim_hero(),
+            BackdropScrim::Rows => theme::bottom_scrim_rows(),
+            BackdropScrim::Item => theme::bottom_scrim_item(),
         }
     }
 }
@@ -142,8 +142,8 @@ impl Backdrop {
             ui.opacity(alpha, |ui| draw_slot(ui, front));
         }
         let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
-        ui.ramp(full, false, &theme::BACKDROP_LEFT_SCRIM);
-        ui.ramp(full, true, self.scrim.ramp());
+        ui.ramp(full, false, &theme::backdrop_left_scrim());
+        ui.ramp(full, true, &self.scrim.ramp());
     }
 }
 
@@ -190,5 +190,5 @@ pub fn faint_art(ui: &mut Ui, art: &[ImageRequest]) {
     if let Some(s) = first_art(ui, art, Priority::Visible) {
         ui.opacity(theme::FAINT_ART_ALPHA, |ui| ui.draw_image(full, &s, &ImageOpts::cover()));
     }
-    ui.ramp(full, true, &theme::FAINT_ART_FADE);
+    ui.ramp(full, true, &theme::faint_art_fade());
 }

@@ -20,8 +20,13 @@
         <!-- Whether the page is Home, where Back on the rail leaves the app,
              as Back on a first screen does. -->
         <field id="home" type="boolean" />
+        <!-- The theme's picture over the open rail (Sunshine's rainbow), ""
+             for none; the scene sets it as it makes the rail. -->
+        <field id="sidebar" type="uri" onChange="onSidebar" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/shared/Rail.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -30,10 +35,11 @@
     <children>
         <!-- The page's dark under the collapsed icons, clear by the pages'
              gutter. -->
-        <Poster id="shade" width="184" height="1080" uri="pkg:/images/ui/fade-left.png" />
+        <Poster id="shade" width="184" height="1080" uri="pkg:/images/ui/fade-left.png" blendColor="0x0B0D10FF" />
         <Group id="panel" opacity="0">
-            <Rectangle width="520" height="1080" color="0x1E222AFF" />
-            <Poster translation="[520, 0]" width="48" height="1080" uri="pkg:/images/ui/shadow.png" />
+            <Rectangle width="520" height="1080" color="0x12151AFF" />
+            <Poster id="sidebar" width="520" height="1080" visible="false" />
+            <Poster id="shadow" translation="[520, 0]" width="48" height="1080" uri="pkg:/images/ui/shadow.png" />
         </Group>
         <QuickList id="list" translation="[0, 60]" itemComponentName="RailRow" itemSize="[520, 80]" itemSpacing="[0, 8]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Animation id="opening" duration="0.15" easeFunction="outCubic">

@@ -139,6 +139,7 @@ private fun BookContent(
     model: BookViewModel,
     onNowPlaying: () -> Unit,
 ) {
+    val palette = PleyColors.palette
     val memory = rememberFocusMemory()
     Row(Modifier.fillMaxSize().padding(top = TOP)) {
         Column(
@@ -167,8 +168,8 @@ private fun BookContent(
                         .height(4.dp)
                         .drawBehind {
                             val r = CornerRadius(size.height / 2f)
-                            drawRoundRect(PleyColors.Fg.copy(alpha = 0.2f), cornerRadius = r)
-                            drawRoundRect(PleyColors.Accent, size = Size(size.width * progress.fraction, size.height), cornerRadius = r)
+                            drawRoundRect(palette.fg.copy(alpha = 0.2f), cornerRadius = r)
+                            drawRoundRect(palette.accent, size = Size(size.width * progress.fraction, size.height), cornerRadius = r)
                         },
                 )
                 BasicText(

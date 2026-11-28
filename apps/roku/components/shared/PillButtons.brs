@@ -1,4 +1,5 @@
 sub init()
+    m.c = uiColors()
     m.top.focusable = true
     m.pills = []
     m.index = 0
@@ -8,6 +9,8 @@ end sub
 ' Each button a pill: as wide as its words and 32 px either side, at least
 ' minWidth and at most maxWidth; in a column all as wide as the widest.
 sub onButtons()
+    ' In a player's colors there (dark).
+    m.c = uiColorsOf(m.top.dark)
     m.top.removeChildrenIndex(m.top.getChildCount(), 0)
     m.pills = []
     labels = m.top.buttons
@@ -37,12 +40,12 @@ sub onButtons()
         if not row then width = widest
         group = m.top.createChild("Group")
         back = group.createChild("Poster")
-        back.uri = "pkg:/images/ui/r12.9.png"
+        back.uri = "pkg:/images/ui/r8.9.png"
         back.width = width
         back.height = height
         edge = group.createChild("Poster")
-        edge.uri = "pkg:/images/ui/edge.9.png"
-        edge.blendColor = "0x6C7584FF"
+        edge.uri = "pkg:/images/ui/edge8.9.png"
+        edge.blendColor = m.c.borderStrong
         edge.width = width
         edge.height = height
         label = group.createChild("Label")
@@ -85,11 +88,11 @@ sub onLook()
         pill = m.pills[i]
         lit = focused and i = m.index
         if lit
-            pill.back.blendColor = "0x38BDF8FF"
-            pill.label.color = "0x16191EFF"
+            pill.back.blendColor = m.c.accent
+            pill.label.color = m.c.accentFg
         else
-            pill.back.blendColor = "0xEBEBEB1F"
-            pill.label.color = "0xEBEBEBFF"
+            pill.back.blendColor = themeAlpha(m.c.fg, "1F")
+            pill.label.color = m.c.fg
         end if
         pill.edge.visible = not lit
     end for

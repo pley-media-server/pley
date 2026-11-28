@@ -49,15 +49,17 @@ const QUEUE_OVERSCAN: usize = 3;
 const FOCUS_NEAR: usize = 3;
 
 /// Play/Pause: Fg 15 %, Accent and OnAccent focused at 1.08, AccentBright pressed.
-const PLAY_LOOK: ControlLook = ControlLook {
-    fill: theme::alpha(theme::FG, 0.15),
-    content: theme::FG,
-    edge: None,
-    focus_fill: theme::ACCENT,
-    focus_content: theme::ON_ACCENT,
-    pressed_fill: theme::ACCENT_BRIGHT,
-    focus_scale: focus::ROUND.focus_scale,
-};
+fn play_look() -> ControlLook {
+    ControlLook {
+        fill: theme::alpha(theme::fg(), 0.15),
+        content: theme::fg(),
+        edge: None,
+        focus_fill: theme::accent(),
+        focus_content: theme::on_accent(),
+        pressed_fill: theme::accent_bright(),
+        focus_scale: focus::round().focus_scale,
+    }
+}
 
 /// What the page shows of a track that changes only with the track.
 struct TrackArt {
@@ -188,13 +190,13 @@ impl Screen for NowPlayingScreen {
         let x = COLUMN_X;
         let mut y = ART.y;
         let title_opts = TextOpts::wrap(COLUMN_W, 2).balanced();
-        y += ui.text(Point::new(x, y), &art.title, &theme::PAGE_TITLE, &title_opts, theme::FG).h;
+        y += ui.text(Point::new(x, y), &art.title, &theme::PAGE_TITLE, &title_opts, theme::fg()).h;
         y += 4.0;
-        ui.text(Point::new(x, y), &art.byline, &theme::BODY_LARGE, &TextOpts::line(COLUMN_W), theme::MUTED);
+        ui.text(Point::new(x, y), &art.byline, &theme::BODY_LARGE, &TextOpts::line(COLUMN_W), theme::muted());
         y += theme::BODY_LARGE.line_height;
         let (status, failed) = m.status();
         if !status.is_empty() {
-            let color = if failed { theme::DANGER_TEXT } else { theme::SUBTLE };
+            let color = if failed { theme::danger() } else { theme::subtle() };
             ui.text(Point::new(x, y + 4.0), &status, &theme::CAPTION, &TextOpts::line(COLUMN_W), color);
         }
         y += STATUS_HEIGHT + 14.0;
@@ -230,9 +232,9 @@ impl Screen for NowPlayingScreen {
         scrubber(ui, scrub, position, duration, buffered, p);
         y += SCRUB_HEIGHT + 4.0;
         let (played, left) = self.times(position, duration);
-        ui.text(Point::new(x, y), played, &theme::CAPTION, &TextOpts::default(), theme::FG);
+        ui.text(Point::new(x, y), played, &theme::CAPTION, &TextOpts::default(), theme::fg());
         let w = ui.measure(left, &theme::CAPTION, &TextOpts::default()).w;
-        ui.text(Point::new(scrub.right() - w, y), left, &theme::CAPTION, &TextOpts::default(), theme::FG);
+        ui.text(Point::new(scrub.right() - w, y), left, &theme::CAPTION, &TextOpts::default(), theme::fg());
         y += theme::CAPTION.line_height + 16.0;
 
         // Shuffle, Previous, Play/Pause, Next.
@@ -268,7 +270,7 @@ impl Screen for NowPlayingScreen {
         // The queue.
         if m.list().len() > 1 {
             let up_next = t!("music.nowPlaying.upNext");
-            ui.text(Point::new(x + 12.0, y), up_next, &theme::LABEL, &TextOpts::line(COLUMN_W), theme::SUBTLE);
+            ui.text(Point::new(x + 12.0, y), up_next, &theme::LABEL, &TextOpts::line(COLUMN_W), theme::subtle());
             y += theme::LABEL.line_height + 4.0;
             let view = Rect::new(x, y, COLUMN_W, (theme::CANVAS_H - y).max(QUEUE_PITCH));
             if let Some(i) = self.queue(ui, view, m, index, playing) {
@@ -363,24 +365,24 @@ fn scrubber(ui: &mut Ui, rect: Rect, position: i64, duration: i64, buffered: i64
     let fraction = |ms: i64| if duration > 0 { (ms as f32 / duration as f32).clamp(0.0, 1.0) } else { 0.0 };
     let track = Rect::new(rect.x, rect.center().y - SCRUB_TRACK / 2.0, rect.w, SCRUB_TRACK);
     let corner = SCRUB_TRACK / 2.0;
-    ui.fill(track, theme::alpha(theme::FG, 0.25), corner);
+    ui.fill(track, theme::alpha(theme::fg(), 0.25), corner);
     let loaded = fraction(buffered);
     if loaded > 0.0 {
-        ui.fill(Rect::new(track.x, track.y, track.w * loaded, track.h), theme::alpha(theme::FG, 0.45), corner);
+        ui.fill(Rect::new(track.x, track.y, track.w * loaded, track.h), theme::alpha(theme::fg(), 0.45), corner);
     }
     let played = fraction(position);
     if played > 0.0 {
-        ui.fill(Rect::new(track.x, track.y, track.w * played, track.h), theme::ACCENT, corner);
+        ui.fill(Rect::new(track.x, track.y, track.w * played, track.h), theme::accent(), corner);
     }
     let side = THUMB + (THUMB_FOCUSED - THUMB) * focus;
     let cx = (track.x + track.w * played).clamp(track.x + side / 2.0, track.right() - side / 2.0);
     let centre = Point::new(cx, track.center().y);
     let thumb = Rect::from_origin_size(Point::new(centre.x - side / 2.0, centre.y - side / 2.0), Size::new(side, side));
-    ui.fill(thumb, theme::FG, side / 2.0);
+    ui.fill(thumb, theme::fg(), side / 2.0);
     if focus > 0.0 {
         let reach = THUMB_FOCUSED / 2.0 + RING_GAP + RING / 2.0;
         let ring = Rect::new(centre.x - reach, centre.y - reach, reach * 2.0, reach * 2.0);
-        ui.stroke(ring, theme::ACCENT_BRIGHT.alpha(focus), reach, RING);
+        ui.stroke(ring, theme::accent_bright().alpha(focus), reach, RING);
     }
 }
 
@@ -390,7 +392,7 @@ fn play_pause(ui: &mut Ui, id: Id, rect: Rect, pause: bool) -> bool {
     // labels.
     ui.name(id, || if pause { t!("music.actions.pause") } else { t!("music.actions.play") }.to_string());
     let r = register(ui, id, rect, FocusOpts::default());
-    let s = look::shade(ui, &PLAY_LOOK, &r);
+    let s = look::shade(ui, &play_look(), &r);
     ui.transform(Point::ZERO, s.scale, rect.center(), |ui| {
         ui.fill(rect, s.fill, rect.w / 2.0);
         let glyph = rect.place(Size::new(PLAY_GLYPH, PLAY_GLYPH), 0.5, 0.5);

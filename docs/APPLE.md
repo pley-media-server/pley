@@ -2493,6 +2493,8 @@ Delete the folder afterwards.
 ## Known limits
 
 - No seek-bar previews.
+- No themes: the apps are drawn in Midnight, whichever theme a profile
+  picked in the other apps ([THEMES.md](THEMES.md)).
 - No Manage server on iPhone, iPad or Mac, as Android phones have: the app
   doesn't ask for the `server` permission, so the server is managed in the
   web app.

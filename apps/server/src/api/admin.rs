@@ -605,6 +605,9 @@ pub struct TranscoderSummary {
     chromaprint: bool,
     /// FFmpeg can hold transcodes back (6.1 and newer).
     throttling: bool,
+    /// Rockchip's MPP can't read the device tree it tells the chip by (a
+    /// container that hides it), so it has H.264 and none of HEVC, VP9 or AV1.
+    rockchip_chip_unknown: bool,
     /// Whether segments can be kept in memory, and how much (`null` while
     /// the transcoder is unavailable, or from one too old to say).
     memory: Option<pley_transcoder_api::MemoryInfo>,
@@ -679,6 +682,7 @@ pub async fn system(State(state): State<AppState>, AdminUser(admin): AdminUser) 
         dolby_vision: info.as_ref().is_some_and(|i| i.capabilities.dolby_vision),
         chromaprint: info.as_ref().is_some_and(|i| i.capabilities.chromaprint),
         throttling: info.as_ref().is_some_and(|i| i.capabilities.readrate),
+        rockchip_chip_unknown: info.as_ref().is_some_and(|i| i.capabilities.rockchip_chip_unknown),
         memory: info.as_ref().map(|i| {
             i.memory.clone().unwrap_or_else(|| pley_transcoder_api::MemoryInfo {
                 reason: crate::settings::memory_problem(Some(i)),

@@ -1,6 +1,7 @@
 package app.pley.android.designsystem.gallery
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,6 +31,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -40,7 +44,12 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.icon.PleyMark
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.theme.PleyPalette
+import app.pley.android.designsystem.theme.PleyTheme
+import app.pley.android.designsystem.theme.ThemePreview
+import app.pley.android.designsystem.theme.nameRes
 import app.pley.android.designsystem.tile.ArtworkTile
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileCaption
@@ -89,14 +98,20 @@ internal fun GalleryTvTile(
 }
 
 /** The TV focus ring of §1.4, drawn after the tile at [alpha]. */
-internal fun Modifier.focusRing(kind: TileKind, alpha: () -> Float): Modifier = drawWithContent {
+@Composable
+internal fun Modifier.focusRing(kind: TileKind, alpha: () -> Float): Modifier {
+    val ring = PleyColors.AccentBright
+    return focusRing(kind, ring, alpha)
+}
+
+private fun Modifier.focusRing(kind: TileKind, ring: Color, alpha: () -> Float): Modifier = drawWithContent {
     drawContent()
     val a = alpha()
     if (a > 0f) {
         val offset = PleyFocus.RingOffset.toPx()
         val radius = if (kind.round) (size.minDimension / 2f + offset) else PleyFocus.RingRadius.toPx()
         drawRoundRect(
-            color = PleyColors.AccentBright.copy(alpha = a),
+            color = ring.copy(alpha = a),
             topLeft = Offset(-offset, -offset),
             size = Size(size.width + 2 * offset, size.height + 2 * offset),
             cornerRadius = CornerRadius(radius, radius),
@@ -119,8 +134,9 @@ internal fun Swatches(style: TextStyle, swatch: Dp, columns: Int = 14) {
         "control" to PleyColors.Control, "fg" to PleyColors.Fg, "muted" to PleyColors.Muted, "subtle" to PleyColors.Subtle,
         "accent" to PleyColors.Accent, "accentBright" to PleyColors.AccentBright, "onAccent" to PleyColors.OnAccent,
         "dangerText" to PleyColors.DangerText, "danger" to PleyColors.Danger, "success" to PleyColors.Success,
-        "info" to PleyColors.Info, "brandLight" to PleyColors.BrandLight, "brandDeep" to PleyColors.BrandDeep,
-        "brandTile" to PleyColors.BrandTile, "primaryContainer" to PleyColors.PrimaryContainer,
+        "info" to PleyColors.Info, "warning" to PleyColors.Warning, "dangerFg" to PleyColors.DangerFg,
+        "brandLight" to PleyColors.BrandLight, "brand" to PleyColors.Brand, "brandDeep" to PleyColors.BrandDeep,
+        "brandFar" to PleyColors.BrandFar, "brandTile" to PleyColors.BrandTile, "primaryContainer" to PleyColors.PrimaryContainer,
     )
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         tokens.chunked(columns).forEach { line ->
@@ -136,6 +152,34 @@ internal fun Swatches(style: TextStyle, swatch: Dp, columns: Int = 14) {
                         Spacer(Modifier.height(4.dp))
                         Label(name, style, color = PleyColors.Muted)
                         Label("#" + Integer.toHexString(colour.toArgbInt()).takeLast(6), style, color = PleyColors.Muted)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The nine themes as Appearance shows them, each previewed in its own
+ * colors with the gallery's accent, and its mark on its tile: [columns] to
+ * a row, [width] wide.
+ */
+@Composable
+internal fun ThemesGrid(style: TextStyle, width: Dp, columns: Int) {
+    val accent = PleyColors.palette.pick
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        PleyTheme.entries.chunked(columns).forEach { line ->
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                line.forEach { theme ->
+                    val palette = PleyPalette.of(theme, accent)
+                    Column(Modifier.width(width)) {
+                        ThemePreview(palette, Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(rememberVectorPainter(PleyMark.tile(palette)), contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Label(stringResource(theme.nameRes), style)
+                        }
                     }
                 }
             }

@@ -35,7 +35,7 @@ export function SpeedMenu() {
           aria-expanded={open}
           onClick={toggle}
           className={cn(
-            "h-8 min-w-12 rounded-full px-2 text-xs font-semibold tabular-nums transition hover:bg-white/10",
+            "h-8 min-w-12 rounded-full px-2 text-xs font-semibold tabular-nums transition hover:bg-fg/10",
             (open || player.rate !== 1) && "text-accent",
           )}
         >

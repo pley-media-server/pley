@@ -2,43 +2,6 @@
 ' task (never roUrlTransfer here); pictures and video carry the server's
 ' token in their HTTP agent.
 
-' The app's colors (Android's, kept within Roku's broadcast-safe range).
-function uiColors() as object
-    return {
-        bg: "0x16191EFF",
-        surface: "0x1E222AFF",
-        surface2: "0x262B35FF",
-        surface3: "0x2E3440FF",
-        fg: "0xEBEBEBFF",
-        muted: "0xA1A9B6FF",
-        subtle: "0x8B95A5FF",
-        accent: "0x38BDF8FF",
-        accentBright: "0x7DD3FCFF",
-        onAccent: "0x16191EFF",
-        danger: "0xEB6B70FF",
-        success: "0x3FB27FFF"
-    }
-end function
-
-' Dialogs and keyboards in the app's colors: the Scene's palette.
-function uiPalette() as object
-    colors = uiColors()
-    palette = CreateObject("roSGNode", "RSGPalette")
-    palette.colors = {
-        DialogBackgroundColor: colors.surface,
-        DialogItemColor: colors.fg,
-        DialogTextColor: colors.fg,
-        DialogFocusColor: colors.accent,
-        DialogFocusItemColor: colors.onAccent,
-        DialogSecondaryTextColor: colors.muted,
-        DialogSecondaryItemColor: colors.muted,
-        DialogInputFieldColor: colors.surface3,
-        DialogKeyboardColor: colors.surface2,
-        DialogFootprintColor: colors.surface3
-    }
-    return palette
-end function
-
 ' Sends spec to the API task. callback, a function of this component, gets
 ' the answer as its event's data: { ok, status, data, error, message }.
 ' With spec.build, the task also builds the list's ContentNodes and puts

@@ -119,7 +119,7 @@ export function TextDialog(p: { title: string; text: string; onClose: () => void
       <div class="scrim in" onClick={p.onClose} />
       <div class="dialog">
         <div class="t-title">{p.title}</div>
-        <div class="t-body-large" style="margin-top:16px;color:rgba(233,235,239,0.85);white-space:pre-line">
+        <div class="t-body-large" style="margin-top:16px;color:rgba(var(--fg-rgb), 0.85);white-space:pre-line">
           {p.text}
         </div>
         <G kind="row" style="display:flex;justify-content:flex-end;margin-top:16px">

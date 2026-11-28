@@ -29,6 +29,8 @@ export type PageKey =
   /** New playlist; with `smart`, Save these filters (a library's listing). */
   | { name: "newPlaylist"; smart?: { libraryId: number; filter: string } }
   | { name: "settings" }
+  /** Settings, Appearance: the themes, then the accents; `accent`: focus starts on the accents. */
+  | { name: "appearance"; accent?: boolean }
   | { name: "history" }
   | { name: "diagnostics" }
   | { name: "nowPlaying" }
@@ -48,6 +50,15 @@ export type PageKey =
   | { name: "livePlayer"; channelId: number; category: string; pressedAt: number };
 
 export type LibraryTab = "recommended" | "library" | "collections";
+
+/**
+ * Pages outside a profile, which draw Midnight whatever it picked
+ * (packages/tv/test/fixtures/appearance.json): choosing a server, signing
+ * in, "Who's watching?" and its PIN.
+ */
+export function outsideProfile(key: PageKey | undefined): boolean {
+  return !key || key.name === "servers" || key.name === "link" || key.name === "profiles";
+}
 
 export interface Entry {
   key: PageKey;

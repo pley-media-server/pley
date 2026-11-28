@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{self, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 29;
+const DETECTION_REVISION: u32 = 30;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -54,6 +54,7 @@ impl Ffmpeg {
                 encoder_names(&cached.caps),
                 tonemapper_names(&cached.caps),
             );
+            warn_of_unknown_chip(&cached.caps);
             return Self { ffmpeg, ffprobe, caps: cached.caps, segment_times_relative: cached.segment_times_relative };
         }
 
@@ -69,6 +70,7 @@ impl Ffmpeg {
                 caps.dolby_vision,
                 gpu_summary(&caps),
             );
+            warn_of_unknown_chip(&caps);
             let file = CacheFile { key, caps: caps.clone(), segment_times_relative: relative };
             if let Ok(json) = serde_json::to_vec_pretty(&file) {
                 let _ = std::fs::write(cache_path, json);
@@ -212,6 +214,19 @@ fn gpu_summary(caps: &Capabilities) -> String {
         parts.push("Dolby Vision on OpenCL".to_owned());
     }
     parts.iter().map(|p| format!(", {p}")).collect()
+}
+
+/// At every start, as long as Rockchip's MPP can't tell the chip
+/// ([`Capabilities::rockchip_chip_unknown`]), what that costs and the fix.
+fn warn_of_unknown_chip(caps: &Capabilities) {
+    if caps.rockchip_chip_unknown {
+        tracing::warn!(
+            "Rockchip's MPP can't read the device tree ({}), so it decodes and encodes H.264 but not HEVC, VP9 or \
+             AV1: give the container `security_opt: systempaths=unconfined` (and `apparmor=unconfined` where \
+             AppArmor runs)",
+            devices::DEVICE_TREE_CHIP
+        );
+    }
 }
 
 fn tonemapper_names(caps: &Capabilities) -> String {
@@ -708,6 +723,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         .filter(|l| !l.is_empty())
         .map(str::to_owned)
         .collect();
+    caps.rockchip_chip_unknown = caps.hwaccels.iter().any(|h| h == "rkmpp") && devices::rockchip_chip_hidden();
 
     // Run the (slow) test encodes concurrently, a few at a time.
     let limiter = Arc::new(Semaphore::new(6));

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appearance_title">Apparence</string>
+    <string name="appearance_theme">Thème</string>
+    <string name="appearance_theme_hint">L\'apparence de Pley pour vous sur cet appareil. Chaque profil garde la sienne.</string>
+    <string name="appearance_theme_hint_tv">L\'apparence de Pley pour vous sur ce téléviseur. Chaque profil garde la sienne.</string>
+    <string name="appearance_theme_midnight">Minuit</string>
+    <string name="appearance_theme_midday">Midi</string>
+    <string name="appearance_theme_twilight">Crépuscule</string>
+    <string name="appearance_theme_starlight">Clair d\'étoiles</string>
+    <string name="appearance_theme_moonlight">Clair de lune</string>
+    <string name="appearance_theme_nightshade">Belladone</string>
+    <string name="appearance_theme_greenlight">Feu vert</string>
+    <string name="appearance_theme_sunshine">Soleil</string>
+    <string name="appearance_theme_blacklight">Lumière noire</string>
+    <string name="appearance_about_midnight">Lumière éteinte, pop-corn prêt</string>
+    <string name="appearance_about_midday">Minuit, version brunch</string>
+    <string name="appearance_about_twilight">Coucher de soleil, sans coup de soleil</string>
+    <string name="appearance_about_starlight">Champagne, sans gueule de bois</string>
+    <string name="appearance_about_moonlight">Mode smoking</string>
+    <string name="appearance_about_nightshade">Tapi dans les fougères</string>
+    <string name="appearance_about_greenlight">Toucher l\'herbe sans sortir</string>
+    <string name="appearance_about_sunshine">Validé à l\'heure du goûter</string>
+    <string name="appearance_about_blacklight">Aucune couleur, aucun regret</string>
+    <string name="appearance_accent">Accent</string>
+    <string name="appearance_accent_hint">S\'applique aux boutons, aux liens et aux autres éléments mis en avant.</string>
+    <string name="appearance_accent_own">Par défaut</string>
+    <string name="appearance_accent_sky">Ciel</string>
+    <string name="appearance_accent_violet">Violet</string>
+    <string name="appearance_accent_miami">Miami</string>
+    <string name="appearance_accent_gold">Or</string>
+    <string name="appearance_accent_mint">Menthe</string>
+    <string name="appearance_accent_amber">Ambre</string>
+</resources>

@@ -37,6 +37,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -129,16 +130,16 @@ internal fun PanelHeading(text: String, modifier: Modifier = Modifier) {
 
 /**
  * The focus ring (design spec §1.4) around something that isn't a tile:
- * a 3 dp [accentBright][PleyColors.AccentBright] stroke 4.5 dp outside it,
+ * a 3 dp [ring] stroke ([accentBright][PleyColors.AccentBright]) 4.5 dp outside it,
  * while [focused] says so (read while drawing).
  */
-internal fun Modifier.focusRing(radius: androidx.compose.ui.unit.Dp, focused: () -> Boolean): Modifier = drawWithContent {
+internal fun Modifier.focusRing(radius: androidx.compose.ui.unit.Dp, ring: Color, focused: () -> Boolean): Modifier = drawWithContent {
     drawContent()
     if (focused()) {
         val offset = PleyFocus.RingOffset.toPx()
         val r = radius.toPx() + offset
         drawRoundRect(
-            PleyColors.AccentBright,
+            ring,
             topLeft = Offset(-offset, -offset),
             size = Size(size.width + 2 * offset, size.height + 2 * offset),
             cornerRadius = CornerRadius(r, r),

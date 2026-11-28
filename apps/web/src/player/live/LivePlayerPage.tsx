@@ -208,7 +208,7 @@ function useZap(category: LiveCategory, id: number): (by: 1 | -1) => Channel | n
 }
 
 function Blackout({ children }: { children: React.ReactNode }) {
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black p-4 text-white">{children}</div>;
+  return <div data-dark className="fixed inset-0 z-50 flex items-center justify-center bg-black p-4 text-white">{children}</div>;
 }
 
 function LivePlayer({
@@ -870,6 +870,7 @@ function LivePlayer({
   return (
     <div
       ref={containerRef}
+      data-dark
       className={cn("fixed inset-0 z-50 select-none overflow-hidden bg-black text-white", !controlsVisible && "cursor-none")}
       onMouseMove={poke}
       onTouchStart={poke}
@@ -1048,8 +1049,8 @@ function LivePlayer({
                 />
               </div>
             </div>
-            <span className="ml-1 flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-danger/90 px-2.5 text-xs font-bold uppercase tracking-wide text-white sm:ml-2">
-              <span className="size-1.5 animate-pulse rounded-full bg-white" />
+            <span className="ml-1 flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-danger/90 px-2.5 text-xs font-bold uppercase tracking-wide text-danger-fg sm:ml-2">
+              <span className="size-1.5 animate-pulse rounded-full bg-danger-fg" />
               {t("live")}
             </span>
             {on ? (

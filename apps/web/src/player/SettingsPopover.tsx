@@ -431,7 +431,7 @@ export function SettingsPopover(props: SettingsPopoverProps) {
                               setDeleting(null);
                               onDeleteSubtitle(s.index);
                             }}
-                            className="h-7 rounded-md bg-danger px-2.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                            className="h-7 rounded-md bg-danger px-2.5 text-xs font-semibold text-danger-fg transition-opacity hover:opacity-90"
                           >
                             {t("common:actions.delete")}
                           </button>

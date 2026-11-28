@@ -24,13 +24,13 @@
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle width="720" height="276" color="0x191D24F5" />
-        <Rectangle width="720" height="2" color="0x2E3440FF" />
-        <Rectangle id="frame" translation="[32, 32]" width="80" height="120" color="0x2E3440FF" />
+        <Rectangle width="720" height="2" color="0x222731FF" />
+        <Rectangle id="frame" translation="[32, 32]" width="80" height="120" color="0x222731FF" />
         <Poster id="poster" translation="[32, 32]" width="80" height="120" loadWidth="80" loadHeight="120" loadDisplayMode="scaleToZoom" />
         <!-- Without a poster to say which title it is, a tick says it's
              good news. -->
-        <Poster id="tick" translation="[32, 72]" width="40" height="40" uri="pkg:/images/watched.png" visible="false" />
-        <Label id="text" translation="[140, 32]" width="548" height="120" wrap="true" maxLines="3" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+        <Poster id="tick" translation="[32, 72]" width="40" height="40" uri="pkg:/images/watched.png" blendColor="0x38BDF8FF" visible="false" />
+        <Label id="text" translation="[140, 32]" width="548" height="120" wrap="true" maxLines="3" vertAlign="center" color="0xE9EBEFFF" font="font:SmallSystemFont" />
         <PillButtons id="buttons" translation="[308, 180]" layoutDirection="horiz" itemSpacings="[20]" minWidth="180" maxWidth="180" buttonHeight="64" />
         <!-- Untouched this long, it goes by itself. -->
         <Timer id="untouched" duration="10" />

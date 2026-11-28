@@ -87,7 +87,9 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
-    css: false,
+    // No styles, but index.css itself, which a test reads as text (the
+    // themes' colors, src/theme/palettes.test.ts).
+    css: { include: [/\/src\/index\.css/] },
     // Tests that type a password take about a second; on a machine busy
     // building they took over vitest's 5 s and failed for nothing.
     testTimeout: 15_000,

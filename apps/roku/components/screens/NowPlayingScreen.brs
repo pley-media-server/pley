@@ -9,6 +9,7 @@
 ' Its fields are followed only while this screen shows.
 
 sub init()
+    m.c = uiColors()
     m.backdrop = m.top.findNode("backdrop")
     m.cover = m.top.findNode("cover")
     m.title = m.top.findNode("title")
@@ -221,6 +222,7 @@ end sub
 ' The line under the album: what went wrong with a track before.
 sub showStatus()
     m.message.text = m.global.music.message
+    m.message.color = m.c.danger
 end sub
 
 sub onButton(event as object)

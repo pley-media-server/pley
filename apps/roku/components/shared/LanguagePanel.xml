@@ -19,8 +19,8 @@
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
     <children>
-        <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />
-        <Label id="title" translation="[1056, 72]" width="808" maxLines="1" color="0xEBEBEBFF" />
+        <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x12151AFF" />
+        <Label id="title" translation="[1056, 72]" width="808" maxLines="1" color="0xE9EBEFFF" />
         <QuickList id="choices" translation="[1056, 152]" itemComponentName="PanelRow" itemSize="[808, 88]" itemSpacing="[0, 4]" numRows="6" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
     </children>
 </component>

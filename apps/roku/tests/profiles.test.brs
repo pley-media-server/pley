@@ -7,13 +7,14 @@ sub test_profiles_as_tiles()
     tkEqual(tiles[0].initial, "A")
     tkEqual(tiles[0].image, "http://nas:7539/api/users/1/avatar?v=3&w=220")
     tkEqual(tiles[0].color, "0x38BDF8FF")
+    tkEqual(tiles[0].ink, "0x0B0D10FF")
     tkTrue(tiles[0].current)
     tkEqual(tiles[0].subtitle, "")
     tkEqual(tiles[1].subtitle, "PIN")
-    tkEqual(tiles[1].color, "0x2E3440FF", "no color: the app's surface")
+    tkEqual(tiles[1].color, "0xFB923CFF", "no color: the one picked from the name, as on every app (avatar.test.brs)")
+    tkEqual(tiles[1].initial, "B")
     tkEqual(tiles[1].image, "")
     tkEqual(profNeedsLabel("password"), "Password")
-    tkEqual(profColor("#12345"), "0x2E3440FF")
 end sub
 
 ' Who the app is says which profile is current, and that one's PIN, as on

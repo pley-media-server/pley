@@ -122,6 +122,7 @@
   },
   "connectionBanner": {
     "offline": "Pley 處於離線狀態",
+    "retrying": "正在重新連線…",
     "downloads": "下載"
   },
   "folderPicker": {

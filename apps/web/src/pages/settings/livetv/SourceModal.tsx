@@ -342,7 +342,7 @@ function KindCard({
       onClick={onClick}
       className={cn(
         "flex items-start gap-3 rounded-lg border p-4 text-left transition-colors",
-        active ? "border-accent bg-accent/[0.08]" : "border-border hover:border-border-strong hover:bg-white/[0.02]",
+        active ? "border-accent bg-accent/[0.08]" : "border-border hover:border-border-strong hover:bg-fg/[0.02]",
       )}
     >
       <span className={cn("mt-0.5", active ? "text-accent" : "text-subtle")}>{icon}</span>

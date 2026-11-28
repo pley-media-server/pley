@@ -168,7 +168,7 @@ const ChannelListRow = memo(function ChannelListRow({
         {on ? (
           <>
             <div className="truncate text-xs text-muted">{on.title}</div>
-            <div className="mt-1 h-0.5 overflow-hidden rounded-full bg-white/10">
+            <div className="mt-1 h-0.5 overflow-hidden rounded-full bg-fg/10">
               <div className="h-full bg-accent" style={{ width: `${programProgress(on, now) * 100}%` }} />
             </div>
           </>
@@ -201,7 +201,7 @@ export const ChannelCard = memo(function ChannelCard({
   return (
     <div
       className={cn(
-        "group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-surface transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-lg hover:shadow-black/30 focus-within:border-accent",
+        "group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-surface transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-lg hover:shadow-shade/30 focus-within:border-accent",
         className,
       )}
     >
@@ -216,7 +216,7 @@ export const ChannelCard = memo(function ChannelCard({
           className="aspect-[16/8] w-full bg-gradient-to-br from-surface-3 to-surface-2"
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
-          <span className="flex size-12 items-center justify-center rounded-full bg-accent text-accent-fg shadow-lg shadow-black/40">
+          <span className="flex size-12 items-center justify-center rounded-full bg-accent text-accent-fg shadow-lg shadow-shade/40">
             <Play className="ml-0.5 size-5 fill-current" />
           </span>
         </div>
@@ -246,7 +246,7 @@ export const ChannelCard = memo(function ChannelCard({
           <button
             type="button"
             onClick={() => onDetails(channel, on)}
-            className="-mx-1 -my-0.5 flex items-start gap-1 rounded px-1 py-0.5 text-left text-sm text-fg/90 transition-colors hover:bg-white/[0.05]"
+            className="-mx-1 -my-0.5 flex items-start gap-1 rounded px-1 py-0.5 text-left text-sm text-fg/90 transition-colors hover:bg-fg/[0.05]"
           >
             <span className="line-clamp-1 flex-1">{on.title}</span>
             <Info className="mt-0.5 size-3.5 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
@@ -256,7 +256,7 @@ export const ChannelCard = memo(function ChannelCard({
         )}
         {on ? (
           <div className="flex items-center gap-2">
-            <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+            <div className="h-1 flex-1 overflow-hidden rounded-full bg-fg/10">
               <div
                 className="h-full rounded-full bg-accent transition-[width] duration-700"
                 style={{ width: `${programProgress(on, now) * 100}%` }}

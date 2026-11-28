@@ -106,7 +106,7 @@ export function StorageSection() {
           ) : list.length === 0 ? (
             <p className="text-sm text-subtle">{t("storage.noBackups")}</p>
           ) : (
-            <ul className="divide-y divide-white/[0.05] text-sm">
+            <ul className="divide-y divide-fg/[0.05] text-sm">
               {list.map((b) => (
                 <li key={b.name} className="flex items-center justify-between gap-3 py-1.5">
                   <span className="truncate font-mono text-xs" title={b.path}>

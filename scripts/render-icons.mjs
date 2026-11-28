@@ -76,6 +76,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { crc32, deflateSync, inflateSync } from "node:zlib";
 import { renderer } from "./svg-render.mjs";
+import { broadcastSafe } from "../apps/roku/scripts/broadcast-safe.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const logo = readFileSync(join(root, "apps/web/public/favicon.svg"), "utf8");
@@ -292,11 +293,27 @@ function icns(chunks) {
 }
 
 /**
+ * A pixel's color within Roku's broadcast-safe range, which Roku's
+ * certification (6.4) asks of its store artwork and splash screen
+ * (apps/roku/scripts/broadcast-safe.mjs): [r, g, b] in, [r, g, b] out.
+ */
+const safeColors = new Map();
+function broadcastSafePixel(r, g, b) {
+  const hex = "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
+  if (!safeColors.has(hex)) {
+    const safe = broadcastSafe(hex);
+    safeColors.set(hex, [1, 3, 5].map((at) => parseInt(safe.slice(at, at + 2), 16)));
+  }
+  return safeColors.get(hex);
+}
+
+/**
  * An opaque PNG from the browser (8-bit RGB or RGBA) again as a 24-bit RGB
  * PNG marked 72 dpi, as Samsung asks for its icons. Refuses a picture with
- * any pixel that isn't opaque, rather than dropping it.
+ * any pixel that isn't opaque, rather than dropping it. With [pixel], each
+ * pixel's color goes through it (Roku's broadcastSafePixel).
  */
-function rgb72(png) {
+function rgb72(png, pixel = null) {
   let at = 8;
   let width = 0;
   let height = 0;
@@ -334,6 +351,15 @@ function rgb72(png) {
   }
   if (channels === 4) {
     for (let i = 3; i < pixels.length; i += 4) if (pixels[i] !== 255) throw new Error("a picture meant to be opaque has see-through pixels");
+  }
+  if (pixel) {
+    for (let i = 0; i < width * height; i++) {
+      const at = i * channels;
+      const [r, g, b] = pixel(pixels[at], pixels[at + 1], pixels[at + 2]);
+      pixels[at] = r;
+      pixels[at + 1] = g;
+      pixels[at + 2] = b;
+    }
   }
   // RGB rows, each as differences from the pixel on its left (filter 1), which suits flat color.
   const rowBytes = width * 3 + 1;
@@ -468,13 +494,14 @@ try {
   writeFileSync(join(kodi, "icon.png"), rgb72(await r.png(maskable(512, 8, tvGlyph), 512)));
   writeFileSync(join(kodi, "fanart.jpg"), await r.jpeg(banner(1920, 1080), 1920, 1080, 90));
 
-  // Roku's home screen tiles, and splash screens on the app's background (components/shared/Ui.brs),
-  // as the manifest's splash_color.
+  // Roku's home screen tiles (its store artwork) and splash screens on Midnight's background, as the
+  // manifest's splash_color: every pixel within the broadcast-safe range Roku's certification asks of
+  // them (broadcastSafePixel), which apps/roku/scripts/broadcast-check.mjs holds them to.
   const roku = join(root, "apps/roku/images");
-  writeFileSync(join(roku, "icon_focus_fhd.png"), rgb72(await r.png(named(540, 405), 540, 405)));
-  writeFileSync(join(roku, "icon_focus_hd.png"), rgb72(await r.png(named(290, 218), 290, 218)));
+  writeFileSync(join(roku, "icon_focus_fhd.png"), rgb72(await r.png(named(540, 405), 540, 405), broadcastSafePixel));
+  writeFileSync(join(roku, "icon_focus_hd.png"), rgb72(await r.png(named(290, 218), 290, 218), broadcastSafePixel));
   for (const [name, width, height] of [["splash_fhd.png", 1920, 1080], ["splash_hd.png", 1280, 720], ["splash_sd.png", 720, 480]]) {
-    writeFileSync(join(roku, name), rgb72(await r.png(splash(width, height, "#16191e"), width, height)));
+    writeFileSync(join(roku, name), rgb72(await r.png(splash(width, height, "#0b0d10"), width, height), broadcastSafePixel));
   }
   // The Android TV app's banner, sharp on a 4K TV's home screen too.
   const res = join(root, "apps/android/app/src/main/res");

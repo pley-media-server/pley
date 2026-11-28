@@ -4,6 +4,11 @@
 //! (`apps/android/core/designsystem/.../PleyColors.kt`, `PleyType.kt`, `PleySpace.kt`,
 //! `PleyShape.kt`) and its TV kit (`apps/android/ui/tv/...`), which the TV web app matched;
 //! every number is in dp on the 960×540 canvas.
+//!
+//! The colors are the theme's (docs/THEMES.md): each role of the design is a token of the palette
+//! shown ([`palette`]), read when it is drawn, so they are functions rather than constants. Only
+//! what sits on pictures and video (a tile's hairline, a track over art, a QR code) keeps its own
+//! black or white.
 
 use pley_base::{Color, Family, GradientStop, TextStyle, Weight};
 
@@ -13,118 +18,180 @@ pub const fn alpha(c: Color, f: f32) -> Color {
     Color { r: c.r, g: c.g, b: c.b, a: (c.a as f32 * f + 0.5) as u8 }
 }
 
-// Colors (`PleyColors.kt`). Dark only.
+// Colors (`PleyColors.kt`), each a token of the theme shown (docs/THEMES.md, [`palette`]): the
+// Android design's roles, read from the palette the shell shows at the start of each frame.
 
-/// The window, pages, scrims' base, the rail fade and the curtain.
-pub const BG: Color = Color::rgb(0x0b0d10);
-/// The open rail's panel (at 96 %) and its soft edge.
-pub const SURFACE: Color = Color::rgb(0x12151a);
-/// Tile wells, skeletons, side panels, dialogs, text fields, library cards.
-pub const SURFACE2: Color = Color::rgb(0x191d24);
-/// Chips, the current tab, round buttons off art, toasts, the offline notice, the jump control.
-pub const SURFACE3: Color = Color::rgb(0x222731);
-/// Hairlines, progress tracks off art, empty rating stars.
-pub const SURFACE4: Color = Color::rgb(0x2a303b);
-/// The border of badges on the page; decoration only.
-pub const OUTLINE: Color = Color::rgb(0x3a4250);
-/// The 1 dp edge of pills, round buttons and text fields at rest.
-pub const CONTROL: Color = Color::rgb(0x6c7584);
-/// Primary text and icons; never pure white.
-pub const FG: Color = Color::rgb(0xe9ebef);
-/// Secondary text, the metadata line, rail entries at rest, unselected tabs.
-pub const MUTED: Color = Color::rgb(0xa1a9b6);
-/// Tertiary text, "·" separators, list numbers, fact labels.
-pub const SUBTLE: Color = Color::rgb(0x8b95a5);
-/// Disabled text and icons.
-pub const DISABLED: Color = Color::rgb(0x6c7584);
-/// Focus fills, progress bars, checks, the unwatched count, the rail's current-entry bar.
-pub const ACCENT: Color = Color::rgb(0x38bdf8);
-/// The tile focus ring, a focused field's edge, pressed fills, text links, the cursor.
-pub const ACCENT_BRIGHT: Color = Color::rgb(0x7dd3fc);
-/// Content on [`ACCENT`] and [`ACCENT_BRIGHT`].
-pub const ON_ACCENT: Color = Color::rgb(0x03131f);
-/// The "New" program badge's background (Live TV).
-pub const PRIMARY_CONTAINER: Color = Color::rgb(0x14303e);
-/// Brand colors: the logo and brand gradients only.
-pub const BRAND_LIGHT: Color = Color::rgb(0xbae6fd);
-/// The brand's deep blue.
-pub const BRAND_DEEP: Color = Color::rgb(0x0284c7);
-/// The brand's far blue.
-pub const BRAND_FAR: Color = Color::rgb(0x0c4a6e);
-/// The logo's tile.
-pub const BRAND_TILE: Color = Color::rgb(0x0a1622);
-/// "Signed in" and "On this network" dots.
-pub const SUCCESS: Color = Color::rgb(0x3fb27f);
-/// Destructive fills and the "Live" badge.
-pub const DANGER: Color = Color::rgb(0xe5484d);
-/// Error toasts, error lines, Delete and Remove labels.
-pub const DANGER_TEXT: Color = Color::rgb(0xff6b70);
-/// Informational notices.
-pub const INFO: Color = Color::rgb(0x4c9aff);
-/// QR codes' modules and background.
+pub use crate::palette::{Accent, Palette, Theme, palette, show};
+
+/// The window, pages, scrims' base, the rail fade and the curtain: `bg`.
+pub fn bg() -> Color {
+    palette().bg
+}
+/// The open rail's panel (at 96 %) and its soft edge: `surface`.
+pub fn surface() -> Color {
+    palette().surface
+}
+/// Tile wells, skeletons, side panels, dialogs, text fields, library cards: `surface-2`.
+pub fn surface2() -> Color {
+    palette().surface2
+}
+/// Chips, the current tab, round buttons off art, toasts, the offline notice, the jump control:
+/// `surface-3`.
+pub fn surface3() -> Color {
+    palette().surface3
+}
+/// Hairlines, progress tracks off art, empty rating stars: `border`.
+pub fn surface4() -> Color {
+    palette().border
+}
+/// The border of badges on the page; decoration only: `border-strong`.
+pub fn outline() -> Color {
+    palette().border_strong
+}
+/// The 1 dp edge of pills, round buttons and text fields at rest: `subtle`, the token nearest
+/// the Android design's, which keeps a control's edge 3:1 against the page in every theme.
+pub fn control() -> Color {
+    palette().subtle
+}
+/// Primary text and icons: `fg`.
+pub fn fg() -> Color {
+    palette().fg
+}
+/// Secondary text, the metadata line, rail entries at rest, unselected tabs: `muted`.
+pub fn muted() -> Color {
+    palette().muted
+}
+/// Tertiary text, "·" separators, list numbers, fact labels: `subtle`.
+pub fn subtle() -> Color {
+    palette().subtle
+}
+/// Disabled text and icons: `subtle`, drawn at [`DISABLED_ALPHA`] where a control is disabled.
+pub fn disabled() -> Color {
+    palette().subtle
+}
+/// Focus fills, progress bars, checks, the unwatched count, the rail's current-entry bar:
+/// `accent`.
+pub fn accent() -> Color {
+    palette().accent
+}
+/// The tile focus ring, a focused field's edge, pressed fills, text links, the cursor:
+/// `accent-hover`.
+pub fn accent_bright() -> Color {
+    palette().accent_hover
+}
+/// Content on [`accent`] and [`accent_bright`]: `accent-fg`.
+pub fn on_accent() -> Color {
+    palette().accent_fg
+}
+/// The "New" program badge's background (Live TV): the accent at 18 %.
+pub fn primary_container() -> Color {
+    alpha(palette().accent, 0.18)
+}
+/// The logo's front poster: a gradient from `brand-light` to [`brand`].
+pub fn brand_light() -> Color {
+    palette().brand_light
+}
+/// The end of the logo's front poster's gradient: `brand`.
+pub fn brand() -> Color {
+    palette().brand
+}
+/// The logo's middle poster: `brand-deep`.
+pub fn brand_deep() -> Color {
+    palette().brand_deep
+}
+/// The logo's back poster: `brand-far`.
+pub fn brand_far() -> Color {
+    palette().brand_far
+}
+/// The logo's tile: `brand-tile`.
+pub fn brand_tile() -> Color {
+    palette().brand_tile
+}
+/// "Signed in" and "On this network" dots, a request's green: `success`.
+pub fn success() -> Color {
+    palette().success
+}
+/// Destructive fills and labels, the "Live" badge, error toasts and lines: `danger`.
+pub fn danger() -> Color {
+    palette().danger
+}
+/// Words on a [`danger`] fill: `danger-fg`.
+pub fn danger_fg() -> Color {
+    palette().danger_fg
+}
+/// What waits on someone, a request's amber: `warning`; words on it are [`bg`].
+pub fn warning() -> Color {
+    palette().warning
+}
+/// Informational notices: `info`.
+pub fn info() -> Color {
+    palette().info
+}
+/// Shadows and the dim behind panels and dialogs: `shade`, which has its own opacity in a light
+/// theme.
+pub fn shade() -> Color {
+    palette().shade
+}
+/// QR codes' modules: black, as on paper, whatever the theme, so every phone reads them.
 pub const QR_DARK: Color = Color::BLACK;
 /// A QR code's background and quiet zone.
 pub const QR_LIGHT: Color = Color::WHITE;
 /// The watched tick's box, badges on art, round buttons over backdrops: Bg at 80 %.
-pub const ON_ART: Color = alpha(BG, 0.8);
+pub fn on_art() -> Color {
+    alpha(bg(), 0.8)
+}
 /// A progress bar's track over art: black at 60 %.
 pub const PROGRESS_TRACK_ON_ART: Color = alpha(Color::BLACK, 0.6);
-/// The 1 dp stroke inside every rectangular tile: white at 6 %.
+/// The 1 dp stroke inside every rectangular tile, over its picture: white at 6 %.
 pub const TILE_HAIRLINE: Color = alpha(Color::WHITE, 0.06);
-/// Behind side panels and dialogs: Bg at 60 %.
-pub const SCRIM: Color = alpha(BG, 0.6);
-/// Over the page while the rail is open: Bg at 50 % (`TvApp.kt`).
-pub const RAIL_SCRIM: Color = alpha(BG, 0.5);
+/// Behind side panels and dialogs: Shade at 60 %.
+pub fn scrim() -> Color {
+    shade().alpha(0.6)
+}
+/// Over the page while the rail is open: Shade at 50 % (`TvApp.kt`).
+pub fn rail_scrim() -> Color {
+    shade().alpha(0.5)
+}
 /// The open rail's panel: Surface at 96 % (`TvRail.kt`).
-pub const RAIL_PANEL: Color = alpha(SURFACE, 0.96);
+pub fn rail_panel() -> Color {
+    alpha(surface(), 0.96)
+}
 /// A pill button's fill at rest: Fg at 12 % (`TvButtons.kt`).
-pub const PILL_REST: Color = alpha(FG, 0.12);
+pub fn pill_rest() -> Color {
+    alpha(fg(), 0.12)
+}
 /// A text button's fill at rest: Fg at 8 % (`TvButtons.kt`).
-pub const TEXT_BUTTON_REST: Color = alpha(FG, 0.08);
+pub fn text_button_rest() -> Color {
+    alpha(fg(), 0.08)
+}
 /// Summaries: Fg at 85 %.
-pub const SUMMARY: Color = alpha(FG, 0.85);
-/// A placeholder's title on a tile: Fg at 70 %.
-pub const PLACEHOLDER_TITLE: Color = alpha(FG, 0.7);
+pub fn summary() -> Color {
+    alpha(fg(), 0.85)
+}
+/// A placeholder's title on a tile, over its picture: white at 70 %, as on the web.
+pub const PLACEHOLDER_TITLE: Color = alpha(Color::WHITE, 0.7);
 /// The current track's line: Fg at 6 %.
-pub const TRACK_CURRENT: Color = alpha(FG, 0.06);
+pub fn track_current() -> Color {
+    alpha(fg(), 0.06)
+}
 /// A highlighted track: Accent at 14 %.
-pub const TRACK_HIGHLIGHT: Color = alpha(ACCENT, 0.14);
+pub fn track_highlight() -> Color {
+    alpha(accent(), 0.14)
+}
 /// Secondary text on a focused (Accent) row: OnAccent at 80 %.
-pub const ON_ACCENT_SECONDARY: Color = alpha(ON_ACCENT, 0.8);
+pub fn on_accent_secondary() -> Color {
+    alpha(on_accent(), 0.8)
+}
 /// The onboarding screens' brand glow: BrandDeep at 18 %.
-pub const BRAND_GLOW: Color = alpha(BRAND_DEEP, 0.18);
+pub fn brand_glow() -> Color {
+    alpha(brand_deep(), 0.18)
+}
 /// A library card's second line, as a fraction of its content color's alpha.
 pub const CARD_SUBLINE_ALPHA: f32 = 0.75;
 /// Icon wells, as a fraction of their content color's alpha.
 pub const ICON_WELL_ALPHA: f32 = 0.12;
 /// Disabled controls are drawn at this opacity, and are not focusable (`TvButtons.kt`).
 pub const DISABLED_ALPHA: f32 = 0.4;
-
-/// Profile colors, in the order the server and every app use; a profile without one takes
-/// `PROFILE_COLORS[hash(name) % 8]` ([`profile_color`]).
-pub const PROFILE_COLORS: [Color; 8] = [
-    Color::rgb(0x38bdf8),
-    Color::rgb(0xa78bfa),
-    Color::rgb(0xf472b6),
-    Color::rgb(0xfb923c),
-    Color::rgb(0xfacc15),
-    Color::rgb(0x4ade80),
-    Color::rgb(0x2dd4bf),
-    Color::rgb(0xf87171),
-];
-
-/// The color of a profile named `name` that has none of its own: `h = h·31 + c` over its UTF-16
-/// units, wrapping at 32 bits.
-pub fn profile_color(name: &str) -> Color {
-    PROFILE_COLORS[(utf16_hash(name) % 8) as usize]
-}
-
-/// What draws on `c`: Bg when its luminance (0.2126 R + 0.7152 G + 0.0722 B) is over 0.45,
-/// else white.
-pub fn content_on(c: Color) -> Color {
-    let lum = (0.2126 * c.r as f32 + 0.7152 * c.g as f32 + 0.0722 * c.b as f32) / 255.0;
-    if lum > 0.45 { BG } else { Color::WHITE }
-}
 
 fn utf16_hash(s: &str) -> u32 {
     s.encode_utf16().fold(0u32, |h, c| h.wrapping_mul(31).wrapping_add(c as u32))
@@ -352,11 +419,15 @@ pub mod focus {
     /// How far past the edge the ring reaches.
     pub const RING_REACH: f32 = 6.0;
     /// The ring's color.
-    pub const RING_COLOR: Color = ACCENT_BRIGHT;
+    pub fn ring_color() -> Color {
+        accent_bright()
+    }
     /// A text field's focused edge: 2 dp of AccentBright, no scale; 1 dp of Control at rest.
     pub const FIELD_EDGE: f32 = 2.0;
     /// A focused text field's edge color.
-    pub const FIELD_EDGE_COLOR: Color = ACCENT_BRIGHT;
+    pub fn field_edge_color() -> Color {
+        accent_bright()
+    }
     /// The 1 dp edge of pills, round buttons and fields at rest.
     pub const REST_EDGE: f32 = 1.0;
 
@@ -365,7 +436,7 @@ pub mod focus {
     pub struct ControlLook {
         pub fill: Color,
         pub content: Color,
-        /// A 1 dp [`CONTROL`] edge at rest, if it has one.
+        /// A 1 dp [`control`] edge at rest, if it has one.
         pub edge: Option<Color>,
         pub focus_fill: Color,
         pub focus_content: Color,
@@ -375,56 +446,97 @@ pub mod focus {
         pub focus_scale: f32,
     }
 
-    const fn look(fill: Color, content: Color, edge: Option<Color>, pressed: Color, scale: f32) -> ControlLook {
+    fn look(fill: Color, content: Color, edge: bool, pressed: Color, scale: f32) -> ControlLook {
         ControlLook {
             fill,
             content,
-            edge,
-            focus_fill: ACCENT,
-            focus_content: ON_ACCENT,
+            edge: edge.then(control),
+            focus_fill: accent(),
+            focus_content: on_accent(),
             pressed_fill: pressed,
             focus_scale: scale,
         }
     }
 
     /// Pill buttons.
-    pub const PILL: ControlLook = look(PILL_REST, FG, Some(CONTROL), ACCENT_BRIGHT, 1.05);
+    pub fn pill() -> ControlLook {
+        look(pill_rest(), fg(), true, accent_bright(), 1.05)
+    }
     /// "Round" buttons (40 dp squares, radius 6) off art; their label fades in under them.
-    pub const ROUND: ControlLook = look(SURFACE3, FG, Some(CONTROL), ACCENT_BRIGHT, 1.08);
+    pub fn round() -> ControlLook {
+        look(surface3(), fg(), true, accent_bright(), 1.08)
+    }
     /// "Round" buttons over art and backdrops.
-    pub const ROUND_ON_ART: ControlLook = look(ON_ART, FG, Some(CONTROL), ACCENT_BRIGHT, 1.08);
+    pub fn round_on_art() -> ControlLook {
+        look(on_art(), fg(), true, accent_bright(), 1.08)
+    }
     /// Text buttons.
-    pub const TEXT_BUTTON: ControlLook = look(TEXT_BUTTON_REST, FG, None, ACCENT_BRIGHT, 1.05);
+    pub fn text_button() -> ControlLook {
+        look(text_button_rest(), fg(), false, accent_bright(), 1.05)
+    }
     /// Text buttons drawn as links.
-    pub const LINK: ControlLook = look(Color::TRANSPARENT, FG, None, ACCENT_BRIGHT, 1.05);
+    pub fn link() -> ControlLook {
+        look(Color::TRANSPARENT, fg(), false, accent_bright(), 1.05)
+    }
     /// Chips (filters, choices).
-    pub const CHIP: ControlLook = look(SURFACE3, FG, None, ACCENT_BRIGHT, 1.05);
-    /// Tabs (season tabs too); the current one is [`TAB_CURRENT`].
-    pub const TAB: ControlLook = look(Color::TRANSPARENT, MUTED, None, ACCENT_BRIGHT, 1.05);
+    pub fn chip() -> ControlLook {
+        look(surface3(), fg(), false, accent_bright(), 1.05)
+    }
+    /// Tabs (season tabs too); the current one is [`tab_current`].
+    pub fn tab() -> ControlLook {
+        look(Color::TRANSPARENT, muted(), false, accent_bright(), 1.05)
+    }
     /// The current tab.
-    pub const TAB_CURRENT: ControlLook = look(SURFACE3, FG, None, ACCENT_BRIGHT, 1.05);
+    pub fn tab_current() -> ControlLook {
+        look(surface3(), fg(), false, accent_bright(), 1.05)
+    }
     /// Rail entries; the current one shows Fg content (and a bar closed, a Surface3 pill open).
-    pub const RAIL_ENTRY: ControlLook = look(Color::TRANSPARENT, MUTED, None, ACCENT_BRIGHT, 1.05);
+    pub fn rail_entry() -> ControlLook {
+        look(Color::TRANSPARENT, muted(), false, accent_bright(), 1.05)
+    }
     /// The rail's current entry.
-    pub const RAIL_ENTRY_CURRENT: ControlLook = look(Color::TRANSPARENT, FG, None, ACCENT_BRIGHT, 1.05);
+    pub fn rail_entry_current() -> ControlLook {
+        look(Color::TRANSPARENT, fg(), false, accent_bright(), 1.05)
+    }
     /// Panel and list rows: an Accent fill when focused, never scaled (the panel would clip it).
-    pub const LIST_ROW: ControlLook = look(Color::TRANSPARENT, FG, None, ACCENT, 1.0);
+    pub fn list_row() -> ControlLook {
+        look(Color::TRANSPARENT, fg(), false, accent(), 1.0)
+    }
     /// Library cards (the libraries list).
-    pub const LIBRARY_CARD: ControlLook = look(SURFACE2, FG, None, ACCENT_BRIGHT, 1.05);
+    pub fn library_card() -> ControlLook {
+        look(surface2(), fg(), false, accent_bright(), 1.05)
+    }
     /// The library's jump control.
-    pub const JUMP: ControlLook = look(SURFACE3, FG, None, ACCENT, 1.08);
+    pub fn jump() -> ControlLook {
+        look(surface3(), fg(), false, accent(), 1.08)
+    }
 }
 
 /// A gradient along one axis as the design gives it: colors at positions in dp along that axis,
-/// piecewise linear between them, the end colors held beyond.
+/// piecewise linear between them, the end colors held beyond. It holds up to four.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Ramp(pub &'static [(f32, Color)]);
+pub struct Ramp {
+    points: [(f32, Color); 4],
+    len: usize,
+}
 
 impl Ramp {
+    /// A ramp through `points` (the first four), in order along the axis.
+    pub fn new(points: &[(f32, Color)]) -> Ramp {
+        let mut out = [(0.0, Color::TRANSPARENT); 4];
+        let len = points.len().min(4);
+        out[..len].copy_from_slice(&points[..len]);
+        Ramp { points: out, len }
+    }
+
+    fn points(&self) -> &[(f32, Color)] {
+        &self.points[..self.len]
+    }
+
     /// The ramp's stops for a rectangle spanning `start` to `start + len` along its axis, as the
     /// display list wants them (0 to 1 across the rectangle), cut at the rectangle's ends.
     pub fn stops(&self, start: f32, len: f32) -> Vec<GradientStop> {
-        let pts = self.0;
+        let pts = self.points();
         let mut out = Vec::with_capacity(pts.len() + 2);
         if pts.is_empty() || len <= 0.0 {
             return out;
@@ -442,7 +554,7 @@ impl Ramp {
 
     /// The color at position `p`.
     pub fn at(&self, p: f32) -> Color {
-        let pts = self.0;
+        let pts = self.points();
         let Some(&(first, c0)) = pts.first() else { return Color::TRANSPARENT };
         if p <= first {
             return c0;
@@ -461,28 +573,44 @@ impl Ramp {
 // gradients, never per-pixel work.
 
 /// A backdrop's left scrim along x: Bg solid at 0, 92 % at 300, 85 % at 560, clear at 800.
-pub const BACKDROP_LEFT_SCRIM: Ramp =
-    Ramp(&[(0.0, BG), (300.0, alpha(BG, 0.92)), (560.0, alpha(BG, 0.85)), (800.0, alpha(BG, 0.0))]);
+pub fn backdrop_left_scrim() -> Ramp {
+    let bg = bg();
+    Ramp::new(&[(0.0, bg), (300.0, alpha(bg, 0.92)), (560.0, alpha(bg, 0.85)), (800.0, alpha(bg, 0.0))])
+}
 /// A backdrop's bottom scrim along y under a hero (clear at 220, Bg from 410 down).
-pub const BOTTOM_SCRIM_HERO: Ramp = Ramp(&[(220.0, alpha(BG, 0.0)), (410.0, BG)]);
+pub fn bottom_scrim_hero() -> Ramp {
+    Ramp::new(&[(220.0, alpha(bg(), 0.0)), (410.0, bg())])
+}
 /// The same under rows (120 → 300).
-pub const BOTTOM_SCRIM_ROWS: Ramp = Ramp(&[(120.0, alpha(BG, 0.0)), (300.0, BG)]);
+pub fn bottom_scrim_rows() -> Ramp {
+    Ramp::new(&[(120.0, alpha(bg(), 0.0)), (300.0, bg())])
+}
 /// The same on a title's page (260 → 500).
-pub const BOTTOM_SCRIM_ITEM: Ramp = Ramp(&[(260.0, alpha(BG, 0.0)), (500.0, BG)]);
+pub fn bottom_scrim_item() -> Ramp {
+    Ramp::new(&[(260.0, alpha(bg(), 0.0)), (500.0, bg())])
+}
 /// The page's fade under the closed rail, along x, drawn by the page over its content.
-pub const RAIL_FADE: Ramp = Ramp(&[(0.0, BG), (RAIL_FADE_SOLID_UNTIL, BG), (RAIL_FADE_CLEAR_FROM, alpha(BG, 0.0))]);
-/// The open rail's soft edge along x, after its [`RAIL_PANEL`] fill.
-pub const RAIL_PANEL_EDGE: Ramp = Ramp(&[(RAIL_EXPANDED, alpha(SURFACE, 0.85)), (RAIL_EDGE_END, alpha(SURFACE, 0.0))]);
+pub fn rail_fade() -> Ramp {
+    Ramp::new(&[(0.0, bg()), (RAIL_FADE_SOLID_UNTIL, bg()), (RAIL_FADE_CLEAR_FROM, alpha(bg(), 0.0))])
+}
+/// The open rail's soft edge along x, after its [`rail_panel`] fill.
+pub fn rail_panel_edge() -> Ramp {
+    Ramp::new(&[(RAIL_EXPANDED, alpha(surface(), 0.85)), (RAIL_EDGE_END, alpha(surface(), 0.0))])
+}
 /// An album page's faint art (drawn at [`FAINT_ART_ALPHA`]) fades into Bg down the screen: clear
 /// at 40 % of the height, Bg at its bottom.
-pub const FAINT_ART_FADE: Ramp = Ramp(&[(CANVAS_H * 0.4, alpha(BG, 0.0)), (CANVAS_H, BG)]);
+pub fn faint_art_fade() -> Ramp {
+    Ramp::new(&[(CANVAS_H * 0.4, alpha(bg(), 0.0)), (CANVAS_H, bg())])
+}
 /// The album page's faint art is drawn at this opacity.
 pub const FAINT_ART_ALPHA: f32 = 0.14;
 /// Collection and playlist pages dim their hero with Bg up to this alpha as the content scrolls
 /// over it (scrolled distance / hero height).
 pub const DIM_MAX_ALPHA: f32 = 0.92;
 /// An empty playlist's cover: a linear gradient from Surface3 to Surface2.
-pub const EMPTY_COVER: (Color, Color) = (SURFACE3, SURFACE2);
+pub fn empty_cover() -> (Color, Color) {
+    (surface3(), surface2())
+}
 /// Backdrops are cropped toward their subject: Android's `BiasAlignment(0.4, −0.6)`, right of
 /// center and above the middle. Never blurred.
 pub const BACKDROP_BIAS: (f32, f32) = (0.4, -0.6);
@@ -552,32 +680,50 @@ impl TierExt for Tier {
 mod tests {
     use super::*;
 
+    /// Midnight, shown until a theme is picked, is the Android design's.
     #[test]
     fn colours_match_the_design() {
-        assert_eq!(BG, Color::rgb(0x0b0d10));
-        assert_eq!(SURFACE2, Color::rgb(0x191d24));
-        assert_eq!(FG, Color::rgb(0xe9ebef));
-        assert_eq!(ACCENT, Color::rgb(0x38bdf8));
-        assert_eq!(ACCENT_BRIGHT, Color::rgb(0x7dd3fc));
-        assert_eq!(ON_ACCENT, Color::rgb(0x03131f));
-        assert_eq!(DANGER_TEXT, Color::rgb(0xff6b70));
-        assert_eq!(DISABLED, CONTROL);
+        assert_eq!(bg(), Color::rgb(0x0b0d10));
+        assert_eq!(surface2(), Color::rgb(0x191d24));
+        assert_eq!(fg(), Color::rgb(0xe9ebef));
+        assert_eq!(accent(), Color::rgb(0x38bdf8));
+        assert_eq!(accent_bright(), Color::rgb(0x7dd3fc));
+        assert_eq!(on_accent(), Color::rgb(0x03131f));
+        assert_eq!(danger(), Color::rgb(0xed6c6d));
+        assert_eq!(disabled(), control());
+    }
+
+    /// Every color follows the palette shown, from the moment it is shown.
+    #[test]
+    fn colours_follow_the_palette_shown() {
+        show(Palette::of(Theme::Midday, Some(Accent::Amber)));
+        let p = palette();
+        assert_eq!((bg(), fg(), accent(), on_accent()), (p.bg, p.fg, p.accent, p.accent_fg));
+        assert_eq!(accent(), Color::rgb(0xa03d00));
+        assert_eq!(focus::pill().focus_fill, accent());
+        assert_eq!(backdrop_left_scrim().at(0.0), Color::rgb(0xf3f5f8));
+        // A profile's avatar keeps its own colors in a light theme: dark on a bright circle,
+        // white on a deep one, as in Midnight.
+        assert_eq!(crate::avatar::ink(Color::rgb(0xfacc15)), crate::avatar::INK_DARK);
+        assert_eq!(crate::avatar::ink(Color::rgb(0x7c3aed)), crate::avatar::INK_LIGHT);
+        show(Palette::of(Theme::Midnight, None));
+        assert_eq!(accent(), Color::rgb(0x38bdf8));
     }
 
     #[test]
     fn alpha_variants_round_as_compose() {
-        assert_eq!(ON_ART, Color::rgba(0x0b0d10cc));
-        assert_eq!(SCRIM, BG.alpha(0.6));
-        assert_eq!(SCRIM.a, 153);
-        assert_eq!(RAIL_SCRIM.a, 128);
+        assert_eq!(on_art(), Color::rgba(0x0b0d10cc));
+        assert_eq!(scrim(), Color::BLACK.alpha(0.6));
+        assert_eq!(scrim().a, 153);
+        assert_eq!(rail_scrim().a, 128);
         assert_eq!(TILE_HAIRLINE, Color::rgba(0xffffff0f));
         assert_eq!(PROGRESS_TRACK_ON_ART, Color::rgba(0x00000099));
-        assert_eq!(PILL_REST, FG.alpha(0.12));
-        assert_eq!(TEXT_BUTTON_REST, FG.alpha(0.08));
-        assert_eq!(RAIL_PANEL, SURFACE.alpha(0.96));
-        assert_eq!(TRACK_HIGHLIGHT, ACCENT.alpha(0.14));
+        assert_eq!(pill_rest(), fg().alpha(0.12));
+        assert_eq!(text_button_rest(), fg().alpha(0.08));
+        assert_eq!(rail_panel(), surface().alpha(0.96));
+        assert_eq!(track_highlight(), accent().alpha(0.14));
         for f in [0.0, 0.06, 0.14, 0.5, 0.85, 0.92, 1.0] {
-            assert_eq!(alpha(FG, f), FG.alpha(f), "{f}");
+            assert_eq!(alpha(fg(), f), fg().alpha(f), "{f}");
         }
     }
 
@@ -621,25 +767,25 @@ mod tests {
     fn focus_treatment() {
         assert_eq!(focus::TILE_SCALE, 1.08);
         assert_eq!(focus::RING_OFFSET + focus::RING_STROKE / 2.0, focus::RING_REACH);
-        assert_eq!(focus::PILL.edge, Some(CONTROL));
-        assert_eq!((focus::PILL.focus_fill, focus::PILL.focus_content), (ACCENT, ON_ACCENT));
-        assert_eq!(focus::ROUND.focus_scale, 1.08);
-        assert_eq!(focus::LIST_ROW.focus_scale, 1.0);
+        assert_eq!(focus::pill().edge, Some(control()));
+        assert_eq!((focus::pill().focus_fill, focus::pill().focus_content), (accent(), on_accent()));
+        assert_eq!(focus::round().focus_scale, 1.08);
+        assert_eq!(focus::list_row().focus_scale, 1.0);
     }
 
     #[test]
     fn ramps_cut_to_the_drawn_span() {
-        let s = BACKDROP_LEFT_SCRIM.stops(0.0, 960.0);
-        assert_eq!(s.first(), Some(&GradientStop::new(0.0, BG)));
-        assert_eq!(s[1], GradientStop::new(300.0 / 960.0, alpha(BG, 0.92)));
-        assert_eq!(s.last().unwrap().color, alpha(BG, 0.0));
+        let s = backdrop_left_scrim().stops(0.0, 960.0);
+        assert_eq!(s.first(), Some(&GradientStop::new(0.0, bg())));
+        assert_eq!(s[1], GradientStop::new(300.0 / 960.0, alpha(bg(), 0.92)));
+        assert_eq!(s.last().unwrap().color, alpha(bg(), 0.0));
         // A span starting inside the ramp begins with the color there.
-        let s = BOTTOM_SCRIM_HERO.stops(315.0, 225.0);
+        let s = bottom_scrim_hero().stops(315.0, 225.0);
         assert_eq!(s[0].color.a, 128);
-        assert_eq!(s[1], GradientStop::new((410.0 - 315.0) / 225.0, BG));
-        assert_eq!(s.last().unwrap().color, BG);
-        assert_eq!(RAIL_FADE.at(40.0), BG);
-        assert_eq!(RAIL_FADE.at(64.0).a, 128);
+        assert_eq!(s[1], GradientStop::new((410.0 - 315.0) / 225.0, bg()));
+        assert_eq!(s.last().unwrap().color, bg());
+        assert_eq!(rail_fade().at(40.0), bg());
+        assert_eq!(rail_fade().at(64.0).a, 128);
     }
 
     /// packages/placeholder's examples, which every app's gradient is held to: each title's hue,
@@ -665,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    fn placeholder_and_profile_colours() {
+    fn placeholder_colours() {
         // The web's hash: "a" is 97.
         assert_eq!(placeholder_hue("a"), 97);
         assert_eq!(placeholder_hue("ab"), (97 * 31 + 98) % 360);
@@ -673,10 +819,6 @@ mod tests {
         assert_eq!(hsl(120.0, 1.0, 0.25), Color::rgb(0x008000));
         let (a, b) = placeholder_colors("Arrival");
         assert_ne!(a, b);
-        assert_eq!(profile_color("a"), PROFILE_COLORS[97 % 8]);
-        assert_eq!(content_on(Color::rgb(0xfacc15)), BG);
-        assert_eq!(content_on(Color::rgb(0xa78bfa)), BG);
-        assert_eq!(content_on(Color::rgb(0x0284c7)), Color::WHITE);
     }
 
     #[test]

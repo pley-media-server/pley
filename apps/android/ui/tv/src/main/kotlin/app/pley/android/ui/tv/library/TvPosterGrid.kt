@@ -42,6 +42,7 @@ import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -60,6 +61,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.common.TestTags
+import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
@@ -324,11 +326,11 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
     }
 
     /** The ring that stays still while the rows glide under a held key. */
-    fun drawRing(cache: CacheDrawScope, kind: TileKind): DrawResult = with(cache) {
+    fun drawRing(cache: CacheDrawScope, kind: TileKind, color: Color): DrawResult = with(cache) {
         val stroke = Stroke(PleyFocus.RingStroke.toPx())
         onDrawWithContent {
             drawContent()
-            if (quiet.on) drawStillRing(kind, Offset(ringX, ringY), stroke)
+            if (quiet.on) drawStillRing(kind, Offset(ringX, ringY), stroke, color)
         }
     }
 
@@ -452,6 +454,7 @@ internal fun TvPosterGrid(
     onRight: (() -> Boolean)? = null,
     footer: (LazyGridScope.() -> Unit)? = null,
 ) {
+    val ring = PleyColors.AccentBright
     val density = LocalDensity.current
     val gate = LocalKeyRepeatGate.current
     val scope = rememberCoroutineScope()
@@ -497,7 +500,7 @@ internal fun TvPosterGrid(
                         else -> false
                     }
                 }
-                .drawWithCache { motion.drawRing(this, kind) },
+                .drawWithCache { motion.drawRing(this, kind, ring) },
             contentPadding = PaddingValues(
                 start = PleyTv.Gutter,
                 end = PleyTv.CanvasWidth - PleyTv.Gutter - (kind.tvWidth + PleyTv.TileGap) * columns + PleyTv.TileGap,

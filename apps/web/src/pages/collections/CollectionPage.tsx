@@ -91,11 +91,9 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
           alt=""
           title={c.title}
           eager
-          className="size-full opacity-70"
+          className="size-full backdrop-fade"
           imgClassName="object-cover object-[center_20%]"
         />
-        <div className="absolute inset-0 bg-linear-to-t from-bg via-bg/75 to-bg/10" />
-        <div className="absolute inset-0 bg-linear-to-r from-bg/95 via-bg/50 to-transparent" />
       </div>
 
       <div className="relative px-4 pb-16 pt-6 sm:px-8 sm:pt-[10vh] lg:pt-[14vh]">
@@ -108,7 +106,7 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
               title={c.title}
               mark="play"
               eager
-              className="aspect-[2/3] w-full rounded-lg shadow-2xl shadow-black/60 ring-1 ring-white/10"
+              className="aspect-[2/3] w-full rounded-lg shadow-2xl shadow-shade/60 ring-1 ring-fg/10"
             />
           </div>
           <div className="min-w-0 flex-1 space-y-4">
@@ -276,7 +274,7 @@ function ManageItems({ collection: c }: { collection: CollectionDetail }) {
               key={item.id}
               {...rowProps(i)}
               className={cn(
-                "group flex items-center gap-3 rounded-md border-y-2 border-transparent px-2 py-1.5 transition-colors hover:bg-white/[0.04]",
+                "group flex items-center gap-3 rounded-md border-y-2 border-transparent px-2 py-1.5 transition-colors hover:bg-fg/[0.04]",
                 dragging === i && "opacity-40",
                 mark === "before" && "border-t-accent",
                 mark === "after" && "border-b-accent",

@@ -62,7 +62,9 @@ docker logs pley    # the setup link
 - **Intel or AMD GPU:** add `--device /dev/dri`. **NVIDIA:** add
   `--gpus all` (needs the NVIDIA Container Toolkit). **Rockchip:** add
   `--device` for `/dev/dri`, `/dev/mpp_service`, `/dev/rga` and
-  `/dev/dma_heap`.
+  `/dev/dma_heap`, and `--security-opt systempaths=unconfined`, which
+  shows MPP the device tree it names the chip by; never with `PUID=0`,
+  as root could then change the host's kernel settings.
 - **Intel's Quick Sync** works in the image on 11th-generation Core
   (Tiger Lake) and later, Arc and the N100 family: Debian 13 has only
   Intel's current runtime (`libmfx-gen1.2`). Older Intel graphics transcode

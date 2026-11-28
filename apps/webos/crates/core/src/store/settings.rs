@@ -248,6 +248,21 @@ impl PassthroughChoices {
     }
 }
 
+/// A theme and an accent, by their ids in `packages/themes/themes.json`; no accent for the theme's
+/// own. Midnight in its own accent by default.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ThemePick {
+    pub theme: String,
+    #[serde(default)]
+    pub accent: Option<String>,
+}
+
+impl Default for ThemePick {
+    fn default() -> ThemePick {
+        ThemePick { theme: "midnight".into(), accent: None }
+    }
+}
+
 /// The TV's settings.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
@@ -266,6 +281,11 @@ pub struct Settings {
     pub subtitle_position: SubtitlePosition,
     /// No zooming, sliding or fading: things change in place.
     pub reduce_motion: bool,
+    /// Each profile's theme and accent on this TV (docs/THEMES.md), by server and profile id
+    /// (profile ids are a server's own). A profile with none shows Midnight in its own accent, as
+    /// the pages outside a profile do. The profile signed in is known from the saved sign-in
+    /// before the first frame, so nothing else is kept for a start.
+    pub themes: BTreeMap<String, BTreeMap<i64, ThemePick>>,
     /// "Always start as": the profile that skips "Who's watching?", by server
     /// (profile ids are a server's own).
     pub always_start_as: BTreeMap<String, i64>,
@@ -283,6 +303,7 @@ impl Default for Settings {
             subtitle_font: SubtitleFont::Sans,
             subtitle_position: SubtitlePosition::Bottom,
             reduce_motion: false,
+            themes: BTreeMap::new(),
             always_start_as: BTreeMap::new(),
         }
     }
@@ -335,6 +356,7 @@ impl Settings {
         field(map, "subtitle_font", &mut s.subtitle_font);
         field(map, "subtitle_position", &mut s.subtitle_position);
         field(map, "reduce_motion", &mut s.reduce_motion);
+        field(map, "themes", &mut s.themes);
         field(map, "always_start_as", &mut s.always_start_as);
         s
     }
@@ -361,6 +383,17 @@ impl Settings {
     /// The quality the player starts at.
     pub fn quality_preset(&self) -> &'static QualityPreset {
         quality_preset(&self.quality).unwrap_or(&QUALITY_PRESETS[1])
+    }
+
+    /// Profile `profile`'s theme and accent on `server`: Midnight in its own accent when it has
+    /// picked none on this TV.
+    pub fn theme_of(&self, server: &str, profile: i64) -> ThemePick {
+        self.themes.get(server).and_then(|p| p.get(&profile)).cloned().unwrap_or_default()
+    }
+
+    /// Keeps `pick` as profile `profile`'s on `server`.
+    pub fn set_theme(&mut self, server: &str, profile: i64, pick: ThemePick) {
+        self.themes.entry(server.to_string()).or_default().insert(profile, pick);
     }
 
     /// The profile that skips "Who's watching?" on `server`.

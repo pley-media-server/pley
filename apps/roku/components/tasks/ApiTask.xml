@@ -15,6 +15,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/TokenStore.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Servers.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Avatar.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Caps.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />

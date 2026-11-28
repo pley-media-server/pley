@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, type ReactNode } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { errorMessage, isApiError } from "@/api/client";
@@ -8,11 +8,13 @@ import type { User } from "@/api/types";
 import { AudioPlayerProvider } from "@/audio/AudioPlayer";
 import { CastReceiver } from "@/components/CastReceiver";
 import { Logo } from "@/components/Logo";
+import { OfflineScreen } from "@/components/Offline";
 import { RequestNotices } from "@/components/RequestNotices";
 import { Button, EmptyState, Spinner } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { rememberProfile } from "@/lib/lastProfile";
 import { useSetupFrame } from "@/lib/setupFrame";
+import { forgetProfile, showProfile } from "@/theme";
 import { TriangleAlert } from "lucide-react";
 
 const AuthContext = createContext<User | null>(null);
@@ -73,7 +75,6 @@ export function ErrorScreen({ title, message, onRetry }: { title?: string; messa
 
 /** Route guard: needs a finished setup and a valid session. */
 export function RequireAuth() {
-  const { t } = useTranslation("pages");
   const location = useLocation();
   const server = useServer();
   const setupRequired = server.data?.setup_required ?? false;
@@ -86,17 +87,15 @@ export function RequireAuth() {
   useEffect(() => {
     if (profileId !== null) rememberProfile(profileId);
   }, [profileId]);
+  // The profile's own theme on this device, before its first page draws.
+  useLayoutEffect(() => {
+    if (profileId !== null) showProfile(profileId);
+  }, [profileId]);
+  // Leaving the session (signing out): the next to sign in doesn't start in this profile's theme.
+  useLayoutEffect(() => forgetProfile, []);
 
   if (server.isPending) return <Splash />;
-  if (server.isError) {
-    return (
-      <ErrorScreen
-        title={t("auth.cantReachServer")}
-        message={errorMessage(server.error)}
-        onRetry={() => void server.refetch()}
-      />
-    );
-  }
+  if (server.isError) return <OfflineScreen error={server.error} onRetry={() => void server.refetch()} />;
   if (setupRequired) return <Navigate to="/setup" replace />;
   if (me.isPending) return <Splash />;
   if (me.isError) {

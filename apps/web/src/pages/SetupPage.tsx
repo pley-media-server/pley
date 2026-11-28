@@ -3,7 +3,8 @@ import { Navigate, useLocation, useNavigate, useSearchParams } from "react-route
 import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import { useServer, useSetup } from "@/api/hooks";
-import { ErrorScreen, Splash } from "@/auth";
+import { Splash } from "@/auth";
+import { OfflineScreen } from "@/components/Offline";
 import { PasswordInput } from "@/components/PasswordInput";
 import { Button, Field, TextInput } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
@@ -34,7 +35,7 @@ export function SetupPage() {
 
   if (server.isPending) return <Splash />;
   if (server.isError) {
-    return <ErrorScreen title={t("auth.cantReachServer")} message={errorMessage(server.error)} onRetry={() => void server.refetch()} />;
+    return <OfflineScreen error={server.error} onRetry={() => void server.refetch()} />;
   }
   if (!server.data.setup_required && !setup.isSuccess) return <Navigate to="/login" replace />;
   const needsCode = server.data.setup_code_required !== false;

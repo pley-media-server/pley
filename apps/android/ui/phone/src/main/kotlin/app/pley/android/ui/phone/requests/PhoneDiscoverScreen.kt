@@ -204,6 +204,7 @@ private fun TitleRow(row: DiscoverRow, origin: String, texts: RequestTexts, skel
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Hero(hero: DiscoverHero, state: DiscoverUiState, texts: RequestTexts, onDetails: () -> Unit, onAction: () -> Unit) {
+    val palette = PleyColors.palette
     val metrics = LocalPhoneMetrics.current
     val tier = LocalPhoneDeviceTier.current
     val title = hero.title
@@ -229,7 +230,7 @@ private fun Hero(hero: DiscoverHero, state: DiscoverUiState, texts: RequestTexts
                     .drawWithCache {
                         val fade = Brush.verticalGradient(
                             0f to Color.Transparent,
-                            1f to PleyColors.Bg.copy(alpha = 0.92f),
+                            1f to palette.bg.copy(alpha = 0.92f),
                             startY = size.height * 0.35f,
                             endY = size.height,
                         )

@@ -10,10 +10,12 @@
         <field id="language" type="string" onChange="onLanguage" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/shared/LanguageGlobe.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <children>
-        <Poster id="fill" uri="pkg:/images/button-focus.9.png" height="48" visible="false" />
-        <Poster id="globe" uri="pkg:/images/globe.png" width="28" height="28" blendColor="0xEBEBEBFF" />
-        <Label id="letters" height="48" vertAlign="center" color="0xEBEBEBFF">
+        <Poster id="fill" uri="pkg:/images/button-focus.9.png" blendColor="0x38BDF8FF" height="48" visible="false" />
+        <Poster id="globe" uri="pkg:/images/globe.png" width="28" height="28" blendColor="0xE9EBEFFF" />
+        <Label id="letters" height="48" vertAlign="center" color="0xE9EBEFFF">
             <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="30" />
         </Label>
     </children>

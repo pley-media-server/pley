@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Settings → Appearance picks a theme and an accent, as on the web, kept for
+  each profile on this TV.
+
 ### Changed
 
 - Up Next's card shows the next title's name without its picture, so it
@@ -22,6 +27,12 @@ describes how they are made.
 - The player's controls no longer say "Ends at" with a time under the
   clock while paused: the time left stays by the scrubber.
 - The sleep timer is gone, from videos and music.
+
+### Fixed
+
+- The avatar at the top of the side menu is in the profile's own color, as
+  on "Who's watching?" and the web, in every theme, instead of a gray circle
+  for a profile without a six-digit color.
 
 ## [0.1.16] - 2026-11-27
 

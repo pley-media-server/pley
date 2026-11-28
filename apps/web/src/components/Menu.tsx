@@ -105,7 +105,7 @@ export function Menu({
           className={cn(
             // A long menu (Play on… with many devices) scrolls within the window rather than past its edge
             // (`--room`, from `fitBeside`).
-            "absolute z-40 max-h-[min(28rem,var(--room,calc(100dvh-6rem)))] min-w-48 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-black/50",
+            "absolute z-40 max-h-[min(28rem,var(--room,calc(100dvh-6rem)))] min-w-48 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-shade/50",
             side === "below" ? "top-full mt-2" : "bottom-full mb-2",
             align === "right" ? "right-0" : align === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
             className,
@@ -160,7 +160,7 @@ export function MenuItem({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm transition-colors outline-none hover:bg-white/5 focus-visible:bg-white/10 disabled:opacity-50",
+        "flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm transition-colors outline-none hover:bg-fg/5 focus-visible:bg-fg/10 disabled:opacity-50",
         danger ? "text-danger" : "text-fg",
       )}
     >

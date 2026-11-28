@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import app.pley.android.common.AppLanguage
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.player.CastFrom
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerWindows
@@ -72,7 +73,7 @@ class TvLivePlayerActivity : ComponentActivity() {
         // Settings → Playback details, as the video player follows it.
         val showDetails = graph.data.settings.settings.map { it.showPlaybackDetails }.distinctUntilChanged()
         setContent {
-            TvTheme(tier = graph.device.tier) {
+            TvTheme(tier = graph.device.tier, palette = Appearance.palette.dark) {
                 WindowRules {
                     val details by showDetails.collectAsStateWithLifecycle(false)
                     TvLivePlayerScreen(vm = vm, onExit = ::finish, showDetails = details)

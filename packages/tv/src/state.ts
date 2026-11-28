@@ -13,6 +13,7 @@ import { Reporter } from "./player/reporter";
 import { isSummary, newsKeys, newsText, readyNews, readyText, statusFromRequest, titleKey } from "./requests";
 import type { SubtitleFont, SubtitlePosition } from "./subs/style";
 import { OffsetStore } from "./subs/sync";
+import { MIDNIGHT, PICK_KEYS, shownPick, type AccentId, type ProfileOf, type ThemePick, type ThemeId } from "./ui/themes";
 
 /** What a person sets on this TV (Settings). */
 export interface Settings {
@@ -189,6 +190,12 @@ export class AppState {
   private readonly liveKnown = new Map<number, LiveChannel>();
   readonly profiles = signal<HouseholdProfile[] | null>(null);
   readonly settings = signal<Settings>(DEFAULT_SETTINGS);
+  /** The theme the profile's pages draw in: its own on this TV, Midnight until it picks one here. */
+  readonly theme = signal<ThemeId>("midnight");
+  /** The accent over it; null for the theme's own. */
+  readonly accent = signal<AccentId | null>(null);
+  /** A screen outside a profile shows (choosing a server, signing in, "Who's watching?"): it draws Midnight. */
+  readonly outside = signal(false);
   readonly home = signal<Hub[] | null>(null);
   readonly homeError = signal<unknown>(null);
   /** The last try at who is watching and the libraries failed (and none were saved): the library pages offer Retry. */
@@ -336,6 +343,8 @@ export class AppState {
     this.libraries.value = Array.isArray(libraries) ? libraries : null;
     this.live.value = live && typeof live === "object" && typeof live.available === "boolean" && Array.isArray(live.recent) ? live : null;
     this.requests.value = isSummary(requests) ? requests : null;
+    // The profile the TV was left on, from the first frame: its pages start in its pick, with no Midnight between.
+    this.followTheme();
   }
 
   /** The first screen, from what the TV kept. */
@@ -477,6 +486,8 @@ export class AppState {
     this.homeError.value = null;
     this.items.clear();
     this.me.value = null;
+    // Until the server says who it is: not the profile before's theme.
+    this.followTheme();
     this.live.value = null;
     this.forgetLive();
     this.events?.restart();
@@ -543,6 +554,7 @@ export class AppState {
     this.homeError.value = null;
     this.accountError.value = null;
     this.me.value = null;
+    this.followTheme();
     this.libraries.value = null;
     this.live.value = null;
     this.forgetLive();
@@ -562,6 +574,54 @@ export class AppState {
     this.home.value = null;
     this.signedOut.value = true;
     this.followLanguage();
+    this.followTheme();
+  }
+
+  // ---- the theme (Settings → Appearance): each profile's on this TV, never the server's
+
+  /** Draws the profile's pages in a theme from now on, kept for the profile on this TV. */
+  chooseTheme(theme: ThemeId): void {
+    this.keepPick({ theme, accent: this.accent.value });
+  }
+
+  /** Draws the profile's pages in an accent (null: the theme's own) from now on, kept for the profile on this TV whatever the theme. */
+  chooseAccent(accent: AccentId | null): void {
+    this.keepPick({ theme: this.theme.value, accent });
+  }
+
+  /** Who is watching, of which server: user ids repeat from one server to the next. */
+  private watching(): ProfileOf | null {
+    // Signed out, whoever was watching isn't any more.
+    if (this.signedOut.value) return null;
+    const server = this.server.value;
+    const id = this.me.value?.id;
+    return server && typeof id === "number" ? { server, id } : null;
+  }
+
+  /**
+   * The profile's own theme and accent on this TV (Midnight for one that
+   * picked none here, or none known), for its pages; screens outside a
+   * profile draw Midnight whatever it is (`outside`).
+   */
+  private followTheme(): void {
+    const pick = shownPick((k) => this.store.get(k), this.watching());
+    this.theme.value = pick.theme;
+    this.accent.value = pick.accent;
+  }
+
+  private keepPick(pick: ThemePick): void {
+    this.theme.value = pick.theme;
+    this.accent.value = pick.accent;
+    const profile = this.watching();
+    if (!profile) return;
+    this.store.set(PICK_KEYS.theme(profile), pick.theme);
+    if (pick.accent) this.store.set(PICK_KEYS.accent(profile), pick.accent);
+    else this.store.remove(PICK_KEYS.accent(profile));
+  }
+
+  /** What the app draws in: Midnight in its own accent on a screen outside a profile, else the profile's pick. */
+  drawn(): ThemePick {
+    return this.outside.value ? MIDNIGHT : { theme: this.theme.value, accent: this.accent.value };
   }
 
   updateSettings(patch: Partial<Settings>): void {
@@ -731,6 +791,7 @@ export class AppState {
     this.keepLibraries(libraries);
     this.accountHeard = true;
     this.followLanguage();
+    this.followTheme();
     api.profiles().then(
       (profiles) => this.keepHousehold(profiles),
       () => undefined,

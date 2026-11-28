@@ -24,12 +24,14 @@
         <field id="focusPercent" type="float" alias="growth.fraction,wellWidth.fraction,wellHeight.fraction,wellPlace.fraction,posterWidth.fraction,posterHeight.fraction,posterPlace.fraction,maskSizer.fraction,maskPlace.fraction,ringFade.fraction" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/Tile.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Mark.brs" />
     <children>
         <Group translation="[24, 30]">
-            <Rectangle id="well" color="0x262B35FF" />
+            <Rectangle id="well" color="0x191D24FF" />
             <Label id="fallback" color="0xA1A9B6FF" horizAlign="center" vertAlign="center" wrap="true" maxLines="4" />
             <!-- A person's picture is cut round by a mask: OS 16's Effect draws
                  a picture stretched to its Poster, where a mask leaves the
@@ -44,23 +46,23 @@
             <Group id="grow">
                 <Group id="art">
                     <Poster id="hairline" uri="pkg:/images/ui/hairline.9.png" />
-                    <Rectangle id="track" color="0x16191E99" visible="false" />
+                    <Rectangle id="track" color="0x00000099" visible="false" />
                     <Rectangle id="fill" color="0x38BDF8FF" visible="false" />
-                    <Poster id="watched" uri="pkg:/images/ui/tick.png" width="40" height="40" visible="false" />
+                    <Poster id="watched" uri="pkg:/images/ui/tick.png" blendColor="0x38BDF8FF" width="40" height="40" visible="false" />
                     <Poster id="badgeBack" uri="pkg:/images/ui/r4.9.png" height="36" visible="false" />
-                    <Label id="badge" height="36" vertAlign="center" color="0x16191EFF" visible="false" />
+                    <Label id="badge" height="36" vertAlign="center" color="0x0B0D10FF" visible="false" />
                     <!-- Two quality badges at most: "4K" and the dynamic range,
-                         dark under light words, as the other apps draw them on
+                         black under white words, as the other apps draw them on
                          pictures. -->
-                    <Poster id="qualityBack0" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="36" visible="false" />
-                    <Label id="quality0" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
-                    <Poster id="qualityBack1" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="36" visible="false" />
-                    <Label id="quality1" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
+                    <Poster id="qualityBack0" uri="pkg:/images/ui/r4.9.png" blendColor="0x000000CC" height="36" visible="false" />
+                    <Label id="quality0" height="36" vertAlign="center" color="0xFFFFFFFF" visible="false" />
+                    <Poster id="qualityBack1" uri="pkg:/images/ui/r4.9.png" blendColor="0x000000CC" height="36" visible="false" />
+                    <Label id="quality1" height="36" vertAlign="center" color="0xFFFFFFFF" visible="false" />
                     <!-- The accent's ring, against the well all round. -->
-                    <Poster id="ring" uri="pkg:/images/ui/ring.9.png" opacity="0" />
+                    <Poster id="ring" uri="pkg:/images/ui/ring.9.png" blendColor="0x7DD3FCFF" opacity="0" />
                 </Group>
             </Group>
-            <Label id="title" color="0xEBEBEBFF" maxLines="1" />
+            <Label id="title" color="0xE9EBEFFF" maxLines="1" />
             <Label id="subtitle" color="0xA1A9B6FF" maxLines="1" />
         </Group>
         <Vector2DFieldInterpolator id="growth" key="[0, 1]" keyValue="[[1, 1], [1.08, 1.08]]" fieldToInterp="grow.scale" />

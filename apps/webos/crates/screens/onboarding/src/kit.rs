@@ -1,6 +1,6 @@
 //! What the screens of getting in share (`OnboardingKit.kt`, the TV app's `onboarding/kit.tsx`):
 //! the brand glow behind them, the Pley logo, the status line with its breathing dot, the sweep's
-//! bar, a pad key standing on its own, and profiles' colors.
+//! bar and a pad key standing on its own.
 
 use std::sync::{Arc, Mutex};
 
@@ -13,7 +13,7 @@ use pley_ui::theme;
 pub fn brand_glow(ui: &mut Ui) {
     let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
     let corner = Point::new(theme::CANVAS_W, theme::CANVAS_H);
-    ui.radial(full, corner, theme::CANVAS_W * 0.6, theme::BRAND_GLOW, Color::TRANSPARENT);
+    ui.radial(full, corner, theme::CANVAS_W * 0.6, theme::brand_glow(), Color::TRANSPARENT);
 }
 
 /// One line that is never cut.
@@ -29,27 +29,29 @@ pub(crate) fn space(ui: &Ui, style: &TextStyle) -> f32 {
 
 /// The logo (`PleyLogo`): the mark on its tile, `height` square, then "Pley" in `Tv.PageTitle` at
 /// three quarters of the height, 0.15 × the height after the mark, as the other TV apps draw it.
-/// The mark is drawn once as a picture at the screen's pixels and kept.
+/// The mark is drawn once as a picture at the screen's pixels in the theme's logo colors, and kept
+/// until another size or other colors are asked for.
 #[derive(Clone, Debug, Default)]
 pub struct Logo {
-    picture: Option<(u32, Arc<RgbaImage>, u64)>,
+    picture: Option<(u32, u64, Arc<RgbaImage>, u64)>,
 }
 
 /// The gap between the mark and the word, as a share of the logo's height.
 const WORD_GAP: f32 = 0.15;
 
-/// The marks drawn so far, by size in pixels, for the whole run: each screen and approval that
-/// shows the logo would otherwise draw it again (a hundred thousand samples at 80 px).
-static MARKS: Mutex<Vec<(u32, Arc<RgbaImage>)>> = Mutex::new(Vec::new());
+/// The marks drawn so far, by size in pixels and logo colors ([`theme::Palette::logo_key`]), for
+/// the whole run: each screen and approval that shows the logo would otherwise draw it again (a
+/// hundred thousand samples at 80 px).
+static MARKS: Mutex<Vec<(u32, u64, Arc<RgbaImage>)>> = Mutex::new(Vec::new());
 
-/// The mark `px` square, drawn the first time it is asked for.
-fn mark_of(px: u32) -> Arc<RgbaImage> {
+/// The mark `px` square in the colors shown, drawn the first time it is asked for.
+fn mark_of(px: u32, colors: u64) -> Arc<RgbaImage> {
     let mut marks = MARKS.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some((_, image)) = marks.iter().find(|(p, _)| *p == px) {
+    if let Some((_, _, image)) = marks.iter().find(|(p, c, _)| *p == px && *c == colors) {
         return image.clone();
     }
     let image = Arc::new(mark(px));
-    marks.push((px, image.clone()));
+    marks.push((px, colors, image.clone()));
     image
 }
 
@@ -67,24 +69,27 @@ impl Logo {
     /// Draws the logo `height` tall with its top-left corner at `at`.
     pub fn show(&mut self, ui: &mut Ui, at: Point, height: f32) {
         let px = ui.image_px(height).max(1);
+        let colors = theme::palette().logo_key();
         let (image, key) = match &self.picture {
-            Some((p, image, key)) if *p == px => (image.clone(), *key),
+            Some((p, c, image, key)) if *p == px && *c == colors => (image.clone(), *key),
             _ => {
-                let image = mark_of(px);
-                let key = 0x706c_6579_6d61_726b ^ u64::from(px);
-                self.picture = Some((px, image.clone(), key));
+                let image = mark_of(px, colors);
+                // The GPU keeps a texture by its key: one per size and colors.
+                let key = (0x706c_6579_6d61_726b ^ u64::from(px)).wrapping_add(colors.rotate_left(17));
+                self.picture = Some((px, colors, image.clone(), key));
                 (image, key)
             }
         };
         ui.cmd(Cmd::Raw { rect: Rect::new(at.x, at.y, height, height), image, key, radius: 0.0, opacity: 1.0 });
         let word = Point::new(at.x + height * (1.0 + WORD_GAP), at.y);
-        ui.text(word, "Pley", &Logo::wordmark(height), &free_line(), theme::FG);
+        ui.text(word, "Pley", &Logo::wordmark(height), &free_line(), theme::fg());
     }
 }
 
-/// The Pley mark (the web's `LogoMark`, a 64-unit square): three posters on a shelf on the
-/// `#0a1622` tile, the front one in a light-to-Accent gradient with play cut out of it, as a
-/// straight-alpha picture `px` square, each pixel sampled 4 × 4 times for smooth edges.
+/// The Pley mark (the web's `LogoMark`, a 64-unit square) in the theme's logo colors: three
+/// posters on a shelf on the BrandTile tile, the front one in a BrandLight-to-Brand gradient with
+/// play cut out of it, the middle one BrandDeep and the back one BrandFar, as a straight-alpha
+/// picture `px` square, each pixel sampled 4 × 4 times for smooth edges.
 pub fn mark(px: u32) -> RgbaImage {
     const SAMPLES: u32 = 4;
     let mut image = RgbaImage::new(px, px);
@@ -126,15 +131,15 @@ fn mark_at(u: f32, v: f32) -> Option<Color> {
     if in_rounded(u, v, [12.0, 15.5, 34.0, 48.5], 4.0, 4.0) && !in_play(u, v) {
         let (dx, dy) = (34.0 - 12.0, 49.0 - 15.0);
         let t = (((u - 12.0) * dx + (v - 15.0) * dy) / (dx * dx + dy * dy)).clamp(0.0, 1.0);
-        return Some(theme::BRAND_LIGHT.lerp(theme::ACCENT, t));
+        return Some(theme::brand_light().lerp(theme::brand(), t));
     }
     if in_rounded(u, v, [36.0, 18.5, 44.0, 45.5], 0.0, 3.5) {
-        return Some(theme::BRAND_DEEP);
+        return Some(theme::brand_deep());
     }
     if in_rounded(u, v, [46.0, 21.5, 52.0, 42.5], 0.0, 3.0) {
-        return Some(theme::BRAND_FAR);
+        return Some(theme::brand_far());
     }
-    Some(theme::BRAND_TILE)
+    Some(theme::brand_tile())
 }
 
 /// Whether (`u`, `v`) is in the rectangle `[x0, y0, x1, y1]` whose left corners are rounded by
@@ -189,7 +194,7 @@ pub fn status_line(
         let now = ui.time();
         let (alpha, next) = breathing(now);
         let dot = Rect::new(x, at.y + (style.line_height - 8.0) / 2.0, 8.0, 8.0);
-        ui.fill(dot, theme::ACCENT.alpha(alpha), 4.0);
+        ui.fill(dot, theme::accent().alpha(alpha), 4.0);
         ui.repaint_after(next - now);
         x += 8.0 + 12.0;
     }
@@ -201,48 +206,16 @@ pub fn status_line(
 /// from 0 to 1.
 pub fn sweep_bar(ui: &mut Ui, at: Point, progress: f32) {
     let well = Rect::new(at.x, at.y, 160.0, 4.0);
-    ui.fill(well, theme::SURFACE4, 2.0);
+    ui.fill(well, theme::surface4(), 2.0);
     let p = progress.clamp(0.0, 1.0);
     if p > 0.0 {
-        ui.fill(Rect::new(at.x, at.y, 160.0 * p, 4.0), theme::ACCENT, 2.0);
+        ui.fill(Rect::new(at.x, at.y, 160.0 * p, 4.0), theme::accent(), 2.0);
     }
-}
-
-/// A profile's own color when the server gave one as `#rgb` or `#rrggbb`.
-pub fn parse_color(color: Option<&str>) -> Option<Color> {
-    let hex = color?.trim().strip_prefix('#')?;
-    if !hex.chars().all(|c| c.is_ascii_hexdigit()) {
-        return None;
-    }
-    let full = match hex.len() {
-        3 => hex.chars().flat_map(|c| [c, c]).collect::<String>(),
-        6 => hex.to_string(),
-        _ => return None,
-    };
-    u32::from_str_radix(&full, 16).ok().map(Color::rgb)
-}
-
-/// The color a profile's avatar is drawn on (`ProfileColors.of`): its own, else the one its name
-/// gives.
-pub fn profile_fill(name: &str, color: Option<&str>) -> Color {
-    parse_color(color).unwrap_or_else(|| theme::profile_color(name))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn colours_are_read_in_both_forms() {
-        assert_eq!(parse_color(Some("#38bdf8")), Some(Color::rgb(0x38bdf8)));
-        assert_eq!(parse_color(Some("#a3e")), Some(Color::rgb(0xaa33ee)));
-        assert_eq!(parse_color(Some("38bdf8")), None);
-        assert_eq!(parse_color(Some("#38bdf")), None);
-        assert_eq!(parse_color(Some("#zzzzzz")), None);
-        assert_eq!(parse_color(None), None);
-        assert_eq!(profile_fill("Sam", Some("#a3e635")), Color::rgb(0xa3e635));
-        assert_eq!(profile_fill("Sam", None), theme::profile_color("Sam"));
-    }
 
     #[test]
     fn the_dot_breathes_in_half_second_steps() {

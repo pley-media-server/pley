@@ -49,6 +49,8 @@
         <field id="bufferingText" type="string" onChange="onBuffering" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/shared/PlayerControls.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -59,26 +61,31 @@
             <Poster id="scrim" width="1920" height="1080" uri="pkg:/images/ui/scrim-player.png" />
             <!-- The top: the title and the episode's line at the left; how
                  it plays and the clock at the right. -->
-            <Label id="title" translation="[96, 54]" width="1300" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="title" translation="[96, 54]" width="1300" maxLines="1" color="0xE9EBEFFF" />
             <Label id="line" translation="[96, 106]" width="1300" maxLines="1" color="0xA1A9B6FF" />
             <Label id="clock" translation="[1424, 60]" width="400" horizAlign="right" color="0xA1A9B6FF" />
             <MethodBadge id="method" visible="false" />
             <!-- The scrubber, x 96 to 1824, its track's center at y 850. -->
-            <Label id="elapsed" translation="[96, 798]" color="0xEBEBEBFF" />
-            <Label id="remaining" translation="[1324, 798]" width="500" horizAlign="right" color="0xEBEBEBFF" />
-            <Poster id="track" translation="[96, 846]" width="1728" height="8" uri="pkg:/images/ui/bar.9.png" blendColor="0xEBEBEB40" />
+            <Label id="elapsed" translation="[96, 798]" color="0xE9EBEFFF" />
+            <Label id="remaining" translation="[1324, 798]" width="500" horizAlign="right" color="0xE9EBEFFF" />
+            <Poster id="track" translation="[96, 846]" width="1728" height="8" uri="pkg:/images/ui/bar.9.png" blendColor="0xE9EBEF40" />
             <Poster id="played" translation="[96, 846]" width="0" height="8" uri="pkg:/images/ui/bar.9.png" blendColor="0x38BDF8FF" />
             <Group id="gaps" />
-            <Poster id="thumb" translation="[86, 840]" width="20" height="20" uri="pkg:/images/ui/thumb.png" blendColor="0xEBEBEBFF" />
-            <Poster id="thumbFocus" translation="[78, 832]" width="36" height="36" uri="pkg:/images/ui/thumb-focus.png" visible="false" />
+            <Poster id="thumb" translation="[86, 840]" width="20" height="20" uri="pkg:/images/ui/thumb.png" blendColor="0xE9EBEFFF" />
+            <!-- Focused, the thumb grows to 24 px with an accent-hover ring
+                 4 px out. -->
+            <Group id="thumbFocus" translation="[78, 832]" visible="false">
+                <Poster translation="[6, 6]" width="24" height="24" uri="pkg:/images/ui/thumb.png" blendColor="0xE9EBEFFF" />
+                <Poster width="36" height="36" uri="pkg:/images/ui/thumb-ring.png" blendColor="0x7DD3FCFF" />
+            </Group>
             <Label id="marker" translation="[96, 866]" horizAlign="center" color="0xA1A9B6FF" visible="false" />
             <!-- The seek preview, 480 × 270, its bottom at y 694, over the
                  thumb; the time under it and the chapter's name. -->
             <Group id="preview" visible="false">
-                <Rectangle id="previewWell" width="480" height="270" color="0x262B35FF" />
+                <Rectangle id="previewWell" width="480" height="270" color="0x191D24FF" />
                 <Poster id="previewImage" width="480" height="270" loadDisplayMode="scaleToFit" loadWidth="480" loadHeight="270" />
-                <Poster id="previewFrame" width="480" height="270" uri="pkg:/images/ui/frame.9.png" blendColor="0xEBEBEB33" />
-                <Label id="previewTime" translation="[0, 282]" width="480" horizAlign="center" color="0xEBEBEBFF" />
+                <Poster id="previewFrame" width="480" height="270" uri="pkg:/images/ui/frame.9.png" blendColor="0xE9EBEF33" />
+                <Label id="previewTime" translation="[0, 282]" width="480" horizAlign="center" color="0xE9EBEFFF" />
                 <Label id="previewChapter" translation="[0, 320]" width="480" horizAlign="center" maxLines="1" color="0xA1A9B6FF" />
             </Group>
             <!-- The row of buttons, its top at y 882. -->
@@ -87,16 +94,17 @@
         <!-- The seek badge with the controls hidden: 128 square, bg at 60 %,
              centered in the left or right third. -->
         <Group id="badge" visible="false">
-            <Poster id="badgeBack" width="128" height="128" uri="pkg:/images/ui/r12.9.png" blendColor="0x16191E99" />
-            <Label id="badgeText" width="128" height="128" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" />
+            <Poster id="badgeBack" width="128" height="128" uri="pkg:/images/ui/r12.9.png" blendColor="0x0B0D1099" />
+            <Label id="badgeText" width="128" height="128" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" />
         </Group>
-        <!-- Loading: an 80 px ring turning in the middle, what to say
-             under it on the badge's backing. -->
+        <!-- Loading: an 80 px ring in the middle, a quarter of it turning,
+             what to say under it on the badge's backing. -->
         <Group id="buffering" visible="false">
-            <Poster id="ring" translation="[920, 500]" width="80" height="80" uri="pkg:/images/ui/buffering.png" scaleRotateCenter="[40, 40]" />
+            <Poster translation="[920, 500]" width="80" height="80" uri="pkg:/images/ui/buffering-track.png" blendColor="0xE9EBEFFF" />
+            <Poster id="ring" translation="[920, 500]" width="80" height="80" uri="pkg:/images/ui/buffering-arc.png" blendColor="0x38BDF8FF" scaleRotateCenter="[40, 40]" />
             <Group id="bufferingNote" visible="false">
-                <Poster id="bufferingBack" uri="pkg:/images/ui/r12.9.png" blendColor="0x16191E99" height="56" />
-                <Label id="bufferingLabel" height="56" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" />
+                <Poster id="bufferingBack" uri="pkg:/images/ui/r12.9.png" blendColor="0x0B0D1099" height="56" />
+                <Label id="bufferingLabel" height="56" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" />
             </Group>
         </Group>
         <Animation id="fadeIn" duration="0.15" easeFunction="linear">

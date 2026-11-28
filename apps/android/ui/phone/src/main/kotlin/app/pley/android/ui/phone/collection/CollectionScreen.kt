@@ -125,6 +125,7 @@ internal fun CollectionScreen(key: PleyKey.Collection) {
 
 @Composable
 private fun CollectionContent(state: Loadable<CollectionPage<ArtworkTileModel>>, vm: CollectionViewModel<ArtworkTileModel>) {
+    val palette = PleyColors.palette
     val navigator = LocalPhoneNavigator.current
     val metrics = LocalPhoneMetrics.current
     val skeleton = rememberSkeleton(animated = true)
@@ -179,7 +180,7 @@ private fun CollectionContent(state: Loadable<CollectionPage<ArtworkTileModel>>,
                 .fillMaxWidth()
                 .height(TOP_SCRIM)
                 .drawWithCache {
-                    val brush = Brush.verticalGradient(listOf(PleyColors.Bg.copy(alpha = 0.6f), Color.Transparent))
+                    val brush = Brush.verticalGradient(listOf(palette.bg.copy(alpha = 0.6f), Color.Transparent))
                     onDrawBehind { drawRect(brush) }
                 },
         )
@@ -202,6 +203,7 @@ private fun LazyGridScope.header(page: CollectionPage<ArtworkTileModel>?, vm: Co
 
 @Composable
 private fun Header(page: CollectionPage<ArtworkTileModel>?, vm: CollectionViewModel<ArtworkTileModel>) {
+    val palette = PleyColors.palette
     val metrics = LocalPhoneMetrics.current
     val resources = LocalResources.current
     val skeleton = rememberSkeleton(animated = true)
@@ -222,7 +224,7 @@ private fun Header(page: CollectionPage<ArtworkTileModel>?, vm: CollectionViewMo
                 modifier = Modifier
                     .fillMaxSize()
                     .drawWithCache {
-                        val fade = Brush.verticalGradient(0.35f to Color.Transparent, 1f to PleyColors.Bg)
+                        val fade = Brush.verticalGradient(0.35f to Color.Transparent, 1f to palette.bg)
                         onDrawWithContent {
                             drawContent()
                             drawRect(fade)

@@ -41,6 +41,8 @@ class PleyKeyTest {
         PleyKey.History,
         PleyKey.Downloads,
         PleyKey.Settings,
+        PleyKey.Appearance(),
+        PleyKey.Appearance(accent = true),
         PleyKey.Diagnostics,
         PleyKey.ManageServer,
         PleyKey.Manage(AdminSection.Dashboard),

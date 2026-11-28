@@ -44,6 +44,7 @@ internal fun PlaylistArt(
     /** The empty playlist's glyph: about a third of the cover. */
     glyph: Dp = 40.dp,
 ) {
+    val palette = PleyColors.palette
     val images = remember(artwork, origin) { artwork.mapNotNull { ArtworkImage.of(it, origin) } }
     Box(
         modifier
@@ -53,7 +54,7 @@ internal fun PlaylistArt(
                 val hair = 1.dp.toPx()
                 onDrawWithContent {
                     drawContent()
-                    drawRect(PleyColors.TileHairline, style = androidx.compose.ui.graphics.drawscope.Stroke(hair))
+                    drawRect(palette.tileHairline, style = androidx.compose.ui.graphics.drawscope.Stroke(hair))
                 }
             },
     ) {
@@ -73,7 +74,7 @@ internal fun PlaylistArt(
                 Modifier
                     .fillMaxSize()
                     .drawWithCache {
-                        val brush = Brush.linearGradient(listOf(PleyColors.Surface3, PleyColors.Surface2))
+                        val brush = Brush.linearGradient(listOf(palette.surface3, palette.surface2))
                         onDrawBehind { drawRect(brush) }
                     },
                 contentAlignment = Alignment.Center,

@@ -104,7 +104,7 @@ object TvShellDemo {
             ),
         )
 
-        override val profile: Flow<RailProfile?> = flowOf(RailProfile("Anna", RailProfile.parseColor("#e07a5f")))
+        override val profile: Flow<RailProfile?> = flowOf(RailProfile("Anna", "#e07a5f"))
 
         override suspend fun keepUpdated() = Unit
     }
@@ -255,6 +255,7 @@ private val HeroHeight = 432.dp - PleyTv.RowGap
 /** The hero's stack at x = 96 (design spec §2.2): title, context, metadata, progress, summary, buttons. */
 @Composable
 private fun Hero(details: DemoDetails, memory: app.pley.android.ui.tv.kit.FocusMemory, modifier: Modifier) {
+    val palette = PleyColors.palette
     Column(modifier.focusGroup().padding(start = PleyTv.Gutter, top = 58.dp)) {
         Box(Modifier.height(84.dp), contentAlignment = Alignment.BottomStart) {
             BasicText(details.title, style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg), maxLines = 1)
@@ -268,8 +269,8 @@ private fun Hero(details: DemoDetails, memory: app.pley.android.ui.tv.kit.FocusM
             Box(
                 Modifier.size(160.dp, 4.dp).drawBehind {
                     val r = CornerRadius(size.height / 2f)
-                    drawRoundRect(PleyColors.Surface4, cornerRadius = r)
-                    drawRoundRect(PleyColors.Accent, size = Size(size.width * 0.55f, size.height), cornerRadius = r)
+                    drawRoundRect(palette.border, cornerRadius = r)
+                    drawRoundRect(palette.accent, size = Size(size.width * 0.55f, size.height), cornerRadius = r)
                 },
             )
             Spacer(Modifier.width(10.dp))
