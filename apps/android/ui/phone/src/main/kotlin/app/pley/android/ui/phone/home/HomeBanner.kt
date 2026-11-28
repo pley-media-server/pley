@@ -210,7 +210,7 @@ private fun Slide(
             Text(
                 info.title,
                 style = titleStyle(info.title),
-                color = Color.White,
+                color = PleyColors.Fg,
                 textAlign = TextAlign.Center,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -291,18 +291,19 @@ private fun ListButton(info: HomeInfo, onList: (HomeInfo) -> Unit) {
             .semantics { contentDescription = label; selected = info.inList },
         contentAlignment = Alignment.Center,
     ) {
+        // Over the fade into the page: in the page's colors, so it reads on a light theme's too.
         Box(
             Modifier
                 .size(40.dp)
-                .background(Color.Black.copy(alpha = 0.25f), CircleShape)
-                .border(1.5.dp, Color.White.copy(alpha = 0.45f), CircleShape),
+                .background(PleyColors.Bg.copy(alpha = 0.25f), CircleShape)
+                .border(1.5.dp, PleyColors.Fg.copy(alpha = 0.45f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 if (info.inList) PleyIcons.Check else PleyIcons.Plus,
                 contentDescription = null,
                 size = 18.dp,
-                tint = if (info.inList) PleyColors.Accent else Color.White,
+                tint = if (info.inList) PleyColors.Accent else PleyColors.Fg,
             )
         }
     }
@@ -318,6 +319,8 @@ private fun Turns(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Under the words, on the page's color: the page's words color, as the TV's dashes are.
+    val ink = PleyColors.Fg
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         repeat(count) { page ->
             val on = page == current
@@ -334,13 +337,13 @@ private fun Turns(
                     Modifier
                         .size(width = width, height = 4.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.28f))
+                        .background(ink.copy(alpha = 0.28f))
                         .then(
                             if (on) {
                                 Modifier.drawWithContent {
                                     drawContent()
                                     val p = progress()
-                                    drawRect(Color.White, size = size.copy(width = size.width * (if (p > 0f) p else 1f)))
+                                    drawRect(ink, size = size.copy(width = size.width * (if (p > 0f) p else 1f)))
                                 }
                             } else {
                                 Modifier
