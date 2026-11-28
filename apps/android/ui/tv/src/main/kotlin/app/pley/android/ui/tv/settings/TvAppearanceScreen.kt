@@ -139,7 +139,7 @@ private fun SectionLine(label: String, hint: String) {
     }
 }
 
-/** One theme: its preview, its name and caption; the one in use outlined in the accent, checked. */
+/** One theme: its preview, its name and caption; the one in use outlined in the accent (the ring alone while focused), checked. */
 @Composable
 private fun ThemeCard(theme: PleyTheme, palette: PleyPalette, picked: Boolean, initial: Boolean, onPick: () -> Unit, modifier: Modifier = Modifier) {
     val interactions = remember { MutableInteractionSource() }
@@ -153,7 +153,8 @@ private fun ThemeCard(theme: PleyTheme, palette: PleyPalette, picked: Boolean, i
             .semantics { selected = picked }
             .clickable(interactionSource = interactions, indication = null, role = Role.RadioButton, onClick = onPick)
             .background(if (picked) PleyColors.Accent.copy(alpha = 0.06f) else Color.Transparent, shape)
-            .border(if (picked) 2.dp else 1.dp, if (picked) PleyColors.Accent else PleyColors.Border, shape)
+            // One outline: while the ring shows, the card's own border goes.
+            .then(if (focused) Modifier else Modifier.border(if (picked) 2.dp else 1.dp, if (picked) PleyColors.Accent else PleyColors.Border, shape))
             .testTag("$TV_APPEARANCE_THEME.${theme.id}"),
     ) {
         Column(Modifier.padding(5.dp)) {
@@ -206,7 +207,7 @@ private fun AccentChip(accent: PleyAccent?, palette: PleyPalette, picked: Boolea
             .semantics { selected = picked }
             .clickable(interactionSource = interactions, indication = null, role = Role.RadioButton, onClick = onPick)
             .background(if (picked) PleyColors.Accent else Color.Transparent, PleyShape.Pill)
-            .border(1.dp, if (picked) PleyColors.Accent else PleyColors.Border, PleyShape.Pill)
+            .then(if (focused) Modifier else Modifier.border(1.dp, if (picked) PleyColors.Accent else PleyColors.Border, PleyShape.Pill))
             .padding(start = 10.dp, end = 14.dp, top = 9.dp, bottom = 9.dp)
             .testTag("$TV_APPEARANCE_ACCENT.${accent?.id ?: "own"}"),
         verticalAlignment = Alignment.CenterVertically,
