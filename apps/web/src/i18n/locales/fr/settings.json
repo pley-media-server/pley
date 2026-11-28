@@ -181,7 +181,7 @@
       "detected": "Encodeurs détectés : {{encoders}}",
       "accelHint": "Encodeur utilisé pour transcoder la vidéo.",
       "softwareInstead": "{{reason}} : les transcodages sont encodés de façon logicielle à la place.",
-      "rockchipChipUnknown": "Les moteurs vidéo de Rockchip ne peuvent pas lire sur quelle puce ils se trouvent : ils décodent et encodent le H.264, mais ni le HEVC, ni le VP9, ni l'AV1. Avec Docker, ajoutez au conteneur security_opt: systempaths=unconfined.",
+      "rockchipChipUnknown": "Les moteurs vidéo de Rockchip ne peuvent pas lire sur quelle puce ils se trouvent : ils décodent et encodent le H.264, mais ni le HEVC, ni le VP9, ni l'AV1. Avec Docker, ajoutez au conteneur security_opt: systempaths=unconfined, et apparmor=unconfined si AppArmor est actif.",
       "decoding": "Décodage matériel",
       "decodingHint": "Décoder sur le GPU quand c’est possible.",
       "decodedOnCpu": "{{reason}} : les vidéos sont décodées sur le CPU.",
