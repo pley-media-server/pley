@@ -1952,9 +1952,10 @@ How it works:
   `localized(_:)`, which reads its catalog's `.lproj` for the language
   shown, whatever the system's language is.
 - **One English, two meanings**, where French or Spanish word them
-  differently (an audio track's "Automatic" against the quality's), get a
-  key of their own with the English as its default value:
-  `localized(keyed: LocalizedStringResource("audio.automatic", defaultValue: "Automatic (\(name))"))`.
+  differently (the subtitles' "Off" against a setting's, an audio track's
+  "Automatic" against the quality's), get a key of their own with the
+  English as its default value:
+  `localized(keyed: LocalizedStringResource("subtitles.off", defaultValue: "Off"))`.
 - **What stays as it is**: what the server sends (titles, names, error
   messages), what people type, codec and format names (HEVC, Dolby Vision,
   4K, 5.1), and Pley. Words with none of these in them, such as a number
