@@ -5221,6 +5221,8 @@ interface SystemInfo {
     dolby_vision: boolean;          // Dolby Vision profile 5 can be tone-mapped correctly
     chromaprint: boolean;           // audio fingerprints find intros and credits; without, only chapters
     throttling: boolean;            // FFmpeg can throttle transcodes (6.1 and newer)
+    rockchip_chip_unknown: boolean; // Rockchip's MPP can't read the device tree it tells the chip by (a
+                                    // container that hides it): H.264 only, no HEVC, VP9 or AV1
     memory: { available: boolean; reason?: string; path?: string; budget_bytes: number } | null;
                                     // segments can be kept in RAM (`transcode_in_memory`), and at most how
                                     // much; reason: why not ("works on Linux only"); null while unavailable

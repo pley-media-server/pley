@@ -181,6 +181,7 @@
       "detected": "Codificadores detectados: {{encoders}}",
       "accelHint": "Codificador usado para transcodificar el video.",
       "softwareInstead": "{{reason}}: las transcodificaciones se codifican por software en su lugar.",
+      "rockchipChipUnknown": "Los motores de vídeo de Rockchip no pueden leer en qué chip están, así que decodifican y codifican H.264, pero no HEVC, VP9 ni AV1. En Docker, añade al contenedor security_opt: systempaths=unconfined.",
       "decoding": "Decodificación por hardware",
       "decodingHint": "Decodificar en la GPU cuando sea posible.",
       "decodedOnCpu": "{{reason}}: los videos se decodifican en la CPU.",

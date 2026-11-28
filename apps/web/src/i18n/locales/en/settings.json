@@ -180,6 +180,7 @@
       "detected": "Detected encoders: {{encoders}}",
       "accelHint": "Encoder used for video transcodes.",
       "softwareInstead": "{{reason}}: transcodes are encoded in software instead.",
+      "rockchipChipUnknown": "Rockchip's video engines can't read which chip they are on, so they decode and encode H.264 but not HEVC, VP9 or AV1. In Docker, give the container security_opt: systempaths=unconfined.",
       "decoding": "Hardware decoding",
       "decodingHint": "Decode on the GPU when possible.",
       "decodedOnCpu": "{{reason}}: videos are decoded on the CPU.",

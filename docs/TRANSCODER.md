@@ -215,6 +215,7 @@ before using what it names:
 | `amf_upload` | FFmpeg uploads AMF's frames to the AMD GPU ([AMF on Windows](#amf-on-windows)) |
 | `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the color primaries `h264_amf` and the sample aspect ratio `h264_rkmpp` leave out |
 | `hevc_metadata` | FFmpeg has the `hevc_metadata` bitstream filter, which writes the sample aspect ratio `hevc_rkmpp` leaves out |
+| `rockchip_chip_unknown` | Rockchip's MPP can't read the device tree it tells the chip by, which a container hides: it has H.264 and none of HEVC, VP9 or AV1 ([Rockchip](#rockchip)) |
 | `subtitle_burn_image`, `subtitle_burn_text` | picture and text subtitles can be burned in |
 | `qsv_overlay` | Quick Sync lays picture subtitles on frames it decoded ([Subtitle burn-in](#subtitle-burn-in)) |
 | `readrate`, `readrate_catchup` | `-readrate` and `-readrate_catchup` work ([Throttling](#throttling)) |
@@ -936,6 +937,17 @@ the start-up test.
 - **Failures.** An MPP decoder failing before the first segment hands
   decoding to the CPU, not counted against the segment. A conversion
   failing before its first frame retries once on the CPU.
+- **The chip's name.** MPP tells which chip it runs on, and so which
+  codecs it has, only from `/proc/device-tree/compatible`, which points
+  into `/sys/firmware`: Docker hides it unless the container has
+  `security_opt: systempaths=unconfined`
+  ([deploy/docker](../deploy/docker/README.md#hardware-transcoding)).
+  Without it, MPP takes the chip for one with H.264 and none of HEVC, VP9
+  or AV1, whose tests then fail. Where `/dev/mpp_service` is there and the
+  file can't be read, the log warns at every start and capabilities say
+  `rockchip_chip_unknown` (Settings → Transcoder shows it). Whether the
+  file can be read is part of the cached capabilities' key, so they are
+  tested again once it can.
 - A transcoder with Rockchip MPP needs a server that knows it: update the
   server first.
 

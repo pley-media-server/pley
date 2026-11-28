@@ -179,6 +179,7 @@
       "detected": "偵測到的編碼器：{{encoders}}",
       "accelHint": "用於影片轉碼的編碼器。",
       "softwareInstead": "{{reason}}：改用軟體編碼轉碼。",
+      "rockchipChipUnknown": "Rockchip 影片引擎無法讀取所在晶片，因此只能解碼和編碼 H.264，無法處理 HEVC、VP9 或 AV1。在 Docker 中，請為容器加上 security_opt: systempaths=unconfined。",
       "decoding": "硬體解碼",
       "decodingHint": "儘可能在 GPU 上解碼。",
       "decodedOnCpu": "{{reason}}：影片在 CPU 上解碼。",

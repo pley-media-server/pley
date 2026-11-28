@@ -116,8 +116,9 @@ later runs points out one Pley doesn't use yet.
 - Rockchip's MPP knows which chip it runs on, and so which codecs it has,
   only from the device tree, which Docker hides. `compose.rockchip.yaml`
   shows it (`security_opt: systempaths=unconfined`); without it, MPP knows
-  H.264 and none of HEVC, VP9 or AV1. A host with AppArmor also needs
-  `apparmor=unconfined` there (Podman: `unmask=/sys/firmware` instead).
+  H.264 and none of HEVC, VP9 or AV1, and Settings → Transcoder says so.
+  A host with AppArmor also needs `apparmor=unconfined` there (Podman:
+  `unmask=/sys/firmware` instead).
 - **Docker Desktop on Windows** can't hand Pley the GPU in a way it can use
   for HDR: install [Pley for Windows](../windows/README.md) instead.
 
@@ -245,5 +246,5 @@ Debian's security fixes).
 | `bind source path does not exist` | A folder in `.env` is missing. Create it: Compose doesn't, as it would belong to root |
 | `port is already allocated` | Something else uses 7539: change `PLEY_LISTEN` (`127.0.0.1:7600`) and your proxy |
 | Transcodes stay on the CPU | The log's `detected` line lists the encoders found. Intel/AMD: `docker compose exec pley ls -l /dev/dri` should list `renderD128`. NVIDIA: `docker compose exec pley nvidia-smi` should list the GPU. Rockchip: `docker compose exec pley ls -l /dev/mpp_service /dev/rga` should list both (missing on the host: not Rockchip's kernel) |
-| Rockchip transcodes H.264 on the chip, but not HEVC, VP9 or AV1 | MPP can't read the device tree: the container needs `security_opt: systempaths=unconfined` ([Hardware transcoding](#hardware-transcoding)), and `apparmor=unconfined` with AppArmor |
+| Rockchip transcodes H.264 on the chip, but not HEVC, VP9 or AV1 | MPP can't read the device tree (the log warns "Rockchip's MPP can't read the device tree"): the container needs `security_opt: systempaths=unconfined` ([Hardware transcoding](#hardware-transcoding)), and `apparmor=unconfined` with AppArmor |
 | Rootless Docker | `PLEY_UID=0` and `PLEY_GID=0` (what `setup.sh` picks): root in the container is you. The host's render group doesn't carry over, so Intel and AMD transcoding stays off |

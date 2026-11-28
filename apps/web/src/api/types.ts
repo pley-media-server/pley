@@ -1223,6 +1223,8 @@ export interface TranscoderInfo {
   chromaprint: boolean;
   /** FFmpeg can hold transcodes back (6.1 and newer). */
   throttling: boolean;
+  /** Rockchip's MPP can't read the device tree it tells the chip by (a container that hides it): H.264 only. Absent from servers before it. */
+  rockchip_chip_unknown?: boolean;
   /** Whether segments can be kept in memory, and how much; `null` while the transcoder is unavailable. */
   memory?: TranscoderMemory | null;
   max_jobs: number;

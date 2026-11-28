@@ -218,6 +218,7 @@ export function TranscoderSettings() {
                   ))}
                 </Select>
                 {accelProblem ? <Note notice>{t("transcoder.video.softwareInstead", { reason: capitalize(accelProblem) })}</Note> : null}
+                {tc?.available && tc.rockchip_chip_unknown ? <Note notice>{t("transcoder.video.rockchipChipUnknown")}</Note> : null}
               </Row>
               <Row label={t("transcoder.video.decoding")} hint={t("transcoder.video.decodingHint")}>
                 <Toggle
