@@ -8,7 +8,7 @@ describes how they are made.
 
 ## [Unreleased]
 
-### Changed
+### Removed
 
 - The sleep timer is gone, from videos and audiobooks.
 

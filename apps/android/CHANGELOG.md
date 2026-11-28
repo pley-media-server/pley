@@ -17,6 +17,9 @@ describes how they are made.
 - Skip Intro and Skip Credits show by themselves for 8 seconds, then only
   with the player's controls, instead of over the whole intro or credits.
   On TVs, OK and the arrows act on the video again once Skip has gone.
+
+### Removed
+
 - On TVs, the player's controls no longer say "Ends at" with a time under
   the clock while paused: the time left stays by the scrubber.
 - The sleep timer is gone, from videos, music and audiobooks.

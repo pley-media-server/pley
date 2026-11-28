@@ -16,6 +16,9 @@ describes how they are made.
 - Skip Intro and Skip Credits show on their own for 8 seconds as the intro
   or credits begin, then only with the player's controls, so they don't sit
   over the picture the whole time.
+
+### Removed
+
 - The web app no longer has a sleep timer, for videos or audiobooks.
 
 ## [0.1.18] - 2026-11-27
