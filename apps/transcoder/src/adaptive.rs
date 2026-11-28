@@ -124,6 +124,9 @@ const FRESH: Duration = Duration::from_secs(10 * 60);
 /// twice real time for measures its own again each time it catches up after
 /// a pause.
 const DOUBTED_AFTER: Duration = Duration::from_secs(2 * 60);
+/// How long a job that left a preset for a faster one beside other software
+/// encodes stays off it while as many run (see [`Left`]).
+const LEFT_FOR: Duration = Duration::from_secs(5 * 60);
 
 /// How fast a preset must be expected to go to be taken.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -312,6 +315,31 @@ impl Crowd {
     }
 }
 
+/// A preset a job left for a faster one with other software encodes running.
+/// What encodes make together isn't measured ([`Crowd::alone`]), so the
+/// estimate that took the job there would take it back, and it would go to
+/// and fro: it stays off it while as many encodes run, for [`LEFT_FOR`] at
+/// most. A job alone needs none of this: what its preset makes is learned.
+#[derive(Debug, Clone, Copy)]
+pub struct Left {
+    preset: usize,
+    jobs: u32,
+    at: Instant,
+}
+
+impl Left {
+    /// What a job moving from `from` to `to` at `at`, with `jobs` software
+    /// encodes running, remembers.
+    pub fn moved(from: usize, to: usize, jobs: u32, at: Instant) -> Option<Left> {
+        (to < from && jobs >= 2).then_some(Left { preset: from, jobs, at })
+    }
+
+    /// The slowest preset the job may move to now, with `jobs` running.
+    pub fn ceiling(self, jobs: u32, now: Instant) -> Option<usize> {
+        (jobs == self.jobs && now.saturating_duration_since(self.at) < LEFT_FOR).then(|| self.preset - 1)
+    }
+}
+
 /// What a job's first preset depends on besides what was measured.
 #[derive(Debug, Clone, Copy)]
 pub struct Load {
@@ -416,12 +444,14 @@ pub struct Going {
     pub jobs: u32,
     /// Whether that many have been running for a while ([`Crowd::settled`]).
     pub settled: bool,
+    /// The slowest preset it may move to ([`Left`]).
+    pub ceiling: Option<usize>,
 }
 
 /// The preset a running job should move to now, if any, by what its kind
 /// of job was measured to make (`speeds`).
 pub fn decide(speeds: &Speeds, going: Going, now: Instant) -> Option<usize> {
-    let Going { preset, speed, made, lead_secs, since_move, jobs, settled } = going;
+    let Going { preset, speed, made, lead_secs, since_move, jobs, settled, ceiling } = going;
     // Nothing before its process's speed is known.
     if since_move < MOVE_AFTER {
         return None;
@@ -440,14 +470,16 @@ pub fn decide(speeds: &Speeds, going: Going, now: Instant) -> Option<usize> {
         return None;
     }
     // Ahead: the slowest preset that is fast enough…
-    if let Some(slower) = speeds.choose(jobs, Need::Steady, now).filter(|to| *to > preset) {
+    let ceiling = ceiling.unwrap_or(LADDER.len() - 1);
+    if let Some(slower) = speeds.choose(jobs, Need::Steady, now).map(|to| to.min(ceiling)).filter(|to| *to > preset) {
         return Some(slower);
     }
     // …or a faster one, where more encodes run than its preset leaves each
-    // enough for. Alone, a job that keeps ahead stays.
+    // enough for, or than it was too slow with lately ([`Left`]). Alone, a
+    // job that keeps ahead stays.
     let alone = speeds.expect(preset, now)?;
-    if jobs >= 2 && alone / f64::from(jobs) < STAY {
-        return speeds.settle_for(jobs, Need::Steady, now).filter(|to| *to < preset);
+    if jobs >= 2 && (alone / f64::from(jobs) < STAY || preset > ceiling) {
+        return speeds.settle_for(jobs, Need::Steady, now).map(|to| to.min(ceiling)).filter(|to| *to < preset);
     }
     None
 }
@@ -458,19 +490,21 @@ pub fn decide(speeds: &Speeds, going: Going, now: Instant) -> Option<usize> {
 /// start with video ready takes, when that is slower. In the process's
 /// first minute this doesn't wait for the other encodes to settle, as
 /// [`decide`]'s moves do: the move was planned when the process started,
-/// and moves this job alone. Later, only [`decide`] moves it.
+/// and moves this job alone. Later, only [`decide`] moves it. Never past
+/// `ceiling` ([`Left`]).
 pub fn hand_over(
     speeds: &Speeds,
     load: Load,
     current: usize,
     since_start: Duration,
     ahead_secs: f64,
+    ceiling: Option<usize>,
     now: Instant,
 ) -> Option<usize> {
     if ahead_secs <= LONG_LEAD_SECS || since_start >= SETTLES {
         return None;
     }
-    let steady = start(speeds, load, ahead_secs, Some(current), now);
+    let steady = start(speeds, load, ahead_secs, Some(current), now).min(ceiling.unwrap_or(LADDER.len() - 1));
     (steady > current).then_some(steady)
 }
 
@@ -524,6 +558,7 @@ mod tests {
             since_move: Duration::from_secs(120),
             jobs,
             settled: true,
+            ceiling: None,
         }
     }
 
@@ -679,6 +714,34 @@ mod tests {
     }
 
     #[test]
+    fn a_job_that_left_a_preset_beside_other_encodes_stays_off_it_while_as_many_run() {
+        let now = Instant::now();
+        // Measured alone, faster makes 5.2 × on 8 threads: 2.6 for each of
+        // two, which takes a job there. Beside the other it made under real
+        // time, and moved to veryfast.
+        let speeds = all(&FILM_8, now);
+        let left = Left::moved(FASTER, VF, 2, now).unwrap();
+        let ceiling = left.ceiling(2, now + Duration::from_secs(30));
+        assert_eq!(ceiling, Some(VF));
+        assert_eq!(decide(&speeds, going(VF, 2.0, 60.0, 2), now), Some(FASTER), "the estimate would take it back");
+        assert_eq!(decide(&speeds, Going { ceiling, ..going(VF, 2.0, 60.0, 2) }, now), None);
+        // Back on it since (the other ended, and another started), it leaves
+        // it again once as many have run for a while.
+        assert_eq!(decide(&speeds, Going { ceiling, ..going(FASTER, 5.2, 60.0, 2) }, now), Some(VF));
+        // Nor does a seek's quick start hand over to it.
+        let soon = Duration::from_secs(3);
+        assert_eq!(hand_over(&speeds, load(2, 8, HD), UF, soon, 12.0, ceiling, now), Some(VF));
+        // Once the number of encodes changes, or after a while, it may.
+        assert_eq!(left.ceiling(1, now), None);
+        assert_eq!(left.ceiling(3, now), None);
+        assert_eq!(left.ceiling(2, now + LEFT_FOR), None);
+        // A job alone learns what its preset makes; a move to a slower one
+        // rules nothing out.
+        assert!(Left::moved(FASTER, VF, 1, now).is_none());
+        assert!(Left::moved(VF, FASTER, 2, now).is_none());
+    }
+
+    #[test]
     fn a_start_or_a_seek_takes_a_preset_whose_first_segment_comes_soon() {
         let now = Instant::now();
         let speeds = all(&FILM_8, now);
@@ -703,21 +766,21 @@ mod tests {
         let soon = Duration::from_secs(3);
         // Measured at ultrafast on 4 threads: faster is estimated at 2.4.
         let speeds = knowing(&[(UF, FILM_4[UF])], now);
-        assert_eq!(hand_over(&speeds, load(1, 4, HD), UF, soon, 9.0, now), None, "not far enough ahead");
-        assert_eq!(hand_over(&speeds, load(1, 4, HD), UF, soon, 12.0, now), Some(FASTER));
+        assert_eq!(hand_over(&speeds, load(1, 4, HD), UF, soon, 9.0, None, now), None, "not far enough ahead");
+        assert_eq!(hand_over(&speeds, load(1, 4, HD), UF, soon, 12.0, None, now), Some(FASTER));
         // Beside another encode, however lately it started: faster makes
         // 2.6 × for each of two on 8 threads.
-        assert_eq!(hand_over(&all(&FILM_8, now), load(2, 8, HD), UF, soon, 12.0, now), Some(FASTER));
+        assert_eq!(hand_over(&all(&FILM_8, now), load(2, 8, HD), UF, soon, 12.0, None, now), Some(FASTER));
         // Encodes that started together, before anything was measured: the
         // load's.
-        assert_eq!(hand_over(&Speeds::default(), load(2, 8, HD), UF, soon, 12.0, now), Some(VF));
+        assert_eq!(hand_over(&Speeds::default(), load(2, 8, HD), UF, soon, 12.0, None, now), Some(VF));
         // Where the quick preset is the steady one too, it stays: 1080p60 on
         // 2 threads makes 1.9 × at ultrafast.
         let p60 = Load { fps: 60.0, ..load(1, 2, HD) };
-        assert_eq!(hand_over(&knowing(&[(UF, P60_2[UF])], now), p60, UF, soon, 12.0, now), None);
+        assert_eq!(hand_over(&knowing(&[(UF, P60_2[UF])], now), p60, UF, soon, 12.0, None, now), None);
         // Past its first minute, only `decide` moves it.
         let later = Duration::from_secs(90);
-        assert_eq!(hand_over(&all(&FILM_8, now), load(2, 8, HD), UF, later, 12.0, now), None);
+        assert_eq!(hand_over(&all(&FILM_8, now), load(2, 8, HD), UF, later, 12.0, None, now), None);
     }
 
     #[test]

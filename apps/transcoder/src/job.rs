@@ -524,6 +524,9 @@ struct Runtime {
     /// Whether that process started at one quick for a waiting player, to
     /// hand over to the steady one ([`adaptive::hand_over`]).
     quick: bool,
+    /// The preset it last left for a faster one beside other software
+    /// encodes, which it stays off while as many run ([`adaptive::Left`]).
+    left: Option<adaptive::Left>,
     /// What the latest process does on the GPU, when libplacebo tone maps
     /// (see [`crate::share`]).
     share: Option<Share>,
@@ -1217,9 +1220,15 @@ impl JobManager {
         let now = Instant::now();
         let kind = job.plan.encode_kind(&job.media);
         let speeds = kind.and_then(|kind| self.preset_speeds.lock().get(&kind).cloned()).unwrap_or_default();
-        let current = job.runtime.lock().preset.map(|(preset, _)| preset);
+        let (current, left) = {
+            let rt = job.runtime.lock();
+            (rt.preset.map(|(preset, _)| preset), rt.left)
+        };
         let lead = if job.fmp4() { f64::INFINITY } else { job.lead_secs(start) };
-        (adaptive::start(&speeds, self.load_for(job), lead, current, now), lead <= 0.0)
+        let load = self.load_for(job);
+        let preset = adaptive::start(&speeds, load, lead, current, now);
+        let ceiling = left.and_then(|left| left.ceiling(load.software_jobs, now));
+        (ceiling.map_or(preset, |ceiling| preset.min(ceiling)), lead <= 0.0)
     }
 
     /// Learns what the presets of jobs on the automatic one make from how
@@ -1254,9 +1263,9 @@ impl JobManager {
             let Some(proc) = guard.as_ref().filter(|p| p.running()) else { continue };
             // Read under the process's lock: a seek may have just started
             // another one.
-            let (preset, quick) = {
+            let (preset, quick, left) = {
                 let rt = job.runtime.lock();
-                (rt.preset, rt.quick)
+                (rt.preset, rt.quick, rt.left)
             };
             let Some((current, moved_at)) = preset else { continue };
             let next = proc.next.load(Relaxed);
@@ -1300,6 +1309,7 @@ impl JobManager {
                 if pinned || passed || job.sought_elsewhere(next, proc.lookahead) {
                     continue;
                 }
+                let ceiling = left.and_then(|left| left.ceiling(sharing, now));
                 let going = adaptive::Going {
                     preset: current,
                     speed,
@@ -1308,12 +1318,14 @@ impl JobManager {
                     since_move: moved_at.elapsed(),
                     jobs: sharing,
                     settled: crowd.settled(now),
+                    ceiling,
                 };
                 // A process started quick for a waiting player hands over to
                 // the steady preset once its speed is known.
                 let hand_over = quick && speed.is_some();
                 let to = adaptive::decide(speeds, going, now).or_else(|| {
-                    hand_over.then(|| adaptive::hand_over(speeds, load, current, moved_at.elapsed(), ahead, now))?
+                    hand_over
+                        .then(|| adaptive::hand_over(speeds, load, current, moved_at.elapsed(), ahead, ceiling, now))?
                 });
                 let Some(to) = to else { continue };
                 (to, speeds.expect(to, now).map(|alone| alone / f64::from(sharing.max(1))))
@@ -1327,6 +1339,9 @@ impl JobManager {
                 times(measured.map(|(_, of_its_preset, _)| of_its_preset.speed())),
                 times(expected)
             );
+            if let Some(left) = adaptive::Left::moved(current, to, sharing, now) {
+                job.runtime.lock().left = Some(left);
+            }
             let Some(old) = guard.take() else { continue };
             let (lookahead, end) = (old.lookahead, old.end);
             let next = old.stop().await;

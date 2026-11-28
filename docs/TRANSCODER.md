@@ -847,6 +847,10 @@ N of them use the slowest that makes 2 N times real time alone.
     job 10 s ahead moves to the preset for the new number, once that number
     has stayed the same for a minute. A job leaves its preset for a faster
     one when it leaves each encode under 1.6 × real time.
+  - *Not back*: a job that left a preset for a faster one beside other
+    software encodes stays off it while as many run, for 5 minutes at most.
+    What encodes make together isn't measured, and the estimate that took
+    the job there would take it back again.
 - A job alone that keeps ahead otherwise stays where it is: it isn't
   restarted because another program takes the processor for a while, nor
   because no preset makes twice real time (4K HDR tone mapped on the CPU,
