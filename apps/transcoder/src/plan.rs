@@ -418,6 +418,9 @@ pub struct VideoOut {
     pub src_height: i64,
     pub width: i64,
     pub height: i64,
+    /// The source's frames a second (24 where it doesn't say), which the
+    /// encoder's reorder delay is counted in ([`reorder_ms`]).
+    pub frame_rate: f64,
     pub bitrate_kbps: u32,
     pub tonemap: Option<Tonemapper>,
     /// What libplacebo does of its work (see [`tonemap_quality`]).
@@ -816,6 +819,7 @@ impl Plan {
                         src_height,
                         width: src_width,
                         height: src_height,
+                        frame_rate: frame_rate(src),
                         bitrate_kbps: 0,
                         tonemap: None,
                         tonemap_quality: TonemapQuality::High,
@@ -1078,6 +1082,7 @@ impl Plan {
                         src_height,
                         width,
                         height,
+                        frame_rate: frame_rate(src),
                         bitrate_kbps: bitrate,
                         tonemap,
                         // Alone on the GPU: a job counts the others (see
@@ -1437,8 +1442,8 @@ impl Plan {
     /// decoding it takes (see [`crate::share::decode_cores`]).
     pub fn source_rate(&self, media: &MediaInfo) -> Option<(u64, f64)> {
         let v = self.video.as_ref().filter(|v| !v.copy)?;
-        let fps = media.stream(v.stream_index).and_then(|s| s.frame_rate).filter(|f| f.is_finite() && *f > 0.0);
-        Some((v.src_width.max(1) as u64 * v.src_height.max(1) as u64, fps.unwrap_or(24.0).min(120.0)))
+        let fps = media.stream(v.stream_index).map_or(24.0, frame_rate);
+        Some((v.src_width.max(1) as u64 * v.src_height.max(1) as u64, fps))
     }
 
     /// What a software encode of this video takes of its computer, besides
@@ -1848,13 +1853,16 @@ impl Plan {
         }
 
         // Main input.
-        if self.throttle {
-            let (rate, burst) = (trim_float(READRATE), (READRATE_BURST_MS / 1000).to_string());
-            a.push_all(["-readrate", &rate, "-readrate_initial_burst", &burst]);
-            if self.catchup {
-                a.push_all(["-readrate_catchup", &trim_float(READRATE_CATCHUP)]);
+        let throttle = |a: &mut Args| {
+            if self.throttle {
+                let (rate, burst) = (trim_float(READRATE), (READRATE_BURST_MS / 1000).to_string());
+                a.push_all(["-readrate", &rate, "-readrate_initial_burst", &burst]);
+                if self.catchup {
+                    a.push_all(["-readrate_catchup", &trim_float(READRATE_CATCHUP)]);
+                }
             }
-        }
+        };
+        throttle(&mut a);
         if seek_ms > 0 {
             // Converted audio starts at the keyframe like the copied video,
             // instead of at the seek point: no hole where an older process's
@@ -1864,12 +1872,16 @@ impl Plan {
             }
             a.push_all(["-ss", &secs(seek_ms)]);
         }
-        if let Some((au, (option, value))) = self.audio.as_ref().and_then(|au| au.partial_decode.map(|d| (au, d))) {
-            a.push_all([&format!("-{option}:{}", au.stream_index), value]);
-        }
+        let partial_decode = |a: &mut Args| {
+            if let Some((au, (option, value))) = self.audio.as_ref().and_then(|au| au.partial_decode.map(|d| (au, d))) {
+                a.push_all([&format!("-{option}:{}", au.stream_index), value]);
+            }
+        };
+        partial_decode(&mut a);
         a.push_all(input_options(ctx.input).iter().copied());
         a.push("-i");
         a.push_os(input_arg(ctx.input));
+        let mut inputs = 1;
 
         // Optional bitmap subtitle file as a second input.
         if let Some(Burn::ImageFile { path, .. }) = &self.burn {
@@ -1879,7 +1891,45 @@ impl Plan {
             a.push_all(MEDIA_INPUT_OPTIONS);
             a.push("-i");
             a.push_os(input_arg(path));
+            inputs += 1;
         }
+
+        // A process that starts past the beginning (another preset, a seek)
+        // starts its sound as one going on through its first keyframe would
+        // have. The segment muxer cuts where that keyframe comes in decoding
+        // order, which the encoder's reorder delay puts that much before it
+        // is shown: the sound up to it went into this segment, and the one
+        // before, made by the process before, ends that much short. Started
+        // with the video, the sound would leave a hole there, which players
+        // stop at. It comes from a reading of the input of its own, that
+        // much earlier, and up to as much before the end, its timestamps
+        // that much below the video's: copied, the packets from there on
+        // (FFmpeg would drop all those under the video's first as before the
+        // seek point); converted, the sound from there on, as the seek's
+        // own trim would leave out the same.
+        let lead_ms = match (&self.video, encoder, &self.audio) {
+            (Some(v), Some(enc), Some(_)) if seek_ms > 0 && !copy && self.segment_format == SegmentFormat::Ts => {
+                reorder_ms(enc, v, ctx.preset).min(seek_ms)
+            }
+            _ => 0,
+        };
+        let audio_input = if lead_ms > 0 {
+            throttle(&mut a);
+            if self.audio.as_ref().is_some_and(|au| !au.copy) {
+                a.push("-noaccurate_seek");
+            }
+            a.push_all(["-ss", &secs(seek_ms - lead_ms), "-itsoffset", &format!("-{}", secs(lead_ms))]);
+            if end < self.segment_count() {
+                a.push_all(["-t", &secs(end_ms - seek_ms)]);
+            }
+            partial_decode(&mut a);
+            a.push_all(input_options(ctx.input).iter().copied());
+            a.push("-i");
+            a.push_os(input_arg(ctx.input));
+            inputs
+        } else {
+            0
+        };
 
         if seek_ms > 0 {
             a.push_all(["-output_ts_offset", &secs(seek_ms)]);
@@ -1914,8 +1964,10 @@ impl Plan {
         // Audio.
         match &self.audio {
             Some(au) => {
-                a.push_all(["-map", &format!("0:{}", au.stream_index)]);
-                if au.copy {
+                a.push_all(["-map", &format!("{audio_input}:{}", au.stream_index)]);
+                if au.copy && lead_ms > 0 {
+                    a.push_all(["-c:a", "copy", "-bsf:a", &format!("noise=drop=lt(pts*tb\\,-{})", secs(lead_ms))]);
+                } else if au.copy {
                     a.push_all(["-c:a", "copy"]);
                     // FFmpeg copies the packets the demuxer's seek landed
                     // on before the seek point too (`-copypriorss` -1): up
@@ -1929,8 +1981,10 @@ impl Plan {
                         a.push_all(["-copypriorss:a", "0"]);
                     }
                 } else {
-                    if let Some(downmix) = au.downmix {
-                        a.push_all(["-af", downmix]);
+                    let trim = (lead_ms > 0).then(|| format!("atrim=start=-{}", secs(lead_ms)));
+                    let filters: Vec<&str> = trim.as_deref().into_iter().chain(au.downmix).collect();
+                    if !filters.is_empty() {
+                        a.push_all(["-af", &filters.join(",")]);
                     }
                     a.push_all([
                         "-c:a",
@@ -2385,6 +2439,27 @@ pub fn sample_aspect_at(num: i64, den: i64) -> Option<(i64, i64)> {
         (n, d) = (n / g, d / g);
     }
     (n != d).then_some((n, d))
+}
+
+/// A video stream's frames a second: 24 where it doesn't say, 120 at most.
+fn frame_rate(src: &MediaStream) -> f64 {
+    src.frame_rate.filter(|f| f.is_finite() && *f > 0.0).unwrap_or(24.0).min(120.0)
+}
+
+/// How long the software encoder holds a frame back between coding and
+/// showing it (ms): x264 and x265 put their B-frames in a pyramid, two
+/// frames deep, but for x264's own `ultrafast`, which codes none (the
+/// automatic preset's keeps them, see [`encoder_args`]). Not counted for
+/// the GPU's encoders: 0.
+fn reorder_ms(enc: &EncoderInfo, v: &VideoOut, preset: Option<&str>) -> i64 {
+    if !matches!(enc.accel, HwAccel::None | HwAccel::Auto) {
+        return 0;
+    }
+    let preset = preset.unwrap_or(if v.preset == AUTO { "veryfast" } else { &v.preset });
+    if v.codec == VideoCodec::H264 && preset == "ultrafast" && v.preset != AUTO {
+        return 0;
+    }
+    (2_000.0 / v.frame_rate).round() as i64
 }
 
 fn encoder_args(enc: &EncoderInfo, v: &VideoOut, preset: Option<&str>) -> Vec<String> {
@@ -3036,6 +3111,45 @@ mod tests {
         for preset in &crate::adaptive::LADDER[1..] {
             assert_eq!(shape(preset), quick, "{preset}");
         }
+    }
+
+    /// A process that starts past the beginning reads its sound from the
+    /// input on its own, the encoder's reorder delay earlier, and up to as
+    /// much before its end: where a process going on through its first
+    /// keyframe would have started that segment's sound.
+    #[test]
+    fn a_process_past_the_beginning_starts_its_sound_as_one_going_on_would() {
+        let mut req = request();
+        req.options.preset = Some(AUTO.into());
+        let film = media(DynamicRange::Sdr, None);
+        let plan = Plan::build(&req, &film, &ffmpeg_with(vec![x264()], vec![]), None).unwrap();
+        // Two frames at 24 a second: 83 ms. Converted, the sound from there
+        // on.
+        let args = args_string(&plan, 3, 6);
+        assert!(args.contains("-noaccurate_seek -ss 11.917 -itsoffset -0.083 -t 12.000 "), "{args}");
+        assert!(args.contains("-map 1:1 ") && args.contains("-af atrim=start=-0.083"), "{args}");
+        assert!(args.contains("-output_ts_offset 12.000") && !args.contains("copypriorss"), "{args}");
+        // Copied, its packets from there on.
+        let mut copied = req.clone();
+        copied.audio = Some(AudioRequest { mode: AudioMode::Copy, ..Default::default() });
+        let plan_copied = Plan::build(&copied, &film, &ffmpeg_with(vec![x264()], vec![]), None).unwrap();
+        let args = args_string(&plan_copied, 3, 6);
+        assert!(args.contains("-ss 11.917 -itsoffset -0.083 ") && !args.contains("-noaccurate_seek"), "{args}");
+        assert!(args.contains("-c:a copy -bsf:a noise=drop=lt(pts*tb\\,-0.083)"), "{args}");
+        assert!(!args.contains("copypriorss"), "{args}");
+        let to_end = args_string(&plan, 3, plan.segment_count());
+        assert!(to_end.contains("-ss 11.917 -itsoffset -0.083 ") && !to_end.contains("-t "), "{to_end}");
+        // From the beginning, the sound starts with the video.
+        assert!(!args_string(&plan, 0, 3).contains("-itsoffset"));
+        // x264's own ultrafast, asked for, holds no frame back.
+        req.options.preset = Some("ultrafast".into());
+        let plan = Plan::build(&req, &film, &ffmpeg_with(vec![x264()], vec![]), None).unwrap();
+        assert!(!args_string(&plan, 3, 6).contains("-itsoffset"));
+        // Nor is it counted for the GPU's encoders.
+        req.options.preset = None;
+        let plan = Plan::build(&req, &film, &ffmpeg_with(vec![nvenc()], vec![]), None).unwrap();
+        let args = args_string(&plan, 3, 6);
+        assert!(args.contains("h264_nvenc") && !args.contains("-itsoffset"), "{args}");
     }
 
     #[test]
@@ -5383,8 +5497,11 @@ mod tests {
         assert!(plan.video.as_ref().unwrap().copy);
     }
 
-    /// Copied sound beside transcoded video starts at the seek point, as the
-    /// video does, not with the packets before it the seek landed on.
+    /// Copied sound beside transcoded video leaves out the packets before
+    /// the seek point the seek landed on: it starts where a process going on
+    /// through would have started the segment's sound, the encoder's reorder
+    /// delay before the video, or with the video for an encoder that holds
+    /// no frame back.
     #[test]
     fn copied_audio_after_a_restart_leaves_out_what_came_before_the_seek() {
         let ff = ffmpeg_with(vec![x264()], vec![]);
@@ -5393,7 +5510,13 @@ mod tests {
         let plan = Plan::build(&req, &media(DynamicRange::Sdr, None), &ff, None).unwrap();
         assert!(plan.audio.as_ref().unwrap().copy && !plan.video.as_ref().unwrap().copy);
         let args = args_string(&plan, 3, 8);
+        assert!(args.contains("-ss 11.917 -itsoffset -0.083"), "{args}");
+        assert!(args.contains("-c:a copy -bsf:a noise=drop=lt(pts*tb\\,-0.083) -map_metadata"), "{args}");
+        req.options.preset = Some("ultrafast".into());
+        let plan = Plan::build(&req, &media(DynamicRange::Sdr, None), &ff, None).unwrap();
+        let args = args_string(&plan, 3, 8);
         assert!(args.contains("-ss 12.000") && args.contains("-c:a copy -copypriorss:a 0 -map_metadata"), "{args}");
+        req.options.preset = None;
         // Nothing to leave out from the start.
         assert!(!args_string(&plan, 0, 8).contains("copypriorss"));
         // A remux keeps the sound from its keyframe, with its video.

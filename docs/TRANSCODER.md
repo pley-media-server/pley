@@ -650,6 +650,19 @@ A segment that exists is served from disk or memory. Otherwise:
   `-output_ts_offset`, `-segment_times` and `-segment_start_number`, so
   timestamps stay on the absolute timeline (`avoid_negative_ts` disabled).
   It stops right before the next segment that already exists.
+- **Sound where a process going on through puts it.** The segment muxer
+  cuts where the keyframe comes in decoding order, which the encoder's
+  reorder delay puts before it is shown (two frames for x264 and x265; none
+  for x264's own `ultrafast`, and not counted for the GPU's encoders): a
+  segment's sound starts that much before its video. A transcode's process
+  that starts past the beginning reads the sound from the input on its own,
+  that much earlier (`-itsoffset`), so its first segment's sound starts
+  where the segment before it, made by another process, ends. Started with
+  the video, it would leave a hole of that much (80 ms at 25 frames a
+  second), which players stop at (hls.js does past 0.1 s). Copied, its
+  packets from there on (the `noise` filter's `drop`, as FFmpeg would drop
+  all those under the video's first); converted, the sound from there on
+  (`atrim`), the encoder's first frame over the last.
 - **Remux seeks** use `-noaccurate_seek`, so converted audio starts at the
   keyframe like the copied video. They land 140 ms past the boundary
   keyframe (at most halfway to the next) where FFmpeg moves B-frame seeks

@@ -511,6 +511,7 @@ mod tests {
             src_height: 2160,
             width: 3840,
             height: 2160,
+            frame_rate: 24.0,
             bitrate_kbps: 20_000,
             tonemap: None,
             tonemap_quality: Default::default(),

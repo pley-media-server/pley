@@ -42,6 +42,9 @@ describes how they are made.
   on Automatic) shows the bitrate it is made at.
 - A transcode moving to another preset or tone mapping as it plays no
   longer, now and then, writes again a segment a player is fetching.
+- A transcode that moves to another preset, bitrate or GPU share as it
+  plays leaves no gap in the sound where its new process takes over, which
+  made the web player stop for a moment.
 
 ## [0.1.18] - 2026-11-27
 

@@ -400,6 +400,7 @@ mod tests {
             src_height: 2160,
             width: if copy { 3840 } else { 1920 },
             height: if copy { 2160 } else { 1080 },
+            frame_rate: 24.0,
             bitrate_kbps: if copy { 0 } else { 8_000 },
             tonemap: None,
             tonemap_quality: Default::default(),

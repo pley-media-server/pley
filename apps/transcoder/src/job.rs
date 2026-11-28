@@ -5177,6 +5177,68 @@ mod tests {
         Some((input, jobs))
     }
 
+    /// The first segment of a process that starts past the beginning (a
+    /// seek, a move to another preset) has its sound start where the one
+    /// before it ends, made by a process going on through: no hole for
+    /// players to stop at, its sound copied or converted. Needs FFmpeg
+    /// (skipped otherwise).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_process_past_the_beginning_leaves_no_hole_in_the_sound() {
+        use pley_transcoder_api::{AudioMode, AudioRequest, TranscodeOptions, VideoRequest};
+        let dir = crate::testing::tempdir();
+        let Some((input, jobs)) = with_sound(dir.path()) else { return };
+        let ask = |start_ms: Option<i64>, mode: AudioMode| JobRequest {
+            input: input.to_string_lossy().into_owned(),
+            video: Some(VideoRequest { mode: VideoMode::Transcode, ..Default::default() }),
+            audio: Some(AudioRequest { mode, ..Default::default() }),
+            segment_seconds: Some(2.0),
+            start_ms,
+            options: TranscodeOptions {
+                throttle: false,
+                in_memory: false,
+                preset: Some("veryfast".into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        // Where a segment's sound starts and ends (s).
+        let sound = |path: &Path| {
+            let out = std::process::Command::new("ffprobe")
+                .args(["-v", "error", "-select_streams", "a", "-show_entries", "packet=pts_time,duration_time"])
+                .args(["-of", "csv=p=0"])
+                .arg(path)
+                .output()
+                .unwrap();
+            let packets: Vec<(f64, f64)> = String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .filter_map(|line| {
+                    let mut fields = line.split(',').map(|f| f.trim().parse::<f64>());
+                    Some((fields.next()?.ok()?, fields.next()?.ok()?))
+                })
+                .collect();
+            let starts = packets.iter().map(|p| p.0).fold(f64::INFINITY, f64::min);
+            let ends = packets.iter().map(|p| p.0 + p.1).fold(f64::NEG_INFINITY, f64::max);
+            (starts, ends)
+        };
+        for mode in [AudioMode::Copy, AudioMode::Transcode] {
+            let through = jobs.create(ask(None, mode)).await.unwrap();
+            let through = jobs.get(&through.id).unwrap();
+            let (_, before_ends) = sound(&jobs.segment(&through, 2).await.unwrap());
+            let started = jobs.create(ask(Some(6_000), mode)).await.unwrap();
+            let started = jobs.get(&started.id).unwrap();
+            let (first_starts, _) = sound(&jobs.segment(&started, 3).await.unwrap());
+            // It was the video's two frames short (80 ms). Copied, the very
+            // next packet; converted, over the last a frame at most, and
+            // the encoder's first, silent (1024 samples at 48 kHz: 21 ms
+            // each), which players drop.
+            let hole = first_starts - before_ends;
+            let (least, most) = if mode == AudioMode::Copy { (-0.001, 0.001) } else { (-0.045, 0.001) };
+            assert!(hole > least && hole < most, "{mode:?}: {before_ends:.3} to {first_starts:.3}");
+            jobs.remove(&through.id).await;
+            jobs.remove(&started.id).await;
+        }
+    }
+
     /// fMP4 segments of 2 s of `input`, its video made as `mode` says and
     /// its sound AAC, made at full speed with x264's `veryfast`.
     fn fmp4_request(input: &Path, mode: VideoMode) -> JobRequest {
