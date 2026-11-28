@@ -1251,11 +1251,6 @@ background mode). It is a port of the Android app's `MusicPlayback`:
   the track before otherwise. **Shuffle** keeps the track playing first
   and plays the rest in a random order; off, the order given comes back
   at the same track.
-- **The sleep timer**: Off, 15, 30, 45, 60 or 90 minutes, or the end of
-  this track (the next one waits, paused). Its menu says what is left
-  ("15 min left"); in its last 30 seconds, "Pausing in 12 s" shows with
-  **Keep listening**, which adds the same time again. It isn't kept
-  between playbacks.
 - A video or Live TV starting pauses the music, which waits where it was;
   music starting closes the video or Live TV playing. Switching profile,
   signing out or opening another server stops the music.
@@ -1269,8 +1264,8 @@ sizes its words and buttons are on lines of their own. Choosing it opens
 Mac (also in the Window menu, ⌥⌘P). Now Playing has the album art (600
 pixels at most), the title, the artist and the album (each opening its
 page), a scrubber with the time played and left (VoiceOver moves it 10
-seconds at a time), Previous, Play/Pause and Next, Shuffle, the sleep
-timer, AirPlay, and Up next, where choosing a track plays it. On **Apple
+seconds at a time), Previous, Play/Pause and Next, Shuffle, AirPlay, and
+Up next, where choosing a track plays it. On **Apple
 TV**, the Now Playing tab holds the same, with Up next as a row of
 cards; the tab comes when music starts (and opens) and goes when the
 queue is cleared. An album's page there opens with the focus on Play.
@@ -1957,10 +1952,9 @@ How it works:
   `localized(_:)`, which reads its catalog's `.lproj` for the language
   shown, whatever the system's language is.
 - **One English, two meanings**, where French or Spanish word them
-  differently (the sleep timer's "Off" against the subtitles', an audio
-  track's "Automatic" against the quality's), get a key of their own with
-  the English as its default value:
-  `localized(keyed: LocalizedStringResource("sleepTimer.off", defaultValue: "Off"))`.
+  differently (an audio track's "Automatic" against the quality's), get a
+  key of their own with the English as its default value:
+  `localized(keyed: LocalizedStringResource("audio.automatic", defaultValue: "Automatic (\(name))"))`.
 - **What stays as it is**: what the server sends (titles, names, error
   messages), what people type, codec and format names (HEVC, Dolby Vision,
   4K, 5.1), and Pley. Words with none of these in them, such as a number
@@ -2185,12 +2179,11 @@ Music is a test of its own (`testMusic`): the album's Play starts the
 first track (the mini player on iPhone and iPad, the Now Playing tab on
 Apple TV), the track playing is marked, and the dashboard shows its
 session; Next plays the second, whose session takes the first's place;
-Now Playing turns Shuffle on and the sleep timer to 15 minutes ("15 min
-left"); a music playlist of the artist's tracks (made from Add to
-playlist on iPhone and iPad, through the server on Apple TV) plays from
-its second entry, and Pause (the remote's Play/Pause on Apple TV) pauses
-it. The playlist is deleted afterwards, and signing out ends the
-session.
+Now Playing turns Shuffle on; a music playlist of the artist's tracks
+(made from Add to playlist on iPhone and iPad, through the server on
+Apple TV) plays from its second entry, and Pause (the remote's
+Play/Pause on Apple TV) pauses it. The playlist is deleted afterwards,
+and signing out ends the session.
 
 Downloads are a test of their own on iPhone and iPad (`testDownloads`):
 the H.264 MP4's Download turns into Downloaded within 90 seconds; Me →
@@ -2359,7 +2352,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, Live TV's lists, guide and favorites (`LiveTvRepository`), requests' summary, its polling and the news told once (`RequestsRepository`), the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data, the language picked on the device and the one shown last), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
-| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, Live TV (`LivePlayback`, with the `AVLiveEngine` behind a protocol), music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol) and its sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
+| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, Live TV (`LivePlayback`, with the `AVLiveEngine` behind a protocol), music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
 | `PleyDownloads` | Downloads (iPhone, iPad and Mac): `Downloads` (the screens' `DownloadsService` and the player's `LocalMedia`), `DownloadStore` (the folders and `index.json`), `DownloadPlanner` (the rules), `DownloadRunner` (one download at a time, conversions, pieces), `PieceTransfer` (the background `URLSession`) and `NetworkGate` (Wi-Fi or mobile data, from `NWPathMonitor`) |
 | `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Find Subtitles…, Speed, Chapters, Details), Picture in Picture's keeper (`PictureInPictureKeeper`), Live TV's video (`LiveVideoSurface`, an `AVPlayerLayer`) and its Details (`LiveDetails`), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
 | `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), Live TV (`LiveTvModel`, `LivePlayerModel`, `ChannelPaging`, and `LiveTvRules` and `GuideLayout`, the Android app's rules), Find Subtitles… (`SubtitleSearchModel`), requests (`DiscoverModel`, `DiscoverResultsModel`, `DiscoverTitleModel`, `RequestsListModel`, the cards' words in `RequestCards`, the actions and Approve… in `RequestActions`, and `RequestRules`, the Android app's), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`), smart filters in words (`SmartFilter`, the Android app's), the remote (`RemoteModel`), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`), Apple TV's start (`StartGate`) and its Top Shelf row (`TopShelfWriter`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |

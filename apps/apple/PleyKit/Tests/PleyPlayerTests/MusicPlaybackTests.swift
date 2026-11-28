@@ -262,33 +262,6 @@ struct MusicPlaybackTests {
         #expect(rig.music.state.index == 0)
     }
 
-    @Test func theSleepTimerAtTheEndOfATrackHoldsTheNextOne() async throws {
-        let rig = try await MusicRig()
-        defer { rig.server.stop() }
-        rig.music.play(tracks: rig.tracks)
-        try await rig.playing(loads: 1)
-        rig.music.setSleep(.endOfItem)
-        #expect(rig.music.state.sleep.choice == .endOfItem)
-        rig.output.emit(.ended)
-        try await until("the next track") { rig.output.loads.count == 2 }
-        #expect(!rig.output.loads[1].play)
-        #expect(rig.music.state.track?.id == 303)
-        #expect(rig.music.state.sleep == SleepState())
-        #expect(!rig.music.state.playing)
-    }
-
-    @Test func aTimerOfMinutesPauses() async throws {
-        let rig = try await MusicRig()
-        defer { rig.server.stop() }
-        rig.music.play(tracks: rig.tracks)
-        try await rig.playing(loads: 1)
-        rig.music.setSleep(.minutes(15))
-        #expect(rig.music.state.sleep.minutesLeft == 15)
-        rig.clock.advance(ms: 15 * 60_000)
-        rig.music.setSleep(.minutes(15))
-        #expect(rig.music.state.sleep.minutesLeft == 15)
-    }
-
     @Test func stopEndsTheSessionAndForgetsTheQueue() async throws {
         let rig = try await MusicRig()
         defer { rig.server.stop() }

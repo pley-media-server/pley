@@ -91,9 +91,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Music: Play and Shuffle on albums, artists and music playlists, a track
   plays its album from there, and it plays on in the background and with
   the screen locked. A mini player and Now Playing (a window on the Mac,
-  a tab on Apple TV) with Up next, Shuffle, a sleep timer and AirPlay; the
-  lock screen, Control Center, headphones and the Mac's media keys play,
-  pause and skip music and videos.
+  a tab on Apple TV) with Up next, Shuffle and AirPlay; the lock screen,
+  Control Center, headphones and the Mac's media keys play, pause and
+  skip music and videos.
 - Download movies, episodes and whole seasons on iPhone, iPad and Mac to
   watch without your server: as they are, or smaller (Settings →
   Downloads), in the background, on Wi-Fi unless you allow mobile data.

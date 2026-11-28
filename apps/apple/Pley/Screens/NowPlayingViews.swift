@@ -150,9 +150,9 @@ private struct MusicProgressLine: View {
 
 /// Now Playing (docs/APPLE.md, Music): the album art (600 px at most), the
 /// title with links to the artist and the album, a scrubber with the time
-/// played and left, Previous, Play/Pause and Next, Shuffle, the sleep
-/// timer, AirPlay, and Up next (a tap plays that track). A sheet on iPhone
-/// and iPad, a window of its own on the Mac.
+/// played and left, Previous, Play/Pause and Next, Shuffle, AirPlay, and
+/// Up next (a tap plays that track). A sheet on iPhone and iPad, a window
+/// of its own on the Mac.
 struct NowPlayingView: View {
     let app: AppModel
     @ObservedObject var music: MusicPlayback
@@ -287,29 +287,17 @@ struct NowPlayingView: View {
         .foregroundStyle(.primary)
     }
 
-    /// Shuffle, the sleep timer and AirPlay; under each other when the text is large.
+    /// Shuffle and AirPlay; under each other when the text is large.
     private func extras(_ page: NowPlayingModel) -> some View {
         let stack = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12))
             : AnyLayout(HStackLayout(spacing: 20))
-        return VStack(spacing: 10) {
-            stack {
-                Toggle(isOn: Binding(get: { page.shuffle }, set: { music.setShuffle($0) })) {
-                    Label("Shuffle", systemImage: "shuffle")
-                }
-                .toggleStyle(.button)
-                .accessibilityIdentifier("music.shuffle")
-                SleepMenu(music: music, page: page)
-                RoutePicker(video: false, id: "music.airplay")
+        return stack {
+            Toggle(isOn: Binding(get: { page.shuffle }, set: { music.setShuffle($0) })) {
+                Label("Shuffle", systemImage: "shuffle")
             }
-            if let notice = page.sleepNotice {
-                HStack(spacing: 12) {
-                    Text(notice).monospacedDigit()
-                    Button("Keep listening") { music.keepListening() }
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("music.keepListening")
-                }
-                .accessibilityElement(children: .contain)
-            }
+            .toggleStyle(.button)
+            .accessibilityIdentifier("music.shuffle")
+            RoutePicker(video: false, id: "music.airplay")
         }
     }
 
@@ -396,30 +384,6 @@ private struct Scrubber: View {
             .foregroundStyle(.secondary)
             .accessibilityHidden(true)
         }
-    }
-}
-
-/// The sleep timer: Off, 15 to 90 minutes, or the end of this track, with
-/// what is left beside it.
-struct SleepMenu: View {
-    let music: MusicPlayback
-    let page: NowPlayingModel
-
-    var body: some View {
-        Menu {
-            Picker("Sleep Timer", selection: Binding(get: { page.sleep }, set: { music.setSleep($0) })) {
-                ForEach(SleepChoice.all) { choice in
-                    Text(choice.label).tag(choice)
-                }
-            }
-        } label: {
-            Label(page.sleepSummary ?? localized("Sleep Timer"), systemImage: page.sleep == .off ? "moon" : "moon.fill")
-                .monospacedDigit()
-        }
-        .accessibilityLabel("Sleep timer")
-        .accessibilityValue(page.sleepSummary
-                            ?? localized(keyed: LocalizedStringResource("sleepTimer.off", defaultValue: "Off")))
-        .accessibilityIdentifier("music.sleep")
     }
 }
 

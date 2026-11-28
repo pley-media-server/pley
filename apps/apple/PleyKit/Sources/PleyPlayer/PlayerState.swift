@@ -237,7 +237,7 @@ enum PlayerTexts {
     static var automaticHint: String { localized("Dynamically adjust to conditions") }
     static var lastEpisode: String { localized("This is the last episode") }
     static var nothingNext: String { localized("Nothing plays next") }
-    /// The Subtitles menu's Off (Spanish "Desactivados": los subtítulos), not the sleep timer's.
+    /// The Subtitles menu's Off (Spanish "Desactivados": los subtítulos).
     static var subtitlesOff: String {
         localized(keyed: LocalizedStringResource("subtitles.off", defaultValue: "Off",
                                                  bundle: .atURL(Bundle.module.bundleURL)))

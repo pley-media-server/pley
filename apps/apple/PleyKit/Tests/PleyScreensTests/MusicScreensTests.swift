@@ -166,8 +166,6 @@ private func musicApp(_ server: FixtureServer, output: QuietMusicOutput, system:
         #expect(page.upNext.last?.byline == "Guest Player · All Melody")
         #expect(page.upNext.first?.duration == "4:05")
         #expect(page.albumId == 302 && page.artistId == 301)
-        app.music.setSleep(.minutes(15))
-        #expect(NowPlayingModel(app.music.state).sleepSummary == "15 min left")
         #expect(NowPlayingModel.left(65_000, 190_000) == "−2:05")
         #expect(NowPlayingModel.elapsed(65_000) == "1:05")
     }

@@ -157,10 +157,9 @@ final class ScreensTests: XCTestCase {
     }
 
     /// Music: an album played from its page opens the Now Playing tab (the
-    /// session on the dashboard), Next (the first session gone), Shuffle and
-    /// a 15-minute sleep timer, and a music playlist played from its second
-    /// entry, then paused with the remote's Play/Pause; the playlist is
-    /// deleted afterwards.
+    /// session on the dashboard), Next (the first session gone), Shuffle, and
+    /// a music playlist played from its second entry, then paused with the
+    /// remote's Play/Pause; the playlist is deleted afterwards.
     func testMusic() async throws {
         let app = XCUIApplication()
         app.launch()

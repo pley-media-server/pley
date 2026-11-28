@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Apple TV's Now Playing tab, there while music has a queue (docs/APPLE.md,
 /// Music): the album art, the title, artist and album, how far the track is,
-/// Previous, Play/Pause and Next, Shuffle and the sleep timer, then Up next
+/// Previous, Play/Pause and Next, Shuffle, then Up next
 /// as a row of cards (Select plays that track). The remote's Play/Pause
 /// plays and pauses the music from any tab; AirPlay is the system's.
 struct NowPlayingScreen: View {
@@ -92,33 +92,13 @@ struct NowPlayingScreen: View {
     }
 
     private func extras(_ page: NowPlayingModel) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(spacing: 30) {
-                Button { music.setShuffle(!page.shuffle) } label: {
-                    Label("Shuffle", systemImage: "shuffle")
-                }
-                .accessibilityValue(page.shuffle ? localized("On") : localized("Off"))
-                .accessibilityAddTraits(page.shuffle ? .isSelected : [])
-                .accessibilityIdentifier("music.shuffle")
-                .background(page.shuffle ? Color.white.opacity(0.18) : .clear, in: Capsule())
-                let choices = SleepChoice.all
-                ChoiceButton(title: localized("Sleep Timer"), value: page.sleepSummary ?? localized("Off"),
-                             symbol: page.sleep == .off ? "moon" : "moon.fill",
-                             text: page.sleepSummary ?? localized("Sleep Timer"),
-                             choices: choices.indices.map { Choice(label: choices[$0].label, tag: $0) },
-                             selected: choices.firstIndex(of: page.sleep)) { picked in
-                    music.setSleep(picked.map { choices[$0] } ?? .off)
-                }
-                .accessibilityIdentifier("music.sleep")
-            }
-            if let notice = page.sleepNotice {
-                HStack(spacing: 24) {
-                    Text(notice).monospacedDigit()
-                    Button("Keep listening") { music.keepListening() }
-                        .accessibilityIdentifier("music.keepListening")
-                }
-            }
+        Button { music.setShuffle(!page.shuffle) } label: {
+            Label("Shuffle", systemImage: "shuffle")
         }
+        .accessibilityValue(page.shuffle ? localized("On") : localized("Off"))
+        .accessibilityAddTraits(page.shuffle ? .isSelected : [])
+        .accessibilityIdentifier("music.shuffle")
+        .background(page.shuffle ? Color.white.opacity(0.18) : .clear, in: Capsule())
     }
 
     @ViewBuilder private func upNext(_ page: NowPlayingModel) -> some View {

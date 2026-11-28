@@ -32,9 +32,8 @@ extension Admin {
 }
 
 /// Apple TV's music steps: an album played from its page, the Now Playing
-/// tab, Next, Shuffle and the sleep timer, and a music playlist played from
-/// an entry, then paused with the remote's Play/Pause; each checked on the
-/// server.
+/// tab, Next, Shuffle, and a music playlist played from an entry, then
+/// paused with the remote's Play/Pause; each checked on the server.
 extension Walk {
     static let musicPlaylist = "UI Music"
 
@@ -72,13 +71,6 @@ extension Walk {
 
         select(button("music.shuffle"), "Shuffle", first: [.down, .left])
         XCTAssertTrue(valueBecomes(button("music.shuffle"), "On"), "Shuffle is on")
-        select(button("music.sleep"), "the sleep timer", first: [.right, .down])
-        select(menuItem("15 minutes"), "15 minutes", first: [.down])
-        XCTAssertTrue(valueBecomes(button("music.sleep"), "15 min left"), "the sleep timer says 15 min left")
-        shot("31-now-playing-sleep")
-        select(button("music.sleep"), "the sleep timer", first: [.right, .down])
-        select(menuItem("Off"), "Off", first: [.up])
-        XCTAssertTrue(valueBecomes(button("music.sleep"), "Off"), "the sleep timer is off")
 
         // A music playlist of the album's tracks: its second entry plays.
         let tracks = await Admin.tracks(music: music, artist: "Test Artist")
