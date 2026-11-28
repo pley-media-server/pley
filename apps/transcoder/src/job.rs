@@ -924,7 +924,11 @@ impl JobManager {
         Metrics::inc(&self.metrics.jobs_created);
 
         // Start producing right away so the first segment request is fast.
-        if let Err(err) = self.ensure_producing(&job, start_segment).await {
+        // Its player asks for that segment next, and waits for it.
+        let waiting = Waiting::register(&job, start_segment);
+        let started = self.ensure_producing(&job, start_segment).await;
+        drop(waiting);
+        if let Err(err) = started {
             if matches!(err, ApiError::Busy(_)) {
                 self.remove(&id).await;
                 return Err(err);
@@ -1734,9 +1738,12 @@ impl JobManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         // A player waits for its first segment (Play, a seek), or it starts
-        // ahead of the player (another preset): processes far ahead of their
-        // players pause only for the first (see `Job::yields`).
-        let awaited = job.lead_secs(start) <= 0.0;
+        // ahead of the player (another preset, bitrate or share of the GPU):
+        // processes far ahead of their players pause only for the first (see
+        // `Job::yields`). Asked by the request itself: early on, a player
+        // has every segment made and a hand-over still keeps it waiting for
+        // none.
+        let awaited = job.is_awaited(|m| m == start);
         let starting = match awaited {
             true => self.background.start_waited(),
             false => self.background.start(),
@@ -3890,6 +3897,7 @@ mod tests {
         watch.abort();
         assert!(seen.load(Relaxed), "held while the job started");
         assert!(waited.load(Relaxed), "its player waited");
+        assert!(job.runtime.lock().start_cost.is_some(), "what a restart for a waiting player costs");
         let deadline = Instant::now() + Duration::from_secs(5);
         while background.starting() && Instant::now() < deadline {
             tokio::time::sleep(Duration::from_millis(10)).await;
