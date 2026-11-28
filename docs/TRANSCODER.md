@@ -915,9 +915,12 @@ pley-ffmpeg on arm64 ([deploy/ffmpeg](../deploy/ffmpeg/README.md#rockchip))
 or another FFmpeg with its Rockchip patch; FFmpeg's own `h264_rkmpp` fails
 the start-up test.
 
-- **Encoding.** `h264_rkmpp` and `hevc_rkmpp`, 8-bit only (kept HDR goes to
-  x265), with `-flags:v +low_delay` so forced keyframes land on segment
-  boundaries. Tested at start-up into MPEG-TS and fMP4.
+- **Encoding.** `h264_rkmpp` and `hevc_rkmpp`, 8-bit only, with
+  `-flags:v +low_delay` so forced keyframes land on segment boundaries.
+  Tested at start-up into MPEG-TS and fMP4. The server has HDR tone mapped
+  into `h264_rkmpp` for playback rather than kept
+  ([API.md](API.md#hdr-transcodes)); a download that keeps it goes to
+  x265.
 - **Zero-copy.** SDR without burned-in subtitles stays on the chip:
   `-init_hw_device rkmpp=rk -hwaccel rkmpp -hwaccel_device rk
   -hwaccel_output_format drm_prime`, then

@@ -253,6 +253,8 @@
     "fitDecoding": "Turned on: {{accel}} decodes on the GPU.",
     "presetHevc": "{{name}} encodes H.264 here: this applies to HEVC, and when software encodes instead.",
     "presetHdr": "{{name}} encodes here: this applies to transcodes that keep HDR, and when software encodes instead.",
+    "presetHdrDownloads": "{{name}} encodes here: this applies to downloads that keep HDR, and when software encodes instead.",
+    "hdrToSdr": "{{name}} encodes no 10-bit HEVC here: HDR is tone mapped to SDR for playback, HDR screens included, rather than kept by the far slower software encoder. Downloads keep it.",
     "presetSoftware": "{{name}} encodes here: this applies only when software encodes instead.",
     "newerTranscoder": "needs a newer transcoder",
     "notAvailableHere": "not available here",

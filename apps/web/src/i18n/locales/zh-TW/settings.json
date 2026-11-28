@@ -252,6 +252,8 @@
     "fitDecoding": "已開啟：{{accel}} 在 GPU 上解碼。",
     "presetHevc": "{{name}} 在此裝置上編碼 H.264：此設定適用於 HEVC，以及改用軟體編碼的情況。",
     "presetHdr": "{{name}} 在此裝置上編碼：此設定適用於保留 HDR 的轉碼，以及改用軟體編碼的情況。",
+    "presetHdrDownloads": "{{name}} 在此裝置上編碼：此設定適用於保留 HDR 的下載，以及改用軟體編碼的情況。",
+    "hdrToSdr": "{{name}} 在此裝置上無法編碼 10 位元 HEVC：播放時 HDR 會色調對映為 SDR（HDR 螢幕也是如此），而不是交給慢得多的軟體編碼器保留。下載仍保留 HDR。",
     "presetSoftware": "{{name}} 在此裝置上編碼：此設定僅在改用軟體編碼時適用。",
     "newerTranscoder": "需要更新版本的轉碼器",
     "notAvailableHere": "此處不可用",

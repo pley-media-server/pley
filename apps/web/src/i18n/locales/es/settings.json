@@ -254,6 +254,8 @@
     "fitDecoding": "Activada: {{accel}} decodifica en la GPU.",
     "presetHevc": "{{name}} codifica H.264 aquí: esto se aplica a HEVC y cuando el software codifica en su lugar.",
     "presetHdr": "{{name}} codifica aquí: esto se aplica a las transcodificaciones que conservan el HDR y cuando el software codifica en su lugar.",
+    "presetHdrDownloads": "{{name}} codifica aquí: esto se aplica a las descargas que conservan el HDR y cuando el software codifica en su lugar.",
+    "hdrToSdr": "{{name}} no codifica HEVC de 10 bits aquí: al reproducir, el HDR se convierte a SDR, también en pantallas HDR, en lugar de conservarlo con el codificador por software, mucho más lento. Las descargas lo conservan.",
     "presetSoftware": "{{name}} codifica aquí: esto solo se aplica cuando el software codifica en su lugar.",
     "newerTranscoder": "necesita un transcodificador más reciente",
     "notAvailableHere": "no disponible aquí",

@@ -254,6 +254,8 @@
     "fitDecoding": "Activé : {{accel}} décode sur le GPU.",
     "presetHevc": "{{name}} encode le H.264 ici : ce réglage s’applique au HEVC, et quand le logiciel encode à la place.",
     "presetHdr": "{{name}} encode ici : ce réglage s’applique aux transcodages qui gardent le HDR, et quand le logiciel encode à la place.",
+    "presetHdrDownloads": "{{name}} encode ici : ce réglage s’applique aux téléchargements qui gardent le HDR, et quand le logiciel encode à la place.",
+    "hdrToSdr": "{{name}} n’encode pas le HEVC 10 bits ici : à la lecture, le HDR est converti en SDR, écrans HDR compris, plutôt que gardé par l’encodeur logiciel, bien plus lent. Les téléchargements le gardent.",
     "presetSoftware": "{{name}} encode ici : ce réglage ne s’applique que quand le logiciel encode à la place.",
     "newerTranscoder": "nécessite un transcodeur plus récent",
     "notAvailableHere": "indisponible ici",

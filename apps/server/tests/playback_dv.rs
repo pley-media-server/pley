@@ -24,9 +24,9 @@ use parking_lot::Mutex;
 use pley::catalog::FileRow;
 use pley::playback::{Decision, Delivery, Method, PlaybackRequest, decide, video_range_shown};
 use pley_transcoder_api::{
-    API_VERSION, Capabilities, DolbyVisionLayer, DolbyVisionMode, DynamicRange, ErrorBody, JobCreated, JobRequest,
-    JobStatus, Limits, MediaInfo, MediaStream, OutputRange, StreamKind, TranscoderInfo, VideoCodec, VideoMode,
-    VideoPlan,
+    API_VERSION, Capabilities, DolbyVisionLayer, DolbyVisionMode, DynamicRange, EncoderInfo, ErrorBody, HwAccel,
+    JobCreated, JobRequest, JobStatus, Limits, MediaInfo, MediaStream, OutputRange, StreamKind, TranscoderInfo,
+    VideoCodec, VideoMode, VideoPlan,
 };
 use serde_json::{Value, json};
 
@@ -653,6 +653,8 @@ struct Fake {
     masters: Arc<AtomicBool>,
     /// Answers `hdr_transcode` in its capabilities.
     hdr: Arc<AtomicBool>,
+    /// Its working encoders (none said: what the server takes for software).
+    encoders: Arc<Mutex<Vec<EncoderInfo>>>,
     created: Arc<Mutex<Vec<JobRequest>>>,
 }
 
@@ -682,10 +684,11 @@ fn job_status(req: &JobRequest) -> JobStatus {
     }
 }
 
-async fn start_fake(masters: bool, hdr: bool) -> (Fake, String) {
+async fn start_fake(masters: bool, hdr: bool, encoders: Vec<EncoderInfo>) -> (Fake, String) {
     let fake = Fake::default();
     fake.masters.store(masters, Ordering::SeqCst);
     fake.hdr.store(hdr, Ordering::SeqCst);
+    *fake.encoders.lock() = encoders;
     let app = Router::new()
         .route(
             "/v1/info",
@@ -703,6 +706,7 @@ async fn start_fake(masters: bool, hdr: bool) -> (Fake, String) {
                         ffprobe_available: true,
                         hls_master_playlist: fake.masters.load(Ordering::SeqCst),
                         hdr_transcode: fake.hdr.load(Ordering::SeqCst),
+                        encoders: fake.encoders.lock().clone(),
                         hls_variants: true,
                         ..Default::default()
                     },
@@ -783,7 +787,12 @@ async fn world(masters: bool) -> (TestApp, Fake, String, i64) {
 
 /// [`world`] with a stand-in that keeps HDR in transcodes or not.
 async fn world_with(masters: bool, hdr: bool) -> (TestApp, Fake, String, i64) {
-    let (fake, url) = start_fake(masters, hdr).await;
+    world_encoding(masters, hdr, Vec::new()).await
+}
+
+/// [`world_with`] with a stand-in that names its encoders.
+async fn world_encoding(masters: bool, hdr: bool, encoders: Vec<EncoderInfo>) -> (TestApp, Fake, String, i64) {
+    let (fake, url) = start_fake(masters, hdr, encoders).await;
     let app = TestApp::with_config(|c| {
         c.transcoder_url = Some(url);
         c.transcoder_token = Some(TOKEN.into());
@@ -894,14 +903,32 @@ async fn older_transcoders_get_requests_as_before() {
 
 /// The profile 7 film converted for the Google TV Streamer: HEVC Main 10 in
 /// HDR10 from a transcoder that keeps HDR, H.264 in SDR from one that
-/// doesn't.
+/// doesn't, or whose GPU encodes H.264 and only x265 HEVC Main 10 (a
+/// Rockchip board's).
 #[tokio::test]
 async fn transcodes_keep_hdr_where_the_transcoder_can() {
-    for (hdr, codec, range, video_out) in [
-        (true, VideoCodec::Hevc, OutputRange::Hdr10, "HEVC 0×0 HDR10"),
-        (false, VideoCodec::H264, OutputRange::Sdr, "H.264 0×0"),
+    let encoder = |name: &str, codec, accel, main10| EncoderInfo {
+        name: name.into(),
+        codec,
+        hardware: accel != HwAccel::None,
+        accel,
+        main10,
+        low_power: false,
+    };
+    let rockchip = vec![
+        encoder("h264_rkmpp", VideoCodec::H264, HwAccel::Rkmpp, false),
+        encoder("hevc_rkmpp", VideoCodec::Hevc, HwAccel::Rkmpp, false),
+        encoder("libx264", VideoCodec::H264, HwAccel::None, false),
+        encoder("libx265", VideoCodec::Hevc, HwAccel::None, true),
+    ];
+    let cpu = rockchip.iter().filter(|e| !e.hardware).cloned().collect();
+    for (hdr, encoders, codec, range, video_out) in [
+        (true, Vec::new(), VideoCodec::Hevc, OutputRange::Hdr10, "HEVC 0×0 HDR10"),
+        (true, cpu, VideoCodec::Hevc, OutputRange::Hdr10, "HEVC 0×0 HDR10"),
+        (false, Vec::new(), VideoCodec::H264, OutputRange::Sdr, "H.264 0×0"),
+        (true, rockchip, VideoCodec::H264, OutputRange::Sdr, "H.264 0×0"),
     ] {
-        let (app, fake, admin, movie) = world_with(true, hdr).await;
+        let (app, fake, admin, movie) = world_encoding(true, hdr, encoders).await;
         let body = json!({"item_id": movie, "caps": google_tv_streamer(), "mode": "transcode"});
         let started = app.post("/api/playback", &admin, body).await;
         assert_eq!(started.body["method"], json!("transcode"), "{:?}", started.body);

@@ -2936,7 +2936,12 @@ doesn't show) stays HDR when:
 - the screen shows HDR10 (`hdr10` or `hdr10plus` in `hdr_types`) or HLG
   (`hlg`);
 - the server's transcoder can (`hdr_transcode` in its capabilities: a
-  10-bit HEVC encoder works);
+  10-bit HEVC encoder works), on a GPU where one encodes: with the
+  hardware acceleration chosen, HEVC Main 10 is a GPU's, or no GPU
+  encodes at all. Where a GPU encodes H.264 and only x265 encodes HEVC
+  Main 10 (Rockchip's chips, older graphics), HDR is tone mapped into the
+  GPU's H.264, which keeps up where x265 fell far behind. A download keeps
+  HDR whatever encodes it;
 - no picture subtitles are burned in.
 
 The video is then HEVC Main 10, no bigger than the largest such decoder
@@ -5213,6 +5218,9 @@ interface SystemInfo {
                                     // decoder where an NVIDIA card encodes, VideoToolbox's on a Mac)
       software: ("h264" | "hevc" | "hdr")[]; // what it leaves to software encoders, where one works
                                     // ("hdr": HEVC Main 10, for transcodes that keep HDR)
+      hdr_to_sdr: boolean;          // HDR converted for playback is tone mapped with it, though the
+                                    // transcoder could keep it: only software encodes HEVC Main 10,
+                                    // and a GPU encodes H.264 (HDR transcodes); downloads keep it
       tonemappers: string[] | null; // the tone mappers that work with it, where the transcoder tried them
                                     // (a VAAPI encoder's, whose frames reached it, and zscale);
                                     // null: every one in `tonemapping`

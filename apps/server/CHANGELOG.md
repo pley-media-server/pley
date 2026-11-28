@@ -16,6 +16,12 @@ describes how they are made.
 - Skip Intro and Skip Credits show on their own for 8 seconds as the intro
   or credits begin, then only with the player's controls, so they don't sit
   over the picture the whole time.
+- HDR video converted for playback stays HDR only where a GPU encodes
+  10-bit HEVC, or where no GPU encodes at all. A GPU that encodes H.264 but
+  not 10-bit HEVC (Rockchip's chips, older Intel and NVIDIA graphics) has
+  it tone mapped to SDR, which keeps up, rather than encoded on the CPU,
+  which fell far behind. Settings → Transcoder says so; downloads still
+  keep HDR.
 
 ### Fixed
 

@@ -214,10 +214,23 @@ export function presetNote(accel: HwAccel, system: SystemInfo | undefined): stri
   const encodes = accelInUse(accel, system);
   if (!encodes) return null;
   const name = accelName(encodes);
-  const software = knownTranscoder(system)?.with_accel?.[accel]?.software ?? [];
+  const use = knownTranscoder(system)?.with_accel?.[accel];
+  const software = use?.software ?? [];
   if (software.includes("hevc")) return t("choices.presetHevc", { ns: "settings", name });
-  if (software.includes("hdr")) return t("choices.presetHdr", { ns: "settings", name });
+  // Playback tone maps HDR rather than keep it in software: downloads still do.
+  if (software.includes("hdr")) return t(use?.hdr_to_sdr ? "choices.presetHdrDownloads" : "choices.presetHdr", { ns: "settings", name });
   return t("choices.presetSoftware", { ns: "settings", name });
+}
+
+/**
+ * What becomes of HDR with `accel` chosen where the transcoder could keep
+ * it, but its GPU encodes H.264 and no 10-bit HEVC: playback tone maps it
+ * (the server's `keeps_hdr`). `null` otherwise.
+ */
+export function hdrNote(accel: HwAccel, system: SystemInfo | undefined): string | null {
+  const encodes = accelInUse(accel, system);
+  if (!encodes || !knownTranscoder(system)?.with_accel?.[accel]?.hdr_to_sdr) return null;
+  return t("choices.hdrToSdr", { ns: "settings", name: accelName(encodes) });
 }
 
 /**

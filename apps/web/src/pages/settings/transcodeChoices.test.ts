@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HwAccel, SystemInfo, ToneMapping } from "@/api/types";
-import { decodingReason, fitToAccel, presetNote, tonemapAccelReason, tonemapChoices, tonemapGoesWith } from "./transcodeChoices";
+import { decodingReason, fitToAccel, hdrNote, presetNote, tonemapAccelReason, tonemapChoices, tonemapGoesWith } from "./transcodeChoices";
 
 /** Pley on Windows with an NVIDIA card whose NVENC encodes HEVC, but not in 10 bits. */
 const nvidia = {
@@ -81,5 +81,30 @@ describe("what goes with the hardware acceleration chosen", () => {
   it("says what the software preset applies to", () => {
     expect(presetNote("nvenc", nvidia)).toBe("NVIDIA NVENC encodes here: this applies to transcodes that keep HDR, and when software encodes instead.");
     expect(presetNote("none", nvidia)).toBeNull();
+  });
+
+  it("says that playback tone maps HDR where the GPU encodes no 10-bit HEVC", () => {
+    // A server before hdr_to_sdr says nothing of it.
+    expect(hdrNote("nvenc", nvidia)).toBeNull();
+    const rockchip = {
+      os: "linux",
+      transcoder: {
+        ...nvidia.transcoder,
+        encoders: ["h264_rkmpp", "hevc_rkmpp", "libx264", "libx265"],
+        accels: ["rkmpp"],
+        with_accel: {
+          auto: { hardware_decoding: true, software: ["hdr"], hdr_to_sdr: true },
+          rkmpp: { hardware_decoding: true, software: ["hdr"], hdr_to_sdr: true },
+          none: { hardware_decoding: false, software: ["h264", "hevc", "hdr"], hdr_to_sdr: false },
+        },
+      },
+    } as unknown as SystemInfo;
+    for (const accel of ["auto", "rkmpp"] as HwAccel[]) {
+      expect(hdrNote(accel, rockchip)).toBe(
+        "Rockchip MPP encodes no 10-bit HEVC here: HDR is tone mapped to SDR for playback, HDR screens included, rather than kept by the far slower software encoder. Downloads keep it.",
+      );
+      expect(presetNote(accel, rockchip)).toBe("Rockchip MPP encodes here: this applies to downloads that keep HDR, and when software encodes instead.");
+    }
+    expect(hdrNote("none", rockchip)).toBeNull();
   });
 });

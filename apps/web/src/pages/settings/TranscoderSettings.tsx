@@ -18,6 +18,7 @@ import {
   choiceLabel,
   decodingReason,
   fitToAccel,
+  hdrNote,
   knownTranscoder,
   memoryReason,
   presetNote,
@@ -166,6 +167,7 @@ export function TranscoderSettings() {
         const accels = accelChoices(saved?.hwaccel ?? form.hwaccel, system.data);
         const accelProblem = accelReason(form.hwaccel, system.data);
         const preset = presetNote(form.hwaccel, system.data);
+        const hdr = hdrNote(form.hwaccel, system.data);
         const tonemaps = tonemapChoices(system.data, form.hwaccel);
         const tonemapProblem = tonemapReason(form.tonemapping, system.data);
         // A combination saved before: the transcoder doesn't use Vulkan then.
@@ -296,6 +298,7 @@ export function TranscoderSettings() {
                 ) : fittedNote("tonemapping") ? (
                   <Note>{fittedNote("tonemapping")}</Note>
                 ) : null}
+                {hdr ? <Note>{hdr}</Note> : null}
               </Row>
             </Group>
 
