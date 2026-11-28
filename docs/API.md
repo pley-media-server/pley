@@ -298,6 +298,7 @@ interface ItemSummary {
                                     // interview | scene | short | other
   media?: MediaSummary;             // only in library listings
   authors?: string[];               // audiobook: its writers, for the line under its cover
+  spoilers_hidden?: true;           // a show labeled `no-spoilers`, its seasons and episodes (see Items)
 }
 
 interface MediaSummary {            // a movie's best file, or a show's episodes together
@@ -1828,6 +1829,16 @@ user's watch state and their access are unchanged.
   Empty for other kinds.
 - **`images`**: long-lived cache headers. Falls back to the parent's
   artwork (season → show); `404` if none.
+- **Spoilers.** A show labeled `no-spoilers` (whatever its case; on a
+  season or episode, for that alone) hides what its episodes are about,
+  for the competition shows whose titles, synopses and stills say who won.
+  Its episodes are titled `Episode N` (or by their air date, without a
+  number), with no synopsis, guest stars, original title or tagline, and
+  their still is the show's backdrop: `thumb_url` points at it, `thumb`
+  serves it, and no seek previews or chapter pictures are made. Seasons
+  lose their synopsis. The show, its seasons and episodes say
+  `spoilers_hidden: true`, so apps can say so. Lists, search, Continue
+  Watching and the Plex- and Jellyfin-compatible APIs read the same rows.
 - **`progress`**: `state` is `playing` (the default), `paused`, `stopped`
   or `buffering`. Movies, episodes, tracks, audiobook parts and extras
   only; other kinds answer `400`.

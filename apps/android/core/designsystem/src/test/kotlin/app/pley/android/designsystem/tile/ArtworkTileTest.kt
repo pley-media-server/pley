@@ -73,6 +73,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -618,6 +619,15 @@ class ArtworkTileTest {
         assertTrue(cover.watched)
         assertEquals("Harbor Lights, Ilse Brandt, finished", cover.description)
         assertEquals(MarkGlyph.Audiobooks, cover.mark)
+    }
+
+    @Test
+    fun marksAShowWhoseSpoilersAreHiddenNotItsEpisodes() {
+        val show = ItemSummary(id = 2, libraryId = 1, kind = ItemKind.Show, title = "Jeopardy!", spoilersHidden = true)
+        assertTrue(ArtworkTileModel.of(show, TileKind.Poster, origin, FormatWords.English).spoilersHidden)
+        val episode = ItemSummary(id = 3, libraryId = 1, kind = ItemKind.Episode, title = "Episode 57", spoilersHidden = true)
+        assertFalse(ArtworkTileModel.of(episode, TileKind.Landscape, origin, FormatWords.English).spoilersHidden)
+        assertFalse(ArtworkTileModel.of(show.copy(spoilersHidden = false), TileKind.Poster, origin, FormatWords.English).spoilersHidden)
     }
 
     @Test

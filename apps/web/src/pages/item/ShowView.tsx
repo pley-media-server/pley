@@ -26,6 +26,7 @@ import {
   MyListButton,
   RatingBadge,
   SectionError,
+  SpoilersNote,
   Summary,
   WatchedButton,
 } from "./shared";
@@ -66,6 +67,7 @@ export function ShowView({ item }: { item: ItemDetail }) {
             />
             <StarRating item={item} />
           </div>
+          <SpoilersNote item={item} />
           <Genres genres={item.genres} />
           <Labels labels={item.labels} />
           <PartOfCollections item={item} />

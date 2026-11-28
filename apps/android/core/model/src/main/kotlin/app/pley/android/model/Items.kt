@@ -159,6 +159,8 @@ data class ItemSummary(
     val extraType: ExtraType? = null,
     /** Only in library listings (an older server's: only sorted by bitrate). */
     val media: MediaSummary? = null,
+    /** A show labeled `no-spoilers`, or one of its seasons or episodes: its episodes' titles, synopses and stills are hidden. */
+    val spoilersHidden: Boolean = false,
 )
 
 /**
@@ -196,6 +198,8 @@ data class ItemDetail(
     val releaseDate: String? = null,
     val extraType: ExtraType? = null,
     val media: MediaSummary? = null,
+    /** See [ItemSummary.spoilersHidden]. */
+    val spoilersHidden: Boolean = false,
     // What a listing leaves out.
     val originalTitle: String? = null,
     val tagline: String? = null,
@@ -249,6 +253,7 @@ data class ItemDetail(
         releaseDate = releaseDate,
         extraType = extraType,
         media = media,
+        spoilersHidden = spoilersHidden,
         authors = authors.ifEmpty { book?.authors.orEmpty() },
     )
 }

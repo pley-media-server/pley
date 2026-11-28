@@ -220,7 +220,8 @@
   },
   "show": {
     "seasons": "季",
-    "noSeasons": "未找到季。"
+    "noSeasons": "未找到季。",
+    "spoilersHidden": "已隐藏剧透：不显示剧集标题、简介和图片。"
   },
   "collection": {
     "loadError": "无法加载此合集",

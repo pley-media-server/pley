@@ -9,6 +9,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Spoiler protection for competition shows: label a show `no-spoilers`
+  and its episodes are titled by number (or air date), without
+  descriptions, guest stars or stills, in every app and in Plex and
+  Jellyfin apps. The show's poster has an eye-off badge, and its page and
+  its seasons' pages say spoilers are hidden.
+
 ### Changed
 
 - The web player's Up Next card shows the next title's name without its

@@ -16,6 +16,7 @@
 
     <string name="item_your_rating">Tu valoración</string>
     <string name="item_part_of">Forma parte de %1$s</string>
+    <string name="item_spoilers_hidden">Spoilers ocultos</string>
     <string name="item_read_more">Ver más</string>
     <string name="item_read_less">Ver menos</string>
     <string name="item_version">Versión</string>

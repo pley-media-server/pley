@@ -119,7 +119,8 @@
     }
   },
   "cards": {
-    "playTitle": "Reproducir {{title}}"
+    "playTitle": "Reproducir {{title}}",
+    "spoilersHidden": "Spoilers ocultos"
   },
   "castReceiver": {
     "playingFrom": "Reproduciendo desde {{device}}",

@@ -18,6 +18,7 @@
     <!-- The rest of the page. -->
     <string name="item_your_rating">你的评分</string>
     <string name="item_part_of">属于 %1$s</string>
+    <string name="item_spoilers_hidden">已隐藏剧透</string>
     <string name="item_read_more">更多</string>
     <string name="item_read_less">收起</string>
     <string name="item_version">版本</string>

@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router";
-import { Check, Play } from "lucide-react";
+import { Check, EyeOff, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { markGlyph } from "pley-placeholder";
 import type { ItemSummary } from "@/api/types";
@@ -166,6 +166,17 @@ export const MediaCard = memo(function MediaCard({
           {unwatched > 0 ? (
             <span className="absolute right-1.5 top-1.5 min-w-6 rounded bg-accent px-1.5 py-0.5 text-center text-xs font-bold text-accent-fg shadow">
               {unwatched}
+            </span>
+          ) : null}
+          {/* A show whose episodes' spoilers are hidden (the `no-spoilers` label). */}
+          {item.kind === "show" && item.spoilers_hidden ? (
+            <span
+              className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-black/75 text-white shadow"
+              title={t("cards.spoilersHidden")}
+              role="img"
+              aria-label={t("cards.spoilersHidden")}
+            >
+              <EyeOff className="size-3.5" strokeWidth={2.5} />
             </span>
           ) : null}
           {badges.length ? (

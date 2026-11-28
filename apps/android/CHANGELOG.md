@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A show whose spoilers are hidden has an eye-off badge on its poster,
+  and its page and its seasons' pages say so.
+
 ### Changed
 
 - Up Next's card shows the next title's name without its picture, so it

@@ -50,6 +50,27 @@ pub(crate) const VISIBLE: &str = "((SELECT all_libs FROM me)
                        WHERE r.user_id = (SELECT uid FROM me) AND r.kind = 'show'
                          AND l.item_id IN (i.id, i.parent_id, i.grandparent_id))))";
 
+/// Whether item `i`, its season or its show has the [`SPOILER_LABEL`] label
+/// (`item_labels` matches labels whatever their case).
+macro_rules! spoilers_hidden {
+    () => {
+        "EXISTS (SELECT 1 FROM item_labels sl
+            WHERE sl.label = 'no-spoilers' AND sl.item_id IN (i.id, i.parent_id, i.grandparent_id))"
+    };
+}
+
+/// Whether item `i` is an episode or season whose spoilers are hidden
+/// ([`ItemRow::spoiler_safe`]): what it's about isn't shown, anywhere.
+macro_rules! spoiler_safe {
+    () => {
+        concat!("(i.kind IN ('episode', 'season') AND ", spoilers_hidden!(), ")")
+    };
+}
+
+/// The label that hides what a show's episodes are about: their titles,
+/// synopses and stills, in every app and the compatibility APIs.
+pub const SPOILER_LABEL: &str = "no-spoilers";
+
 /// Columns of [`ItemRow`]; callers add `WHERE {VISIBLE} AND …`.
 /// The `me` CTE that [`VISIBLE`] reads (binds the user id).
 pub(crate) const ME_CTE: &str = me_cte!();
@@ -57,11 +78,31 @@ pub(crate) const ME_CTE: &str = me_cte!();
 const SUMMARY_SELECT: &str = concat!(
     me_cte!(),
     "
-SELECT i.id, i.library_id, i.kind, i.title, i.sort_title, i.year, i.idx, i.disc,
+SELECT i.id, i.library_id, i.kind,
+       CASE WHEN i.kind = 'episode' AND ",
+    spoiler_safe!(),
+    " THEN COALESCE('Episode ' || i.idx, i.release_date, 'Episode') ELSE i.title END AS title,
+       CASE WHEN i.kind = 'episode' AND ",
+    spoiler_safe!(),
+    " THEN COALESCE('Episode ' || i.idx, i.release_date, 'Episode') ELSE i.sort_title END AS sort_title,
+       i.year, i.idx, i.disc,
        i.parent_id, p.title AS parent_title, p.idx AS parent_idx,
        i.grandparent_id, gp.title AS grandparent_title,
-       i.duration_ms, i.rating, i.added_at, i.updated_at, i.summary, i.release_date, i.extra_type,
-       i.poster IS NOT NULL AS has_poster, i.backdrop IS NOT NULL AS has_backdrop, i.thumb IS NOT NULL AS has_thumb,
+       i.duration_ms, i.rating, i.added_at, i.updated_at,
+       CASE WHEN ",
+    spoiler_safe!(),
+    " THEN NULL ELSE i.summary END AS summary,
+       i.release_date, i.extra_type,
+       i.poster IS NOT NULL AS has_poster, i.backdrop IS NOT NULL AS has_backdrop,
+       i.thumb IS NOT NULL AND NOT ",
+    spoiler_safe!(),
+    " AS has_thumb,
+       ",
+    spoiler_safe!(),
+    " AS spoiler_safe,
+       (i.kind IN ('show', 'season', 'episode') AND ",
+    spoilers_hidden!(),
+    ") AS spoilers_hidden,
        COALESCE(p.poster IS NOT NULL, 0) AS parent_has_poster, COALESCE(p.backdrop IS NOT NULL, 0) AS parent_has_backdrop,
        p.updated_at AS parent_updated_at,
        COALESCE(gp.poster IS NOT NULL, 0) AS grandparent_has_poster, COALESCE(gp.backdrop IS NOT NULL, 0) AS grandparent_has_backdrop,
@@ -110,6 +151,14 @@ pub struct ItemRow {
     pub has_poster: bool,
     pub has_backdrop: bool,
     pub has_thumb: bool,
+    /// An episode or season of a show labeled [`SPOILER_LABEL`]. The query
+    /// already put the episode number (or air date) in its title and sort
+    /// title, and left out its synopsis and `has_thumb`; its still is the
+    /// show's backdrop.
+    pub spoiler_safe: bool,
+    /// A show labeled [`SPOILER_LABEL`], or a season or episode of one
+    /// ([`ItemSummary::spoilers_hidden`]).
+    pub spoilers_hidden: bool,
     pub parent_has_poster: bool,
     pub parent_has_backdrop: bool,
     pub parent_updated_at: Option<i64>,
@@ -195,6 +244,11 @@ pub struct ItemSummary {
     /// An audiobook's writers, for the line under its cover.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authors: Option<Vec<String>>,
+    /// The show is labeled `no-spoilers`, or this is one of its seasons or
+    /// episodes: its episodes' titles, synopses and stills are hidden, and
+    /// apps say so. Left out when false.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub spoilers_hidden: bool,
 }
 
 /// A title's best file (a show's files on average), for library listings:
@@ -578,7 +632,13 @@ impl ItemRow {
         } else {
             None
         };
-        let thumb_url = matches!(self.kind.as_str(), "movie" | "episode" | "extra").then(|| own("thumb"));
+        // A spoiler-safe episode's still is its show's backdrop, at the
+        // backdrop's address, so a still an app kept isn't shown.
+        let thumb_url = if self.spoiler_safe && self.kind == "episode" {
+            backdrop_url.clone()
+        } else {
+            matches!(self.kind.as_str(), "movie" | "episode" | "extra").then(|| own("thumb"))
+        };
         let watched = match self.kind.as_str() {
             "show" | "season" | "audiobook" => {
                 let leaves = self.leaf_count.unwrap_or(0);
@@ -622,6 +682,7 @@ impl ItemRow {
             extra_type: self.extra_type.clone(),
             media: None,
             authors: self.authors.as_deref().and_then(|a| serde_json::from_str(a).ok()),
+            spoilers_hidden: self.spoilers_hidden,
         }
     }
 
@@ -743,6 +804,16 @@ pub async fn is_visible(db: &Db, user_id: i64, item_id: i64) -> sqlx::Result<boo
         me_cte!()
     );
     sqlx::query_scalar(sqlx::AssertSqlSafe(sql.as_str())).bind(user_id).bind(item_id).fetch_one(&db.read).await
+}
+
+/// Whether `item_id` is a spoiler-safe episode or season
+/// ([`ItemRow::spoiler_safe`]), for what is asked for by id alone: artwork.
+pub async fn spoiler_safe(db: &Db, item_id: i64) -> sqlx::Result<bool> {
+    let safe: Option<bool> = sqlx::query_scalar(concat!("SELECT ", spoiler_safe!(), " FROM items i WHERE i.id = ?"))
+        .bind(item_id)
+        .fetch_optional(&db.read)
+        .await?;
+    Ok(safe.unwrap_or(false))
 }
 
 pub async fn item(db: &Db, user_id: i64, item_id: i64) -> sqlx::Result<Option<ItemRow>> {
@@ -1183,15 +1254,21 @@ pub async fn item_detail(db: &Db, row: ItemRow) -> sqlx::Result<ItemDetail> {
     let markers = crate::markers::for_item(db, row.id).await?;
     // Seasons have the cast and crew of their show.
     let credits_of = if row.kind == "season" { row.parent_id.unwrap_or(row.id) } else { row.id };
-    let (cast, crew) =
+    let (mut cast, crew): (Vec<_>, Vec<_>) =
         crate::people::for_item(db, credits_of).await?.into_iter().partition(|c| c.role == crate::people::Role::Actor);
     let book = if row.kind == "audiobook" { BookDetail::of(db, row.id).await? } else { None };
+    // A spoiler-safe episode's guest stars (a quiz's contestants), original
+    // title and tagline would give it away too.
+    let spoiler_safe = row.spoiler_safe && row.kind == "episode";
+    if spoiler_safe {
+        cast.clear();
+    }
     let mut summary = row.to_summary();
     summary.summary = row.summary;
     Ok(ItemDetail {
         summary,
-        original_title: detail.original_title,
-        tagline: detail.tagline,
+        original_title: detail.original_title.filter(|_| !spoiler_safe),
+        tagline: detail.tagline.filter(|_| !spoiler_safe),
         genres: detail.genres.and_then(|g| serde_json::from_str(&g).ok()).unwrap_or_default(),
         studio: detail.studio,
         content_rating: detail.content_rating,
@@ -2142,6 +2219,8 @@ impl ItemRow {
             has_poster: false,
             has_backdrop: false,
             has_thumb: false,
+            spoiler_safe: false,
+            spoilers_hidden: false,
             parent_has_poster: false,
             parent_has_backdrop: false,
             parent_updated_at: None,
@@ -2300,6 +2379,90 @@ mod tests {
         let mut track = ItemRow::test_row(3, "track", "Song");
         (track.disc, track.parent_idx) = (Some(2), Some(7));
         assert_eq!(track.to_summary().parent_index, Some(2), "tracks show their disc number");
+    }
+
+    #[tokio::test]
+    async fn a_no_spoilers_show_hides_its_episodes_titles_synopses_and_stills() {
+        let dir = crate::testing::tempdir();
+        let db = db_with_movies(dir.path(), 0).await;
+        let add = |id: i64, kind: &'static str, title: &'static str, parent: Option<i64>, show: Option<i64>| {
+            let db = db.clone();
+            async move {
+                sqlx::query(
+                    "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at,
+                                        parent_id, grandparent_id, summary, thumb, backdrop)
+                     VALUES (?, 1, ?, ?, ?, ?, 0, 7, ?, ?, 'Who went home.', 'blob:still.jpg',
+                             CASE WHEN ? = 'show' THEN 'blob:art.jpg' END)",
+                )
+                .bind(id)
+                .bind(kind)
+                .bind(format!("item-{id}"))
+                .bind(title)
+                .bind(title)
+                .bind(parent)
+                .bind(show)
+                .bind(kind)
+                .execute(&db.write)
+                .await
+                .unwrap();
+            }
+        };
+        add(10, "show", "Jeopardy!", None, None).await;
+        add(11, "season", "Season 42", Some(10), None).await;
+        add(12, "episode", "Show #9421 - Alice vs Bob", Some(11), Some(10)).await;
+        add(13, "episode", "Show #9422 - Carol vs Dan", Some(11), Some(10)).await;
+        add(20, "show", "Lost", None, None).await;
+        add(21, "season", "Season 1", Some(20), None).await;
+        add(22, "episode", "Pilot", Some(21), Some(20)).await;
+        sqlx::query("UPDATE items SET idx = 57 WHERE id = 12").execute(&db.write).await.unwrap();
+        sqlx::query("UPDATE items SET release_date = '2026-11-10' WHERE id = 13").execute(&db.write).await.unwrap();
+
+        // Unlabeled: as it was.
+        let pilot = item(&db, 1, 22).await.unwrap().unwrap();
+        assert!(!pilot.spoiler_safe);
+        assert_eq!(
+            (pilot.title.as_str(), pilot.summary.as_deref(), pilot.has_thumb),
+            ("Pilot", Some("Who went home."), true)
+        );
+        assert_eq!(pilot.to_summary().thumb_url.as_deref(), Some("/api/items/22/images/thumb?v=7"));
+
+        // The label on the show, whatever its case, covers its seasons and episodes.
+        crate::labels::edit(&db, 10, &["No-Spoilers".to_owned()], &[]).await.unwrap();
+        let ep = item(&db, 1, 12).await.unwrap().unwrap();
+        assert!(ep.spoiler_safe);
+        assert_eq!((ep.title.as_str(), ep.sort_title.as_str()), ("Episode 57", "Episode 57"));
+        assert_eq!((ep.summary.as_deref(), ep.has_thumb), (None, false));
+        let summary = ep.to_summary();
+        assert_eq!(summary.thumb_url.as_deref(), Some("/api/items/10/images/backdrop?v=7"), "the show's backdrop");
+        assert_eq!(summary.grandparent_title.as_deref(), Some("Jeopardy!"));
+        // Without an episode number, the air date.
+        assert_eq!(item(&db, 1, 13).await.unwrap().unwrap().title, "2026-11-10");
+        // The season keeps its title, not its synopsis.
+        let season = item(&db, 1, 11).await.unwrap().unwrap();
+        assert_eq!((season.title.as_str(), season.summary.as_deref()), ("Season 42", None));
+        assert_eq!(season.to_summary().thumb_url, None);
+        // Lists and the detail page say the same.
+        let mut listed: Vec<String> = children(&db, 1, 11).await.unwrap().into_iter().map(|r| r.title).collect();
+        listed.sort();
+        assert_eq!(listed, ["2026-11-10", "Episode 57"]);
+        assert!(item_detail(&db, ep).await.unwrap().summary.summary.is_none());
+        // The badge: the show, its seasons and episodes say so (the JSON
+        // leaves it out when false); another show doesn't.
+        let show = item(&db, 1, 10).await.unwrap().unwrap();
+        assert!(!show.spoiler_safe && show.to_summary().spoilers_hidden);
+        assert!(summary.spoilers_hidden && season.to_summary().spoilers_hidden);
+        let pilot = item(&db, 1, 22).await.unwrap().unwrap().to_summary();
+        assert!(!pilot.spoilers_hidden);
+        assert!(serde_json::to_value(&pilot).unwrap().get("spoilers_hidden").is_none());
+        assert_eq!(serde_json::to_value(&summary).unwrap()["spoilers_hidden"], true);
+        // Artwork asked for by id alone.
+        assert!(spoiler_safe(&db, 12).await.unwrap() && spoiler_safe(&db, 11).await.unwrap());
+        assert!(!spoiler_safe(&db, 10).await.unwrap(), "the show itself is shown as it is");
+        assert!(!spoiler_safe(&db, 22).await.unwrap() && !spoiler_safe(&db, 99).await.unwrap());
+        // Another show is untouched; removing the label shows them again.
+        assert_eq!(item(&db, 1, 22).await.unwrap().unwrap().title, "Pilot");
+        crate::labels::edit(&db, 10, &[], &[SPOILER_LABEL.to_owned()]).await.unwrap();
+        assert_eq!(item(&db, 1, 12).await.unwrap().unwrap().title, "Show #9421 - Alice vs Bob");
     }
 
     /// A database with a user (1), a movie library (1) and movies 1..=`n`.
