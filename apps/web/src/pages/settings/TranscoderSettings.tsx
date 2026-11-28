@@ -18,6 +18,7 @@ import {
   choiceLabel,
   decodingReason,
   fitToAccel,
+  hdrNote,
   knownTranscoder,
   memoryReason,
   presetNote,
@@ -165,7 +166,8 @@ export function TranscoderSettings() {
         const os = transcoderOs(system.data);
         const accels = accelChoices(saved?.hwaccel ?? form.hwaccel, system.data);
         const accelProblem = accelReason(form.hwaccel, system.data);
-        const preset = presetNote(form.hwaccel, system.data);
+        const preset = presetNote(form.hwaccel, system.data, form.tonemapping);
+        const hdr = hdrNote(form.hwaccel, system.data, form.tonemapping);
         const tonemaps = tonemapChoices(system.data, form.hwaccel);
         const tonemapProblem = tonemapReason(form.tonemapping, system.data);
         // A combination saved before: the transcoder doesn't use Vulkan then.
@@ -218,6 +220,7 @@ export function TranscoderSettings() {
                   ))}
                 </Select>
                 {accelProblem ? <Note notice>{t("transcoder.video.softwareInstead", { reason: capitalize(accelProblem) })}</Note> : null}
+                {tc?.available && tc.rockchip_chip_unknown ? <Note notice>{t("transcoder.video.rockchipChipUnknown")}</Note> : null}
               </Row>
               <Row label={t("transcoder.video.decoding")} hint={t("transcoder.video.decodingHint")}>
                 <Toggle
@@ -295,6 +298,7 @@ export function TranscoderSettings() {
                 ) : fittedNote("tonemapping") ? (
                   <Note>{fittedNote("tonemapping")}</Note>
                 ) : null}
+                {hdr ? <Note>{hdr}</Note> : null}
               </Row>
             </Group>
 

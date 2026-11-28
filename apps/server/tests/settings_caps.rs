@@ -91,14 +91,14 @@ async fn the_system_says_what_the_transcoder_can_do() {
     assert_eq!(tc["hardware_decoding"], json!(true), "Quick Sync decodes through D3D11");
     assert_eq!(
         tc["with_accel"]["qsv"],
-        json!({"hardware_decoding": true, "software": [], "tonemappers": null}),
+        json!({"hardware_decoding": true, "software": [], "hdr_to_sdr": false, "tonemappers": null}),
         "{tc}"
     );
     assert_eq!(tc["with_accel"]["auto"], tc["with_accel"]["qsv"]);
     // x264 gets no GPU decoder, here or with an encoder that isn't here.
     assert_eq!(
         tc["with_accel"]["none"],
-        json!({"hardware_decoding": false, "software": ["h264"], "tonemappers": null})
+        json!({"hardware_decoding": false, "software": ["h264"], "hdr_to_sdr": false, "tonemappers": null})
     );
     assert_eq!(tc["with_accel"]["nvenc"]["hardware_decoding"], json!(false));
     assert_eq!(tc["tonemapping"], json!(["zscale"]));
@@ -107,6 +107,7 @@ async fn the_system_says_what_the_transcoder_can_do() {
     assert_eq!(tc["active_encoder"], json!("h264_qsv"), "Automatic");
     assert_eq!(tc["memory"]["available"], json!(false));
     assert_eq!(tc["memory"]["reason"], json!("works on Linux only"));
+    assert_eq!(tc["rockchip_chip_unknown"], json!(false));
 
     // Nothing is known without a transcoder.
     let app = TestApp::new().await;
@@ -116,6 +117,35 @@ async fn the_system_says_what_the_transcoder_can_do() {
     assert_eq!((tc["hardware_decoding"].clone(), tc["chromaprint"].clone()), (json!(false), json!(false)));
     assert_eq!(tc["with_accel"], json!({}));
     assert_eq!(tc["memory"], json!(null));
+}
+
+/// A Rockchip board in a container that hides the device tree: H.264 on
+/// the chip, HEVC Main 10 in x265 alone.
+#[tokio::test]
+async fn the_system_says_what_rockchip_does_with_hdr_and_its_chip() {
+    let hevc = |name: &str, accel, main10| EncoderInfo { codec: VideoCodec::Hevc, main10, ..encoder(name, accel) };
+    let (app, admin) = with_transcoder(Capabilities {
+        ffmpeg_available: true,
+        encoders: vec![
+            encoder("h264_rkmpp", HwAccel::Rkmpp),
+            encoder("libx264", HwAccel::None),
+            hevc("libx265", HwAccel::None, true),
+        ],
+        hwaccels: vec!["rkmpp".into()],
+        tonemappers: vec![Tonemapper::Zscale],
+        hdr_transcode: true,
+        rockchip_chip_unknown: true,
+        ..Default::default()
+    })
+    .await;
+    let tc = app.get("/api/system", &admin).await.body["transcoder"].clone();
+    assert_eq!(tc["rockchip_chip_unknown"], json!(true), "{tc}");
+    // Playback tone maps HDR into h264_rkmpp; a download keeps it in x265.
+    for accel in ["auto", "rkmpp"] {
+        assert_eq!(tc["with_accel"][accel]["hdr_to_sdr"], json!(true), "{accel}: {tc}");
+        assert_eq!(tc["with_accel"][accel]["software"], json!(["hevc", "hdr"]), "{accel}: {tc}");
+    }
+    assert_eq!(tc["with_accel"]["none"]["hdr_to_sdr"], json!(false), "{tc}");
 }
 
 #[tokio::test]

@@ -11,3 +11,12 @@ services:
       - /dev/dri:/dev/dri
     group_add:
       - "${PLEY_ROCKCHIP_GID:?set PLEY_ROCKCHIP_GID in .env to the group of Rockchip's devices, from: stat -c %g /dev/mpp_service}"
+    # MPP knows the chip, and so its codecs, only from the device tree
+    # (/proc/device-tree, in /sys/firmware), which Docker hides: without
+    # it, MPP takes the chip for one that has H.264 and none of HEVC, VP9
+    # or AV1. This shows Docker's hidden /proc and /sys files; Pley still
+    # runs as a user without capabilities, which can't write them. Root
+    # could, the host's kernel settings among them: never with PLEY_UID=0
+    # outside rootless Docker (setup.sh refuses it).
+    security_opt:
+      - systempaths=unconfined
