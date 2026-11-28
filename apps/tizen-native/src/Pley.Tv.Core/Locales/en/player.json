@@ -9,7 +9,6 @@
     "quality": "Quality",
     "chapters": "Chapters",
     "info": "Info",
-    "sleep": "Sleep timer",
     "speed": "Speed"
   },
   "status": {
@@ -164,15 +163,6 @@
     "word": "Chapter",
     "numbered": "Chapter {{number}}",
     "named": "Chapter {{number}} · {{name}}"
-  },
-  "sleep": {
-    "off": "Off",
-    "minutes": "{{minutes}} min",
-    "minutesLeft_one": "{{count}} min left",
-    "minutesLeft_other": "{{count}} min left",
-    "endOfTrack": "End of this track",
-    "pausingIn": "Pausing in {{seconds}} s",
-    "keepListening": "Keep listening"
   },
   "spoken": {
     "position": "{{elapsed}} of {{duration}}",

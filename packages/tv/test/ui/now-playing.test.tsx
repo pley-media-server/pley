@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ItemSummary } from "../../src/api/types";
 import { t } from "../../src/i18n";
 import type { NowPlaying } from "../../src/player/music";
-import { SLEEP_OFF } from "../../src/player/sleep";
 import { UiContext, type Ui } from "../../src/ui/context";
 import { FocusManager } from "../../src/ui/focus";
 import { Input } from "../../src/ui/input";
@@ -18,7 +17,6 @@ const track = (id: number): ItemSummary =>
 
 const fake = {
   now: signal<NowPlaying | null>(null),
-  sleep: signal(SLEEP_OFF),
   position: 60_000,
   duration: 240_000,
   seekTo: vi.fn((_ms: number) => true),
@@ -27,7 +25,6 @@ const fake = {
   next: vi.fn(),
   pause: vi.fn(),
   setShuffle: vi.fn(),
-  stepSleep: vi.fn(),
   jumpTo: vi.fn(),
   positionMs: () => fake.position,
   durationMs: () => fake.duration,

@@ -103,8 +103,6 @@ public interface IMusicControl
 /// - a track the TV can't decode is asked for again as a conversion, and a session that went (a
 ///   long pause) is started again where it was, up to three times in a row;
 /// - Previous restarts a track that has played more than 3 s;
-/// - a sleep timer pauses after the minutes chosen, or at the end of the track (the next one
-///   waits, paused);
 /// - a video takes the TV's one media pipeline: <see cref="YieldToVideo"/> pauses the music and
 ///   ends its session; Play starts a new one where it was;
 /// - the remote, on another of the profile's devices, plays and pauses, seeks, skips, and goes to
@@ -127,7 +125,6 @@ public sealed class MusicPlayer : IMusicControl
     readonly Func<IMediaEngine> engines;
     readonly IScheduler scheduler;
     readonly MusicQueue queue;
-    readonly SleepTimer timer;
     IMediaEngine? output;
     IPlaybackSession? session;
     IDisposable? ticker;
@@ -149,7 +146,6 @@ public sealed class MusicPlayer : IMusicControl
         this.engines = engines;
         this.scheduler = scheduler;
         queue = new MusicQueue(random);
-        timer = new SleepTimer(scheduler, TrackLeftMs, () => queue.Current?.Id, Pause);
     }
 
     /// <summary>What plays now; null when nothing does (Now Playing leaves the rail).</summary>
@@ -157,9 +153,6 @@ public sealed class MusicPlayer : IMusicControl
 
     /// <summary>The queue as it plays; empty when nothing does.</summary>
     public Signal<MusicQueueState> Queue { get; } = new Signal<MusicQueueState>(MusicQueueState.Empty);
-
-    /// <summary>The sleep timer.</summary>
-    public Signal<SleepState> Sleep => timer.State;
 
     /// <summary>Whether there is anything to play.</summary>
     public bool Active => !queue.IsEmpty;
@@ -262,30 +255,6 @@ public sealed class MusicPlayer : IMusicControl
         Publish();
     }
 
-    /// <summary>Sets the sleep timer (not remembered after the music stops).</summary>
-    public void SetSleep(SleepChoice choice)
-    {
-        if (queue.IsEmpty && choice is not SleepChoice.Off) return;
-        timer.Set(choice);
-    }
-
-    /// <summary>"Keep listening" during the sleep timer's notice: the same time again.</summary>
-    public void KeepListening() => timer.Extend();
-
-    /// <summary>The sleep button on Now Playing: during the notice "Keep listening", else the next choice (Off, 15 … 90 min, End of this track).</summary>
-    public void StepSleep()
-    {
-        var s = Sleep.Value;
-        if (s.SecondsLeft != null)
-        {
-            KeepListening();
-            return;
-        }
-        var all = SleepChoice.All;
-        var at = Enumerable.Range(0, all.Count).FirstOrDefault(i => all[i] == s.Set);
-        SetSleep(all[(at + 1) % all.Count]);
-    }
-
     /// <summary>
     /// A video takes the screen and the TV's one media pipeline: the music pauses and lets go of
     /// its session, which would otherwise be kept through a whole film; the queue and the place
@@ -354,7 +323,6 @@ public sealed class MusicPlayer : IMusicControl
         session = null;
         s.StoppedByServer(LastPosition());
         loads++;
-        timer.Cancel();
         output?.Stop();
         Fail(MusicError.Stopped);
     }
@@ -364,7 +332,6 @@ public sealed class MusicPlayer : IMusicControl
     {
         loads++;
         StopTicker();
-        timer.Cancel();
         EndSession();
         if (output != null)
         {
@@ -446,14 +413,6 @@ public sealed class MusicPlayer : IMusicControl
     }
 
     long LastPosition() => Math.Max(0, output?.PositionMs ?? 0);
-
-    /// <summary>How long the track has left, for the sleep timer; null while it isn't playing.</summary>
-    long? TrackLeftMs()
-    {
-        if (session == null || ended || error != null) return null;
-        var p = Position();
-        return p.DurationMs > 0 ? p.DurationMs - p.PositionMs : null;
-    }
 
     /// <summary>Ends the current track's session at the player's position.</summary>
     void EndSession()
@@ -537,9 +496,7 @@ public sealed class MusicPlayer : IMusicControl
         session = null;
         StopTicker();
         s?.End(s.Info.DurationMs > 0 ? s.Info.DurationMs : output?.DurationMs > 0 ? output!.DurationMs : LastPosition());
-        // The sleep timer ends with this track: the next one waits, paused.
-        var sleeping = timer.ItemEnded(queue.Current?.Id);
-        if (queue.Next()) StartTrack(0, play: !sleeping);
+        if (queue.Next()) StartTrack(0);
         else
         {
             ended = true;

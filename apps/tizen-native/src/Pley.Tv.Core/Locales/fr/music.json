@@ -36,8 +36,7 @@
     "position": "Position dans le titre",
     "loading": "Chargement…",
     "nothingTitle": "Aucune lecture en cours",
-    "nothingBody": "Lancez un album ou un artiste pour le retrouver ici.",
-    "sleep": "{{timer}} : {{left}}"
+    "nothingBody": "Lancez un album ou un artiste pour le retrouver ici."
   },
   "errors": {
     "offline": "Impossible de joindre le serveur.",

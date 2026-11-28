@@ -9,7 +9,6 @@
     "quality": "Calidad",
     "chapters": "Capítulos",
     "info": "Info",
-    "sleep": "Temporizador de suspensión",
     "speed": "Velocidad"
   },
   "status": {
@@ -164,16 +163,6 @@
     "word": "Capítulo",
     "numbered": "Capítulo {{number}}",
     "named": "Capítulo {{number}} · {{name}}"
-  },
-  "sleep": {
-    "off": "Desactivado",
-    "minutes": "{{minutes}} min",
-    "minutesLeft_one": "Queda {{count}} min",
-    "minutesLeft_many": "Quedan {{count}} min",
-    "minutesLeft_other": "Quedan {{count}} min",
-    "endOfTrack": "Final de esta pista",
-    "pausingIn": "Se pausará en {{seconds}} s",
-    "keepListening": "Seguir escuchando"
   },
   "spoken": {
     "position": "{{elapsed}} de {{duration}}",

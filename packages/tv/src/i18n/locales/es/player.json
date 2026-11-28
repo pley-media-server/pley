@@ -35,13 +35,6 @@
     "lastEpisode": "Es el último episodio",
     "lastInQueue": "Es el último de la lista"
   },
-  "sleep": {
-    "off": "Desactivado",
-    "minutes": "{{minutes}} min",
-    "end": {
-      "track": "Final de esta pista"
-    }
-  },
   "upNext": {
     "title": "A continuación",
     "episode": "A continuación · {{episode}}",

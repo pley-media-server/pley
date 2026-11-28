@@ -35,13 +35,6 @@
     "lastEpisode": "這是最後一集",
     "lastInQueue": "這是最後一個"
   },
-  "sleep": {
-    "off": "關閉",
-    "minutes": "{{minutes}} 分鐘",
-    "end": {
-      "track": "本曲目結束"
-    }
-  },
   "upNext": {
     "title": "接下來播放",
     "episode": "接下來 · {{episode}}",

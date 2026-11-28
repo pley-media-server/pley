@@ -35,13 +35,6 @@
     "lastEpisode": "This is the last episode",
     "lastInQueue": "This is the last one"
   },
-  "sleep": {
-    "off": "Off",
-    "minutes": "{{minutes}} min",
-    "end": {
-      "track": "End of this track"
-    }
-  },
   "upNext": {
     "title": "Up next",
     "episode": "Up next · {{episode}}",

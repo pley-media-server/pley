@@ -9,7 +9,6 @@
     "quality": "畫質",
     "chapters": "章節",
     "info": "資訊",
-    "sleep": "睡眠定時",
     "speed": "速度"
   },
   "status": {
@@ -164,14 +163,6 @@
     "word": "章節",
     "numbered": "第 {{number}} 章",
     "named": "第 {{number}} 章 · {{name}}"
-  },
-  "sleep": {
-    "off": "關閉",
-    "minutes": "{{minutes}} 分鐘",
-    "minutesLeft_other": "剩餘 {{count}} 分鐘",
-    "endOfTrack": "本曲目結束時",
-    "pausingIn": "{{seconds}} 秒後暫停",
-    "keepListening": "繼續收聽"
   },
   "spoken": {
     "position": "{{elapsed}} / {{duration}}",

@@ -34,8 +34,7 @@
     "position": "Position in the track",
     "loading": "Loading…",
     "nothingTitle": "Nothing is playing",
-    "nothingBody": "Play an album or an artist and it shows here.",
-    "sleep": "{{timer}}: {{left}}"
+    "nothingBody": "Play an album or an artist and it shows here."
   },
   "errors": {
     "offline": "Can't reach the server.",

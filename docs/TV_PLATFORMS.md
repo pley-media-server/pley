@@ -549,7 +549,7 @@ its packages into the SDK by hand and it runs on WHPX.
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |
-| `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, reports, music and its sleep timer, the remote and casts |
+| `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, reports, music, the remote and casts |
 | `live/` | Live TV: categories, the guide's pages, a channel on the TV's player |
 | `subs/` | Subtitles drawn by the app |
 | `caps/` | The server's direct-play rules, so Playback details can say why |
@@ -756,7 +756,7 @@ and favorites) and its live player (changing channel, number keys, what's
 on, the channel list on OK and the controls on OK held, Playback details,
 and why a channel doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
-(the scrubber, the controls, the sleep timer and the queue), with the
+(the scrubber, the controls and the queue), with the
 music playing on behind the other pages, driven by the remote's media keys
 on Now Playing, and pausing for a video; Discover and requests, ported from Android TV
 ([Requests](#requests): the rail's entry and its number, Discover's hero

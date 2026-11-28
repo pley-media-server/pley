@@ -14,10 +14,10 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>
 /// Now Playing on TV (design spec §4.10; the Android app's TvNowPlayingScreen): the album art at 300
 /// dp at (96, 58), and 32 dp beside it the title, the artist and album, a status line, the scrubber
-/// with the times under it, then Shuffle, Previous, Play/Pause (64 dp, the first focus), Next and
-/// the sleep timer, then "Up next" and the queue from the track playing on. Over a faint copy of
-/// the art at 20 %. Focused, the scrubber's Left and Right seek 10 s and OK plays or pauses; OK on
-/// a track of the queue plays it. The music plays on when the page is left. After two minutes
+/// with the times under it, then Shuffle, Previous, Play/Pause (64 dp, the first focus) and Next,
+/// then "Up next" and the queue from the track playing on. Over a faint copy of the art at 20 %.
+/// Focused, the scrubber's Left and Right seek 10 s and OK plays or pauses; OK on a track of the
+/// queue plays it. The music plays on when the page is left. After two minutes
 /// without a key the page dims to 30 %, and the next key wakes it. Nothing playing: "Nothing is
 /// playing", with Back.
 /// </summary>
@@ -48,7 +48,6 @@ sealed class NowPlayingScreen : ShellPage
     View? controls;
     RoundButton? shuffle;
     RoundButton? next;
-    RoundButton? sleep;
     PlayPauseButton? playPause;
     TextLabel? queueHeader;
     TrackListView? queue;
@@ -78,7 +77,6 @@ sealed class NowPlayingScreen : ShellPage
             return false;
         });
         watches.Add(model.State.Watch(Show));
-        watches.Add(model.Sleep.Watch(_ => Sleep()));
         tick.Tick += (s, e) =>
         {
             if (gone) return false;
@@ -160,7 +158,7 @@ sealed class NowPlayingScreen : ShellPage
         title = byline = status = played = left = queueHeader = null;
         scrubber = null;
         controls = null;
-        shuffle = next = sleep = null;
+        shuffle = next = null;
         playPause = null;
         queue = null;
         controlsGroup = null;
@@ -190,9 +188,8 @@ sealed class NowPlayingScreen : ShellPage
         var previous = new RoundButton(MusicText.Previous, "skip-back", model.Previous);
         playPause = new PlayPauseButton(model.Toggle);
         next = new RoundButton(MusicText.Next, "skip-forward", model.Next);
-        sleep = new RoundButton(model.SleepLabel, "moon", model.StepSleep);
         var x = 0f;
-        foreach (var (view, item) in new (View, FocusItem)[] { (shuffle, shuffle.Item), (previous, previous.Item), (playPause, playPause.Item), (next, next.Item), (sleep, sleep.Item) })
+        foreach (var (view, item) in new (View, FocusItem)[] { (shuffle, shuffle.Item), (previous, previous.Item), (playPause, playPause.Item), (next, next.Item) })
         {
             // The round buttons sit 8 dp down beside Play/Pause, as on Android.
             view.Position = new Position(Ui.Dp(x), view == playPause ? 0 : Ui.Dp(8));
@@ -286,14 +283,6 @@ sealed class NowPlayingScreen : ShellPage
         var hadNext = next!.Item.Focused;
         next.Enabled = now.HasNext;
         if (hadNext && !now.HasNext) Tree.Focus(playPause.Item);
-    }
-
-    /// <summary>The sleep timer's label and its notice in the status line.</summary>
-    void Sleep()
-    {
-        if (gone) return;
-        sleep?.SetText(model.SleepLabel);
-        if (model.State.Value.Now is { } now) Status(now);
     }
 
     /// <summary>

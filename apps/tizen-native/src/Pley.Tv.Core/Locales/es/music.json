@@ -36,8 +36,7 @@
     "position": "Posición en la pista",
     "loading": "Cargando…",
     "nothingTitle": "No se está reproduciendo nada",
-    "nothingBody": "Reproduce un álbum o un artista y aparecerá aquí.",
-    "sleep": "{{timer}}: {{left}}"
+    "nothingBody": "Reproduce un álbum o un artista y aparecerá aquí."
   },
   "errors": {
     "offline": "No se puede conectar con el servidor.",
