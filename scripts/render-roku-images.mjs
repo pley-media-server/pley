@@ -96,18 +96,18 @@ for (const name of ICONS_40) add(`icon-${name}-40.png`, 40, 40, icon(name, 40, "
 for (const name of ["skip-back", "skip-forward"]) add(`icon-${name}-48.png`, 48, 48, icon(name, 48, "#ffffff"));
 for (const name of ["play", "pause"]) add(`icon-${name}-52.png`, 52, 52, icon(name, 52, "#ffffff"));
 
-// Rounded boxes to tint: corners of 4 (badges), 8 (tiles), 12 (buttons and
-// the player's focused controls), and the bar of a scrubber or a progress
-// line (8 high, its ends round).
+// Rounded boxes to tint: corners of 4 (badges), 6 (the focus in lists: the
+// rail, Settings' rows, side panels), 8 (tiles, buttons and the player's
+// focused controls), 12 (chips, cards), and the bar of a scrubber or a
+// progress line (8 high, its ends round).
 ninePatch("r4.9.png", 16, 16, 4, box(16, 16, 4, "#ffffff"));
+ninePatch("r6.9.png", 24, 24, 6, box(24, 24, 6, "#ffffff"));
 ninePatch("r8.9.png", 32, 32, 8, box(32, 32, 8, "#ffffff"));
 ninePatch("r12.9.png", 48, 48, 12, box(48, 48, 12, "#ffffff"));
 ninePatch("bar.9.png", 16, 8, 4, box(16, 8, 4, "#ffffff"));
 
-// The side panels and the focus in their lists: square, as menus are;
-// buttons and the player's own controls keep their round corners.
+// The side panels: square, against the screen's edge.
 ninePatch("panel.9.png", 80, 80, 32, `<rect width="80" height="80" fill="#ffffff"/>`);
-ninePatch("square.9.png", 16, 16, 4, `<rect width="16" height="16" fill="#ffffff"/>`);
 
 // The edge of the seek preview: 2 px, corners 8, white for fg at 20 %.
 ninePatch("frame.9.png", 32, 32, 8, `<rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="#ffffff" stroke-width="2"/>`);
@@ -189,9 +189,12 @@ add(
   `<defs><linearGradient id="g" x2="0" y2="1">${stops([[0, 0], [1, 1]], WHITE)}</linearGradient></defs><rect width="4" height="256" fill="url(#g)"/>`,
 );
 
-// A pill's edge (TvPillButton, TvRoundButton at rest): 2 px, corners 12,
-// white for the control color.
+// A chip's or a card's edge: 2 px, corners 12, white for the control color.
 ninePatch("edge.9.png", 48, 48, 12, `<rect x="1" y="1" width="46" height="46" rx="11" fill="none" stroke="#ffffff" stroke-width="2"/>`);
+
+// A button's edge (TvPillButton at rest): 2 px, corners 8, white for the
+// control color.
+ninePatch("edge8.9.png", 32, 32, 8, `<rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="#ffffff" stroke-width="2"/>`);
 
 // A badge's edge on a page (the content rating, the quality): 2 px,
 // corners 4, white for the outline's color.

@@ -22,7 +22,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <children>
-        <Poster id="pill" uri="pkg:/images/ui/square.9.png" blendColor="0x38BDF8FF" translation="[0, 4]" visible="false" />
+        <Poster id="pill" uri="pkg:/images/ui/r6.9.png" blendColor="0x38BDF8FF" translation="[0, 4]" visible="false" />
         <Poster id="icon" translation="[28, 0]" width="40" height="40" blendColor="0xA1A9B6FF" />
         <Label id="label" translation="[92, 0]" maxLines="1" color="0xE9EBEFFF" />
         <Label id="value" translation="[92, 0]" maxLines="1" color="0xA1A9B6FF" />

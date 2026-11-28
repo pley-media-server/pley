@@ -40,11 +40,11 @@ sub onButtons()
         if not row then width = widest
         group = m.top.createChild("Group")
         back = group.createChild("Poster")
-        back.uri = "pkg:/images/ui/r12.9.png"
+        back.uri = "pkg:/images/ui/r8.9.png"
         back.width = width
         back.height = height
         edge = group.createChild("Poster")
-        edge.uri = "pkg:/images/ui/edge.9.png"
+        edge.uri = "pkg:/images/ui/edge8.9.png"
         edge.blendColor = m.c.borderStrong
         edge.width = width
         edge.height = height

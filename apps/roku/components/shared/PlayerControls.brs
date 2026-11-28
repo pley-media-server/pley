@@ -240,7 +240,7 @@ sub placeRow(buttons as object, x as integer, gap as integer)
         group = m.row.createChild("Group")
         group.translation = [x, y]
         fill = group.createChild("Poster")
-        fill.uri = "pkg:/images/ui/r12.9.png"
+        fill.uri = "pkg:/images/ui/r8.9.png"
         fill.width = size
         fill.height = size
         fill.blendColor = m.c.accent

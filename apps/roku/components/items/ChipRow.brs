@@ -23,10 +23,15 @@ sub onChips()
     x = 0
     for each chip in m.top.chips
         group = m.top.createChild("Group")
+        ' A page's buttons have corners of 8, chips and tabs of 12.
         back = group.createChild("Poster")
         back.uri = "pkg:/images/ui/r12.9.png"
         edge = group.createChild("Poster")
         edge.uri = "pkg:/images/ui/edge.9.png"
+        if look = "buttons"
+            back.uri = "pkg:/images/ui/r8.9.png"
+            edge.uri = "pkg:/images/ui/edge8.9.png"
+        end if
         edge.blendColor = m.c.borderStrong
         edge.visible = look = "buttons"
         icon = invalid

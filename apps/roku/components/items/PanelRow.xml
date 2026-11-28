@@ -21,7 +21,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <children>
-        <Poster id="fill" uri="pkg:/images/ui/square.9.png" blendColor="0x38BDF8FF" width="608" height="88" visible="false" />
+        <Poster id="fill" uri="pkg:/images/ui/r6.9.png" blendColor="0x38BDF8FF" width="608" height="88" visible="false" />
         <Label id="name" translation="[32, 0]" width="488" height="88" vertAlign="center" maxLines="1" color="0xE9EBEFFF" />
         <Label id="note" translation="[32, 48]" width="488" maxLines="1" color="0xA1A9B6FF" visible="false" />
         <Poster id="check" translation="[536, 24]" width="40" height="40" uri="pkg:/images/ui/icon-check-40.png" blendColor="0x38BDF8FF" visible="false" />

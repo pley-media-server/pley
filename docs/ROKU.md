@@ -823,8 +823,8 @@ on a category goes into its rows, Left or Back comes out again.
 Android TV's Audio and Subtitles & display are the Roku's own settings,
 so the Roku has no such categories. Rows are as the Android TV app's: an
 icon, the label and the current value under it, a chevron on a row that
-opens something, the accent filling the focused one, square as menus
-are; the category whose rows have the focus keeps a muted fill. A row's
+opens something, the accent filling the focused one, its corners
+slightly round; the category whose rows have the focus keeps a muted fill. A row's
 choices open in a side panel at the right, the current one checked. Each
 category's rows are a list of their own, filled when what they show
 changes, so moving between categories only shows another list.
