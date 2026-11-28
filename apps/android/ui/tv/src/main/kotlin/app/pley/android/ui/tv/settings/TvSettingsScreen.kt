@@ -365,7 +365,7 @@ private fun LazyListScope.pane(
                     stringResource(R.string.tv_account_audio_language),
                     value = if (defaults == null) null else (TrackLanguages.nameOf(defaults.defaults.audioLanguage, formatWords()) ?: stringResource(R.string.tv_account_file_default)) + if (editable) "" else " · $webOnly",
                     icon = PleyIcons.AudioLines,
-                    onClick = { if (editable) pick(Picking.AudioLanguage) else onWeb("/account/language") },
+                    onClick = { if (editable) pick(Picking.AudioLanguage) else onWeb("/account?section=language") },
                     modifier = keyed("row-audio"),
                 )
             }
@@ -375,7 +375,7 @@ private fun LazyListScope.pane(
                     stringResource(R.string.tv_account_subtitles),
                     value = defaults?.let { stringResource(modeLabel(it.defaults.subtitleMode)) + if (editable) "" else " · $webOnly" },
                     icon = PleyIcons.Captions,
-                    onClick = { if (editable) pick(Picking.SubtitleMode) else onWeb("/account/language") },
+                    onClick = { if (editable) pick(Picking.SubtitleMode) else onWeb("/account?section=language") },
                     modifier = keyed("row-subtitles"),
                 )
             }
@@ -386,7 +386,7 @@ private fun LazyListScope.pane(
                         stringResource(R.string.tv_account_subtitle_language),
                         value = (TrackLanguages.nameOf(defaults.defaults.subtitleLanguage, formatWords()) ?: stringResource(R.string.tv_account_same_as_audio)) + if (editable) "" else " · $webOnly",
                         icon = PleyIcons.Captions,
-                        onClick = { if (editable) pick(Picking.SubtitleLanguage) else onWeb("/account/language") },
+                        onClick = { if (editable) pick(Picking.SubtitleLanguage) else onWeb("/account?section=language") },
                         modifier = keyed("row-subtitle-language"),
                     )
                 }

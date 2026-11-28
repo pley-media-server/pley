@@ -344,7 +344,7 @@ public sealed class SettingsModel : IDisposable
                 var defaults = me.TrackDefaults;
                 var editable = defaults?.Editable == true;
                 var webOnly = editable ? "" : " · " + SettingsText.ChangeOnWeb;
-                SettingAction Edit(SettingPick pick) => editable ? new SettingAction.Pick(pick) : new SettingAction.Web("/account/language");
+                SettingAction Edit(SettingPick pick) => editable ? new SettingAction.Pick(pick) : new SettingAction.Web("/account?section=language");
                 items.Add(new SettingsItem.Row("row-audio", SettingsText.AudioLanguage, Edit(new SettingPick.AudioLanguage()),
                     defaults == null ? null : (TrackLanguages.NameOf(defaults.Defaults.AudioLanguage) ?? SettingsText.FileDefault) + webOnly, "audio-lines"));
                 items.Add(new SettingsItem.Row("row-subtitles", SettingsText.Subtitles, Edit(new SettingPick.SubtitleMode()),
@@ -354,7 +354,7 @@ public sealed class SettingsModel : IDisposable
                         (TrackLanguages.NameOf(defaults.Defaults.SubtitleLanguage) ?? SettingsText.SameAsAudio) + webOnly, "captions"));
                 if (me.Language is { } language)
                     items.Add(new SettingsItem.Row("row-language", SettingsText.Language,
-                        language.Editable ? new SettingAction.Pick(new SettingPick.Language()) : new SettingAction.Web("/account/language"),
+                        language.Editable ? new SettingAction.Pick(new SettingPick.Language()) : new SettingAction.Web("/account?section=language"),
                         LanguageLabel(language.Code, language.OnDevice) + (language.Editable ? "" : " · " + SettingsText.ChangeOnWeb), "languages"));
                 items.Add(new SettingsItem.Row("row-history", SettingsText.History, new SettingAction.Open(new PageKey.History()), Icon: "history", Chevron: true));
                 // The Libraries page sorts them; with three or fewer, the rail lists them and has no way there.

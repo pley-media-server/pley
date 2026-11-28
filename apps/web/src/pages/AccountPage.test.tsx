@@ -7,7 +7,7 @@ import type { User } from "@/api/types";
 import { AudioPlayerProvider } from "@/audio/AudioPlayer";
 import { apiError, type FakeRequest, mockApi, renderWithProviders, testUser } from "@/test/render";
 import { Route, Routes } from "react-router";
-import { ACCOUNT_SECTIONS, AccountLayout, PlaybackCard } from "./AccountPage";
+import { ACCOUNT_SECTIONS, AccountIndex, AccountLayout, PlaybackCard } from "./AccountPage";
 
 /** The last account change: queries refetched after it may come later. */
 function lastSave(requests: FakeRequest[]) {
@@ -82,7 +82,7 @@ const NOT_AN_ADDRESS = "10.0.0.300";
  * The whole page as `user`, with nothing in its history or devices, these
  * apps and these tokens for other apps; returns the requests it makes.
  */
-/** Account at one of its sections (`ACCOUNT_SECTIONS`), with its sidebar to the others. */
+/** Account at one of its sections (`ACCOUNT_SECTIONS`), or at a query of bare /account (`?section=…`), with its sidebar to the others. */
 function renderAccount(user: User, section: string, apps: AppGrant[] = [], tokens: CompatibilityToken[] = []) {
   let list = apps;
   let tokenList = tokens;
@@ -131,13 +131,14 @@ function renderAccount(user: User, section: string, apps: AppGrant[] = [], token
     <AudioPlayerProvider>
       <Routes>
         <Route path="/account" element={<AccountLayout />}>
+          <Route index element={<AccountIndex />} />
           {ACCOUNT_SECTIONS.map(({ path, element }) => (
             <Route key={path} path={path} element={element} />
           ))}
         </Route>
       </Routes>
     </AudioPlayerProvider>,
-    { user, route: `/account/${section}` },
+    { user, route: section.startsWith("?") ? `/account${section}` : `/account/${section}` },
   );
   return requests;
 }
@@ -222,6 +223,19 @@ describe("AccountPage", () => {
     await user.click(within(nav).getByRole("link", { name: "Language" }));
     expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Audio and subtitles" })).toBeInTheDocument();
+  });
+
+  it("opens the section an app's link names", () => {
+    renderAccount(testUser, "?section=language");
+    const nav = screen.getByRole("navigation", { name: "Account" });
+    expect(within(nav).getByRole("link", { name: "Language" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("heading", { name: "Audio and subtitles" })).toBeInTheDocument();
+  });
+
+  it("opens Profile for a section it doesn't have", () => {
+    renderAccount(testUser, "?section=nothing");
+    const nav = screen.getByRole("navigation", { name: "Account" });
+    expect(within(nav).getByRole("link", { name: "Profile and Security" })).toHaveAttribute("aria-current", "page");
   });
 
   it("picks a section from one menu in a narrow window", async () => {

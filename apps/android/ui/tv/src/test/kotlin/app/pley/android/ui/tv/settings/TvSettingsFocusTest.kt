@@ -196,7 +196,7 @@ class TvSettingsFocusTest {
         compose.focused().assert(hasText("Subtitles"))
         compose.press(Key.DirectionCenter)
         compose.onNodeWithTag(TV_WEB_DIALOG).assertExists()
-        compose.onNodeWithText("192.168.1.20:7539/account/language").assertExists()
+        compose.onNodeWithText("192.168.1.20:7539/account?section=language").assertExists()
     }
 
     @Test

@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
-import { Link, Outlet } from "react-router";
+import { Link, Navigate, Outlet, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -673,6 +673,18 @@ export const ACCOUNT_SECTIONS = [
   { path: "language", icon: Languages, element: <LanguageSection /> },
   { path: "history", icon: History, element: <HistoryCard /> },
 ] as const;
+
+/**
+ * Bare /account: the section `?section=` names, Profile otherwise. Pley's
+ * apps link to a section this way (`/account?section=language`), which a
+ * server from before the sections shows as its one Account page, where a
+ * path such as /account/language would be Not Found.
+ */
+export function AccountIndex() {
+  const [params] = useSearchParams();
+  const named = ACCOUNT_SECTIONS.find(({ path }) => path === params.get("section"));
+  return <Navigate to={named?.path ?? "profile"} replace />;
+}
 
 /** Account, laid out as Settings is: its sections down the side, one at a time. Signing out is in the top bar's menu. */
 export function AccountLayout() {
