@@ -137,7 +137,7 @@ internal fun MeScreen() {
                 }
             }
             item(key = "defaults", contentType = "group") {
-                TrackDefaultsGroup(state.trackDefaults, onOpen = { sheet = it }, onWeb = { openWeb("/account") })
+                TrackDefaultsGroup(state.trackDefaults, onOpen = { sheet = it }, onWeb = { openWeb("/account/language") })
             }
             item(key = "activity", contentType = "group") {
                 Group(stringResource(R.string.account_activity)) {

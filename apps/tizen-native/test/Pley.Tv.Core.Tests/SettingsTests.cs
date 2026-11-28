@@ -229,7 +229,7 @@ public class SettingsModelTests
         // Without the play scope the defaults say so and open the web.
         m = Model(scope: "library");
         Assert.Equal("English · change on the web", Row(m, SettingsCategory.Profile, "row-audio").Value);
-        Assert.Equal(new SettingAction.Web("/account"), Row(m, SettingsCategory.Profile, "row-audio").Action);
+        Assert.Equal(new SettingAction.Web("/account/language"), Row(m, SettingsCategory.Profile, "row-audio").Action);
         Assert.Equal("row-audio", m.FirstRow(SettingsCategory.Profile));
     }
 
@@ -347,7 +347,7 @@ public class SettingsModelTests
         var m = Model(scope: "library");
         var row = Row(m, SettingsCategory.Profile, "row-language");
         Assert.Equal("Automatic (English) · change on the web", row.Value);
-        Assert.Equal(new SettingAction.Web("/account"), row.Action);
+        Assert.Equal(new SettingAction.Web("/account/language"), row.Action);
 
         m = Model();
         var told = new List<string>();
@@ -360,7 +360,7 @@ public class SettingsModelTests
         account.SaveFailure = new ApiException(403, "forbidden", "the play scope is needed");
         m.Choose(new SettingPick.Language(), 2);
         Assert.False(m.State.Value.Me.Language!.Editable);
-        Assert.Equal(new SettingAction.Web("/account"), Row(m, SettingsCategory.Profile, "row-language").Action);
+        Assert.Equal(new SettingAction.Web("/account/language"), Row(m, SettingsCategory.Profile, "row-language").Action);
     }
 
     [Fact]
