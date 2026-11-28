@@ -17,6 +17,13 @@ describes how they are made.
   or credits begin, then only with the player's controls, so they don't sit
   over the picture the whole time.
 
+### Fixed
+
+- Rockchip in Docker decodes HEVC, VP9 and AV1 on the chip, and encodes
+  HEVC there: `compose.rockchip.yaml` shows Rockchip's MPP the device tree
+  it tells the chip by (`security_opt: systempaths=unconfined`), which
+  Docker hides. An installation set up before needs the new file.
+
 ## [0.1.18] - 2026-11-27
 
 ### Added

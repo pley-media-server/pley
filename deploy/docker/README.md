@@ -113,6 +113,11 @@ later runs points out one Pley doesn't use yet.
 - Other arm64 boards, and Rockchip without Rockchip's kernel, transcode on
   the CPU. If `/dev/rga` or `/dev/dma_heap` has another group than
   `/dev/mpp_service`, add it under `group_add` in `compose.override.yaml`.
+- Rockchip's MPP knows which chip it runs on, and so which codecs it has,
+  only from the device tree, which Docker hides. `compose.rockchip.yaml`
+  shows it (`security_opt: systempaths=unconfined`); without it, MPP knows
+  H.264 and none of HEVC, VP9 or AV1. A host with AppArmor also needs
+  `apparmor=unconfined` there (Podman: `unmask=/sys/firmware` instead).
 - **Docker Desktop on Windows** can't hand Pley the GPU in a way it can use
   for HDR: install [Pley for Windows](../windows/README.md) instead.
 
@@ -190,7 +195,8 @@ docker run -d --name pley -p 7539:7539 --shm-size 2g \
 ```
 
 For NVIDIA, use `--gpus all` instead of `--device /dev/dri`; for Rockchip,
-add `--device` for `/dev/mpp_service`, `/dev/rga` and `/dev/dma_heap`. For
+add `--device` for `/dev/mpp_service`, `/dev/rga` and `/dev/dma_heap`, and
+`--security-opt systempaths=unconfined` ([above](#hardware-transcoding)). For
 the Plex-compatible API on Plex's port, add
 `-p 32400:32400 -e PLEY_PLEX_BIND=0.0.0.0:32400`; it answers on Pley's port
 without them.
@@ -216,7 +222,9 @@ work.
   encrypts two-step sign-in secrets.
 - **Only the GPU, not the machine.** The Intel/AMD add-on hands over one
   render node; NVIDIA's goes through the toolkit; Rockchip's hands over
-  its video engines' devices and `/dev/dri`.
+  its video engines' devices and `/dev/dri`, and shows the hidden system
+  files, the device tree among them, which a user without capabilities
+  can read but not change.
 - **Bounded.** Processes are capped and Docker's log is rotated. On a machine
   that does other work, also cap memory and CPU in `compose.override.yaml`
   (`mem_limit: 8g`, `cpus: 6`; each transcode takes about 1 GB).
@@ -237,4 +245,5 @@ Debian's security fixes).
 | `bind source path does not exist` | A folder in `.env` is missing. Create it: Compose doesn't, as it would belong to root |
 | `port is already allocated` | Something else uses 7539: change `PLEY_LISTEN` (`127.0.0.1:7600`) and your proxy |
 | Transcodes stay on the CPU | The log's `detected` line lists the encoders found. Intel/AMD: `docker compose exec pley ls -l /dev/dri` should list `renderD128`. NVIDIA: `docker compose exec pley nvidia-smi` should list the GPU. Rockchip: `docker compose exec pley ls -l /dev/mpp_service /dev/rga` should list both (missing on the host: not Rockchip's kernel) |
+| Rockchip transcodes H.264 on the chip, but not HEVC, VP9 or AV1 | MPP can't read the device tree: the container needs `security_opt: systempaths=unconfined` ([Hardware transcoding](#hardware-transcoding)), and `apparmor=unconfined` with AppArmor |
 | Rootless Docker | `PLEY_UID=0` and `PLEY_GID=0` (what `setup.sh` picks): root in the container is you. The host's render group doesn't carry over, so Intel and AMD transcoding stays off |
