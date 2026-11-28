@@ -2,7 +2,7 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import type { ItemDetail, ItemSummary } from "@/api/types";
-import { AudioPlayerProvider, useAudioPlayer } from "@/audio/AudioPlayer";
+import { AudioPlayerProvider } from "@/audio/AudioPlayer";
 import { makeItem } from "@/test/fixtures";
 import { mockApi, renderWithProviders, type FakeRequest } from "@/test/render";
 import { BookView, joinNames } from "./BookView";
@@ -201,21 +201,6 @@ describe("a book's Play, with a part of it in the player", () => {
     await waitFor(() => expect(starts(requests)).toMatchObject([{ item_id: 32 }, { item_id: 31, start_ms: 0 }]));
   });
 
-  it("plays again from its start a part a sleep timer stopped at its end, not the next", async () => {
-    const requests = playable([part(31, 1), part(32, 2)], part(31, 1));
-    const { container } = renderWithProviders(
-      <AudioPlayerProvider>
-        <SleepAtEnd />
-        <BookView item={book()} />
-      </AudioPlayerProvider>,
-    );
-    const audio = await playPart(container, "Play Chapter 1");
-    await userEvent.click(screen.getByRole("button", { name: "Sleep at end" }));
-    end(audio);
-    await userEvent.click(screen.getByRole("button", { name: "Play Chapter 1" }));
-    await waitFor(() => expect(starts(requests)).toMatchObject([{ item_id: 31 }, { item_id: 31, start_ms: 0 }]));
-  });
-
   it("starts a book in one file again at the chapter chosen once it has been heard to its end", async () => {
     const one = part(31, 1);
     const requests = playable([one], one, {
@@ -243,13 +228,3 @@ describe("a book's Play, with a part of it in the player", () => {
     );
   });
 });
-
-/** The bar's sleep timer, set to the end of the first part. */
-function SleepAtEnd() {
-  const player = useAudioPlayer();
-  return (
-    <button type="button" onClick={() => player.setSleep({ itemId: 31, atMs: 1_800_000 })}>
-      Sleep at end
-    </button>
-  );
-}

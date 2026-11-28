@@ -71,9 +71,6 @@
     "playNow": "立即播放",
     "cancel": "取消自動播放"
   },
-  "sleep": {
-    "minutes_other": "{{count}} 分鐘"
-  },
   "chapters": {
     "title": "章節",
     "numbered": "第 {{number}} 章"
@@ -191,12 +188,6 @@
   },
   "book": {
     "speed": "速度：{{rate}}",
-    "sleep": "睡眠定時器",
-    "sleepIn": "睡眠定時器：剩餘 {{time}}",
-    "sleepAtEnd": "睡眠定時器：結束時暫停",
-    "sleepEndOfChapter": "本章結束",
-    "sleepEndOfPart": "本部分結束",
-    "sleepOff": "關閉定時器",
     "back_other": "後退 {{count}} 秒",
     "forward_other": "前進 {{count}} 秒"
   }

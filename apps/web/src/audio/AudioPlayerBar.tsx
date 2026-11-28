@@ -25,7 +25,7 @@ import { formatClock, formatDuration } from "@/lib/format";
 import { useDismiss } from "@/lib/hooks";
 import { posterCandidates } from "@/lib/images";
 import { useAudioPlayer, useAudioTime } from "./AudioPlayer";
-import { BookChapters, SleepMenu, SpeedMenu, usePartChapters } from "./BookControls";
+import { BookChapters, SpeedMenu, usePartChapters } from "./BookControls";
 import { chapterIndexAt, chapterTitle } from "@/player/ChaptersMenu";
 
 /** An audiobook's skips, back and forward, in seconds. */
@@ -205,7 +205,6 @@ export function AudioPlayerBar() {
           {book ? (
             <>
               <SpeedMenu />
-              <SleepMenu chapters={chapters} />
               <BookChapters chapters={chapters} />
             </>
           ) : null}

@@ -8,6 +8,10 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The sleep timer is gone, from videos and audiobooks.
+
 ## [0.1.10] - 2026-11-27
 
 ### Added

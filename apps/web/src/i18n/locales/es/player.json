@@ -71,11 +71,6 @@
     "playNow": "Reproducir ahora",
     "cancel": "Cancelar la reproducción automática"
   },
-  "sleep": {
-    "minutes_one": "{{count}} minuto",
-    "minutes_many": "{{count}} minutos",
-    "minutes_other": "{{count}} minutos"
-  },
   "chapters": {
     "title": "Capítulos",
     "numbered": "Capítulo {{number}}"
@@ -195,12 +190,6 @@
   },
   "book": {
     "speed": "Velocidad: {{rate}}",
-    "sleep": "Temporizador",
-    "sleepIn": "Temporizador: quedan {{time}}",
-    "sleepAtEnd": "Temporizador: pausa al final",
-    "sleepEndOfChapter": "Final del capítulo",
-    "sleepEndOfPart": "Final de la parte",
-    "sleepOff": "Desactivar el temporizador",
     "back_one": "Retroceder {{count}} segundo",
     "back_many": "Retroceder {{count}} segundos",
     "back_other": "Retroceder {{count}} segundos",
