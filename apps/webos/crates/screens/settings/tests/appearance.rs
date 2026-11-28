@@ -1,17 +1,17 @@
 //! Appearance against the fake server: Settings' rows open it, a theme or an accent picked shows
 //! in the next frame and is kept on the TV for the profile, each profile shows its own and the
-//! pages outside a profile Midnight, the player draws a light theme's dark twin, and what has
-//! focus has one outline.
+//! pages outside a profile Midnight, the player draws a light theme's dark twin, what has focus
+//! has one outline, and the picked theme's check sits at its preview's bottom right.
 
 mod common;
 
 use common::TestApp;
-use pley_base::{Cmd, Color, Key};
+use pley_base::{Cmd, Color, Key, Rect};
 use pley_core::store::ThemePick;
 use pley_fixtures::ids;
 use pley_settings::{AppearanceScreen, SettingsScreen};
 use pley_shell::{Route, SettingsSection};
-use pley_ui::theme::{self, Accent, Palette, Theme, focus};
+use pley_ui::theme::{self, Accent, Palette, Theme, focus, radius};
 
 fn theme_card(app: &TestApp, t: Theme) -> pley_ui::Id {
     AppearanceScreen::theme_id(app.page(), t)
@@ -200,4 +200,36 @@ fn what_has_focus_has_one_outline_the_ring_in_place_of_its_edge() {
     app.settle();
     assert_eq!(app.focused(), Some(accent_chip(&app, Some(Accent::Sky))));
     assert_eq!((ring(&app), picked(&app), edges(&app)), (1, 1, all - 1));
+}
+
+/// The first theme's preview (Midnight's, by its 1 dp edge) and the check's disk on it.
+fn preview_and_check(app: &TestApp) -> (Rect, Rect) {
+    let edge = theme::fg().alpha(0.1);
+    let preview = app.list.cmds.iter().find_map(|c| match c {
+        Cmd::Stroke { rect, color, radius: r, width } if *color == edge && *r == radius::CARD && *width == 1.0 => {
+            Some(*rect)
+        }
+        _ => None,
+    });
+    let disk = app.list.cmds.iter().find_map(|c| match c {
+        Cmd::Fill { rect, color, .. } if *color == theme::accent() && rect.w == 22.0 && rect.h == 22.0 => Some(*rect),
+        _ => None,
+    });
+    (preview.expect("Midnight's preview"), disk.expect("the check"))
+}
+
+#[test]
+fn the_picked_themes_check_sits_at_its_previews_bottom_right() {
+    let mut app = TestApp::open_on(Route::Appearance { accents: false });
+    app.settle();
+    for focused in [true, false] {
+        assert_eq!(app.focused() == Some(theme_card(&app, Theme::Midnight)), focused);
+        let (preview, disk) = preview_and_check(&app);
+        // 5 in from the right and bottom edges (10 px at 1080p, as on every TV app), below the accent
+        // pill at the preview's top right.
+        assert_eq!((disk.right(), disk.bottom()), (preview.right() - 5.0, preview.bottom() - 5.0), "{focused}");
+        assert!(disk.y > preview.center().y, "{focused}");
+        app.press(Key::Right);
+        app.settle();
+    }
 }

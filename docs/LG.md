@@ -207,9 +207,9 @@ and Accent, say what is picked and open the page of choices on either:
 "Theme" and its hint, the nine themes, five to a line, each a card with a
 small Pley in its colors, its name and caption, then "Accent" and its hint
 and the accents, Default (the theme's own) first, each a swatch of the color
-it gives the theme shown. The theme picked has an accent edge and a check;
-the accent picked is filled with the accent. Up and Down between the themes
-and the accents land on what is picked.
+it gives the theme shown. The theme picked has an accent edge and a check
+at its preview's bottom right; the accent picked is filled with the accent.
+Up and Down between the themes and the accents land on what is picked.
 OK shows a choice at once, every color in the same frame. It is kept for
 each profile on this TV, by server and profile (`themes` in its settings),
 and nothing goes to the server: a profile that picked none here shows

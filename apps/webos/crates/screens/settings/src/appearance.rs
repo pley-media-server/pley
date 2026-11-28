@@ -2,11 +2,12 @@
 //! every TV app. Under the title, "Theme" and its hint on one line, then the nine themes, five to a
 //! line, each a card with a small Pley in its colors, its name and caption; then "Accent" and its
 //! hint, and the accents, Default (the theme's own) first, each a swatch of the color it gives the
-//! theme shown. The theme in force has an accent edge and a check on its corner; the accent in
-//! force is filled with the accent, a check in place of its swatch. Focus starts on the pick in
-//! force, and Up and Down between the cards and the accents land on it. A pick shows at once,
-//! every color in the same frame, and is kept on the TV for the profile watching
-//! ([`pley_shell::AppState::pick_theme`]); nothing goes to the server.
+//! theme shown. The theme in force has an accent edge and a check on its preview's bottom-right
+//! corner, clear of the preview's accent pill at the top right; the accent in force is filled with
+//! the accent, a check in place of its swatch. Focus starts on the pick in force, and Up and Down
+//! between the cards and the accents land on it. A pick shows at once, every color in the same
+//! frame, and is kept on the TV for the profile watching ([`pley_shell::AppState::pick_theme`]);
+//! nothing goes to the server.
 
 use pley_base::{Icon, Point, Rect, Size, TextOpts, TextStyle};
 use pley_core::store::ThemePick;
@@ -205,9 +206,9 @@ fn section_line(ui: &mut Ui, y: f32, label: &str, hint: &str) {
 }
 
 /// A theme's card at `at`: its edge, the preview, its name and caption under it. The theme in
-/// force has an accent edge over a tint of the accent and the check on its preview's corner. The
-/// card grows as focus comes, with the ring around it in place of its edge, so one outline shows,
-/// as on a chip.
+/// force has an accent edge over a tint of the accent and the check 5 in from its preview's
+/// bottom-right corner, where it covers none of the preview's accent pill. The card grows as focus
+/// comes, with the ring around it in place of its edge, so one outline shows, as on a chip.
 fn theme_card(ui: &mut Ui, id: Id, at: Point, t: Theme, accent: Option<Accent>, current: bool) -> Response {
     let card = Rect::new(at.x, at.y, CARD_W, CARD_H);
     let r = ui.focusable(id, card);
@@ -229,7 +230,7 @@ fn theme_card(ui: &mut Ui, id: Id, at: Point, t: Theme, accent: Option<Accent>, 
         let preview = Rect::new(card.x + CARD_PAD, card.y + CARD_PAD, PREVIEW_W, PREVIEW_H);
         draw_preview(ui, preview, Palette::of(t, accent));
         if current {
-            check(ui, Point::new(preview.right() - CHECK / 2.0 - 4.0, preview.y + CHECK / 2.0 + 4.0));
+            check(ui, Point::new(preview.right() - CHECK / 2.0 - 5.0, preview.bottom() - CHECK / 2.0 - 5.0));
         }
         let (x, y, w) = (preview.x, preview.bottom() + NAME_GAP, PREVIEW_W);
         let style = if r.focused { theme::TITLE } else { theme::LABEL };
