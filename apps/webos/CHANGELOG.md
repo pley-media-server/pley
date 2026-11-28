@@ -22,6 +22,12 @@ describes how they are made.
   with the player's controls, so they don't sit over the whole intro or
   credits and hold the remote's OK.
 
+### Fixed
+
+- The avatar at the top of the side menu is in the profile's own color, as
+  on "Who's watching?" and the web, in every theme, instead of a gray circle
+  for a profile without a six-digit color.
+
 ## [0.1.16] - 2026-11-27
 
 ### Added

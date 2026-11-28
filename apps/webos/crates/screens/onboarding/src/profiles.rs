@@ -22,7 +22,6 @@ use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
 use pley_ui::theme;
 use pley_ui::{Group, Motion, Ui};
 
-use crate::kit::profile_fill;
 use crate::link::{LinkFlow, LinkLabels, LinkView, Purpose};
 
 /// PINs are 4 to 8 digits (`PinEntry`).
@@ -474,7 +473,7 @@ impl ProfilesScreen {
                 let picture: Vec<_> = p.avatar_url.as_deref().and_then(|url| cx.avatar(url, px)).into_iter().collect();
                 let at = Point::new(left + i as f32 * (AVATAR + AVATAR_GAP), 204.0);
                 let r = ProfileTile::new(&p.name)
-                    .color(Some(profile_fill(&p.name, p.avatar_color.as_deref())))
+                    .color(p.avatar_color.as_deref())
                     .picture(&picture)
                     .locked(p.needs == ProfileNeeds::Pin)
                     .dimmed(busy == Some(p.id))
@@ -578,7 +577,7 @@ impl ProfilesScreen {
         let picture: Vec<_> =
             step.profile.avatar_url.as_deref().and_then(|url| cx.avatar(url, ui.image_px(56.0))).into_iter().collect();
         ProfileTile::new(&step.profile.name)
-            .color(Some(profile_fill(&step.profile.name, step.profile.avatar_color.as_deref())))
+            .color(step.profile.avatar_color.as_deref())
             .picture(&picture)
             .size(56.0)
             .avatar(ui, pley_base::Rect::new(centre - 28.0, y, 56.0, 56.0));

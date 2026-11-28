@@ -1,6 +1,6 @@
 //! What the screens of getting in share (`OnboardingKit.kt`, the TV app's `onboarding/kit.tsx`):
 //! the brand glow behind them, the Pley logo, the status line with its breathing dot, the sweep's
-//! bar, a pad key standing on its own, and profiles' colors.
+//! bar and a pad key standing on its own.
 
 use std::sync::{Arc, Mutex};
 
@@ -213,41 +213,9 @@ pub fn sweep_bar(ui: &mut Ui, at: Point, progress: f32) {
     }
 }
 
-/// A profile's own color when the server gave one as `#rgb` or `#rrggbb`.
-pub fn parse_color(color: Option<&str>) -> Option<Color> {
-    let hex = color?.trim().strip_prefix('#')?;
-    if !hex.chars().all(|c| c.is_ascii_hexdigit()) {
-        return None;
-    }
-    let full = match hex.len() {
-        3 => hex.chars().flat_map(|c| [c, c]).collect::<String>(),
-        6 => hex.to_string(),
-        _ => return None,
-    };
-    u32::from_str_radix(&full, 16).ok().map(Color::rgb)
-}
-
-/// The color a profile's avatar is drawn on (`ProfileColors.of`): its own, else the one its name
-/// gives.
-pub fn profile_fill(name: &str, color: Option<&str>) -> Color {
-    parse_color(color).unwrap_or_else(|| theme::profile_color(name))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn colours_are_read_in_both_forms() {
-        assert_eq!(parse_color(Some("#38bdf8")), Some(Color::rgb(0x38bdf8)));
-        assert_eq!(parse_color(Some("#a3e")), Some(Color::rgb(0xaa33ee)));
-        assert_eq!(parse_color(Some("38bdf8")), None);
-        assert_eq!(parse_color(Some("#38bdf")), None);
-        assert_eq!(parse_color(Some("#zzzzzz")), None);
-        assert_eq!(parse_color(None), None);
-        assert_eq!(profile_fill("Sam", Some("#a3e635")), Color::rgb(0xa3e635));
-        assert_eq!(profile_fill("Sam", None), theme::profile_color("Sam"));
-    }
 
     #[test]
     fn the_dot_breathes_in_half_second_steps() {

@@ -193,34 +193,6 @@ pub const ICON_WELL_ALPHA: f32 = 0.12;
 /// Disabled controls are drawn at this opacity, and are not focusable (`TvButtons.kt`).
 pub const DISABLED_ALPHA: f32 = 0.4;
 
-/// Profile colors, in the order the server and every app use; a profile without one takes
-/// `PROFILE_COLORS[hash(name) % 8]` ([`profile_color`]).
-pub const PROFILE_COLORS: [Color; 8] = [
-    Color::rgb(0x38bdf8),
-    Color::rgb(0xa78bfa),
-    Color::rgb(0xf472b6),
-    Color::rgb(0xfb923c),
-    Color::rgb(0xfacc15),
-    Color::rgb(0x4ade80),
-    Color::rgb(0x2dd4bf),
-    Color::rgb(0xf87171),
-];
-
-/// The color of a profile named `name` that has none of its own: `h = h·31 + c` over its UTF-16
-/// units, wrapping at 32 bits.
-pub fn profile_color(name: &str) -> Color {
-    PROFILE_COLORS[(utf16_hash(name) % 8) as usize]
-}
-
-/// What draws on `c` (a profile's color): the darker of Bg and Fg when its luminance
-/// (0.2126 R + 0.7152 G + 0.0722 B) is over 0.45, else the lighter.
-pub fn content_on(c: Color) -> Color {
-    let lum = |c: Color| (0.2126 * c.r as f32 + 0.7152 * c.g as f32 + 0.0722 * c.b as f32) / 255.0;
-    let p = palette();
-    let (dark, light) = if p.light { (p.fg, p.bg) } else { (p.bg, p.fg) };
-    if lum(c) > 0.45 { dark } else { light }
-}
-
 fn utf16_hash(s: &str) -> u32 {
     s.encode_utf16().fold(0u32, |h, c| h.wrapping_mul(31).wrapping_add(c as u32))
 }
@@ -730,9 +702,10 @@ mod tests {
         assert_eq!(accent(), Color::rgb(0xa03d00));
         assert_eq!(focus::pill().focus_fill, accent());
         assert_eq!(backdrop_left_scrim().at(0.0), Color::rgb(0xf3f5f8));
-        // In a light theme the words on a bright profile color are dark, on a deep one light.
-        assert_eq!(content_on(Color::rgb(0xfacc15)), p.fg);
-        assert_eq!(content_on(Color::rgb(0x0284c7)), p.bg);
+        // A profile's avatar keeps its own colors in a light theme: dark on a bright circle,
+        // white on a deep one, as in Midnight.
+        assert_eq!(crate::avatar::ink(Color::rgb(0xfacc15)), crate::avatar::INK_DARK);
+        assert_eq!(crate::avatar::ink(Color::rgb(0x7c3aed)), crate::avatar::INK_LIGHT);
         show(Palette::of(Theme::Midnight, None));
         assert_eq!(accent(), Color::rgb(0x38bdf8));
     }
@@ -838,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    fn placeholder_and_profile_colours() {
+    fn placeholder_colours() {
         // The web's hash: "a" is 97.
         assert_eq!(placeholder_hue("a"), 97);
         assert_eq!(placeholder_hue("ab"), (97 * 31 + 98) % 360);
@@ -846,10 +819,6 @@ mod tests {
         assert_eq!(hsl(120.0, 1.0, 0.25), Color::rgb(0x008000));
         let (a, b) = placeholder_colors("Arrival");
         assert_ne!(a, b);
-        assert_eq!(profile_color("a"), PROFILE_COLORS[97 % 8]);
-        assert_eq!(content_on(Color::rgb(0xfacc15)), bg());
-        assert_eq!(content_on(Color::rgb(0xa78bfa)), bg());
-        assert_eq!(content_on(Color::rgb(0x0284c7)), fg());
     }
 
     #[test]

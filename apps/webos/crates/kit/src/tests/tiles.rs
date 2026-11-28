@@ -300,5 +300,29 @@ fn a_profile_grows_to_1_1_and_says_its_name_under_it() {
     let at = text_at(&f.list, "anna").unwrap();
     assert_eq!(at.y, 312.0);
     assert!(f.list.cmds.iter().any(|c| matches!(c, Cmd::Icon { icon: Icon::Lock, .. })));
-    assert!(fills_of(&f.list, theme::profile_color("anna")).iter().any(|r| r.w == 100.0));
+    let fill = pley_ui::avatar::color("anna", None);
+    assert!(fills_of(&f.list, fill).iter().any(|r| r.w == 100.0));
+    assert_eq!(text_color(&f.list, "A"), Some(pley_ui::avatar::ink(fill)));
+}
+
+/// A profile's own color, `#rgb` too, under any theme; a blank name shows "?".
+#[test]
+fn a_profile_is_drawn_in_its_own_colors_whatever_the_theme() {
+    use pley_ui::avatar::{INK_DARK, INK_LIGHT};
+    use pley_ui::theme::{Palette, Theme};
+    for theme in [Theme::Midnight, Theme::Midday] {
+        theme::show(Palette::of(theme, None));
+        for (name, own, fill, letter, ink) in [
+            ("ben", Some("#7c3aed"), 0x7c3aed, "B", INK_LIGHT),
+            ("mia", Some("#abc"), 0xaabbcc, "M", INK_DARK),
+            ("  ", None, 0x38bdf8, "?", INK_DARK),
+        ] {
+            let mut screen =
+                |ui: &mut Ui| ProfileTile::new(name).color(own).avatar(ui, Rect::new(0.0, 0.0, 48.0, 48.0));
+            let f = Harness::new().idle(&mut screen);
+            assert!(fills_of(&f.list, Color::rgb(fill)).iter().any(|r| r.w == 48.0), "{name:?} in {theme:?}");
+            assert_eq!(text_color(&f.list, letter), Some(ink), "{name:?} in {theme:?}");
+        }
+    }
+    theme::show(Palette::of(Theme::Midnight, None));
 }

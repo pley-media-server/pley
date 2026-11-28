@@ -18,7 +18,7 @@ use pley_core::store::SubtitleFont;
 use pley_core::{ApiError, Promise};
 use pley_i18n::{Language, t};
 use pley_kit::{Dialog, DialogButton, Heading, List, ListRow, ListState, ProfileTile, SidePanel, Trailing, is_inert};
-use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen, SettingsSection, avatar_color};
+use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen, SettingsSection};
 use pley_ui::theme;
 use pley_ui::{Dirs, Edge, Group, Id, Ui};
 
@@ -784,7 +784,7 @@ fn item_height(ui: &Ui, item: &Item, width: f32) -> f32 {
 fn profile_header(ui: &mut Ui, rect: Rect, f: &Facts, avatar: &[ImageRequest]) {
     let Some(p) = &f.profile else { return };
     let circle = Rect::new(rect.x + 20.0, rect.y, AVATAR, AVATAR);
-    ProfileTile::new(&p.name).color(avatar_color(p.avatar_color.as_deref())).picture(avatar).avatar(ui, circle);
+    ProfileTile::new(&p.name).color(p.avatar_color.as_deref()).picture(avatar).avatar(ui, circle);
     let x = circle.right() + 16.0;
     let w = rect.right() - x;
     let line = [p.managed.then(|| t!("settings.profile.managed")), f.server.as_deref()]

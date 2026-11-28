@@ -17,8 +17,9 @@ use pley_base::{Color, Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{Library, LibraryKind, Me, RequestSummary};
 use pley_core::requests::{has_requests, may_ask, requests_count, requests_title};
 use pley_i18n::t;
+use pley_kit::ProfileTile;
 use pley_ui::theme::{self, focus};
-use pley_ui::{Dir, Dirs, Easing, Edge, Group, Id, ImageOpts, Motion, Ui, nudge};
+use pley_ui::{Dir, Dirs, Easing, Edge, Group, Id, Motion, Ui, nudge};
 
 use crate::route::Route;
 
@@ -196,20 +197,6 @@ pub fn current_entry(root: Option<&Route>, entries: &RailEntries) -> Option<Stri
             top.iter().find(|e| std::mem::discriminant(&e.route) == std::mem::discriminant(root)).map(|e| e.id.clone())
         }
     }
-}
-
-/// A profile's own color (`#e07a5f` only), else none.
-pub fn avatar_color(color: Option<&str>) -> Option<Color> {
-    let hex = color?.strip_prefix('#')?;
-    if hex.len() != 6 {
-        return None;
-    }
-    u32::from_str_radix(hex, 16).ok().map(Color::rgb)
-}
-
-/// The initial on an avatar without a picture.
-pub fn initial(name: &str) -> String {
-    name.trim().chars().next().map_or_else(|| "?".to_string(), |c| c.to_uppercase().collect())
 }
 
 /// What the person did with the rail this frame.
@@ -630,21 +617,9 @@ fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Op
             ui.fill(pill, fill, theme::radius::CONTROL);
         }
         let circle = Rect::new(X + (ENTRY_W - AVATAR) / 2.0, TOP + (AVATAR_ENTRY - AVATAR) / 2.0, AVATAR, AVATAR);
-        let color = avatar_color(view.me.and_then(|m| m.avatar_color.as_deref())).unwrap_or(theme::surface3());
-        let shown = view.avatar.as_ref().map(|req| ui.image_state(req, pley_base::Priority::Visible));
-        if !shown.is_some_and(|s| s.opaque()) {
-            ui.fill(circle, color, AVATAR / 2.0);
-            let lum = (0.2126 * color.r as f32 + 0.7152 * color.g as f32 + 0.0722 * color.b as f32) / 255.0;
-            let ink = if lum > 0.45 { theme::on_accent() } else { theme::fg() };
-            let style = theme::LABEL.with_weight(pley_base::Weight::Bold);
-            let letter = initial(name);
-            let size = ui.measure(&letter, &style, &TextOpts::default());
-            let at = Point::new(circle.center().x - size.w / 2.0, circle.center().y - size.h / 2.0);
-            ui.text(at, &letter, &style, &TextOpts::default(), ink);
-        }
-        if let Some(s) = shown {
-            ui.draw_image(circle, &s, &ImageOpts::cover().rounded(AVATAR / 2.0));
-        }
+        // The profile's picture, else its initial on its own color, as every other avatar.
+        let own = view.me.and_then(|m| m.avatar_color.as_deref());
+        ProfileTile::new(name).color(own).picture(view.avatar.as_slice()).size(AVATAR).avatar(ui, circle);
         if view.offline_mark {
             let mark = Rect::new(circle.x + 22.0, circle.y + 22.0, MARK, MARK);
             ui.fill(mark.expand(2.0), theme::bg(), (MARK + 4.0) / 2.0);
@@ -825,14 +800,50 @@ mod tests {
         }
     }
 
+    /// The avatar without a picture: the profile's own color, else the one its name gives, and its
+    /// initial in the ink that reads best on it, the same in a light theme as in Midnight
+    /// (`pley_ui::avatar`, which packages/tv/test/fixtures/avatar.json pins).
     #[test]
-    fn avatars_take_six_digit_colours_only() {
-        assert_eq!(avatar_color(Some("#e07a5f")), Some(Color::rgb(0xe07a5f)));
-        assert_eq!(avatar_color(Some("e07a5f")), None);
-        assert_eq!(avatar_color(Some("#fff")), None);
-        assert_eq!(avatar_color(None), None);
-        assert_eq!(initial(" alex"), "A");
-        assert_eq!(initial(""), "?");
+    fn the_avatar_keeps_the_profiles_colors_in_every_theme() {
+        use pley_base::Cmd;
+        use pley_ui::avatar::{INK_DARK, INK_LIGHT};
+        use pley_ui::testing::Harness;
+        use pley_ui::theme::{Palette, Theme};
+        let entries = rail_entries(&[], false, false, None, false);
+        let cases = [
+            ("Sam", Some("#a3e635"), 0xa3e635, "S", INK_DARK),
+            ("Ben", Some("#7c3aed"), 0x7c3aed, "B", INK_LIGHT),
+            ("Mia", Some("#ABC"), 0xaabbcc, "M", INK_DARK),
+            ("Anna", None, 0x38bdf8, "A", INK_DARK),
+            ("Leo", Some("blue"), 0x2dd4bf, "L", INK_DARK),
+        ];
+        for theme in [Theme::Midnight, Theme::Midday, Theme::Sunshine] {
+            theme::show(Palette::of(theme, None));
+            for (name, own, fill, letter, ink) in cases {
+                let me = Me { name: name.into(), avatar_color: own.map(Into::into), ..Me::default() };
+                let mut screen = |ui: &mut Ui| {
+                    let view = RailView {
+                        entries: &entries,
+                        current: Some("home"),
+                        me: Some(&me),
+                        avatar: None,
+                        offline_mark: false,
+                        page_modal: false,
+                    };
+                    Rail::default().ui(ui, &view);
+                };
+                let f = Harness::new().idle(&mut screen);
+                let fill = Color::rgb(fill);
+                let circle = |c: &Cmd| matches!(c, Cmd::Fill { rect, color, .. } if *color == fill && rect.w == AVATAR);
+                assert!(f.list.cmds.iter().any(circle), "{name} in {theme:?}");
+                let drawn = f.list.cmds.iter().find_map(|c| match c {
+                    Cmd::Text { layout, color, .. } if &*layout.text == letter => Some(*color),
+                    _ => None,
+                });
+                assert_eq!(drawn, Some(ink), "{name} in {theme:?}");
+            }
+        }
+        theme::show(Palette::of(Theme::Midnight, None));
     }
 
     /// The open panel's width in a frame, where it is drawn, and where its edge starts.

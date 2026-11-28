@@ -9,7 +9,7 @@
 use pley_base::mark::{self, MarkGlyph};
 use pley_base::{Color, Icon, ImageRequest, ImageState, Point, Priority, Rect, Size, TextOpts, TextStyle, Weight};
 use pley_ui::theme::{self, focus, radius};
-use pley_ui::{FocusOpts, Id, ImageOpts, Motion, Response, Shown, Ui};
+use pley_ui::{FocusOpts, Id, ImageOpts, Motion, Response, Shown, Ui, avatar};
 
 use crate::badge::{BADGE_HEIGHT, Badge, BadgeStyle};
 use crate::look::{focus_progress, free_line, register, spoken, text_mid, tile_focus_progress};
@@ -503,13 +503,16 @@ fn placeholder_style(title: &str, avail: f32) -> TextStyle {
 }
 
 /// A profile on Who's watching? (`TvProfilesScreen.kt`): a circle of `size` (100) holding the
-/// profile's picture, or its initial on its color; its name 12 below in `Tv.Label`, centered, bold
-/// when focused. Focused it grows to 1.1 with the tile ring; PIN profiles carry a lock badge.
+/// profile's picture, or, without one or while it loads or fails, its initial on its color
+/// ([`pley_ui::avatar`]); its name 12 below in `Tv.Label`, centered, bold when focused. Focused it
+/// grows to 1.1 with the tile ring; PIN profiles carry a lock badge. Every avatar the app draws is
+/// one of these or its circle alone ([`ProfileTile::avatar`]).
 #[derive(Clone, Copy, Debug)]
 pub struct ProfileTile<'a> {
     pub name: &'a str,
-    /// Its color, or the one its name gives ([`theme::profile_color`]).
-    pub color: Option<Color>,
+    /// Its own color as the server gives it (`avatar_color`); without a valid one, the one its
+    /// name gives ([`avatar::color`]).
+    pub color: Option<&'a str>,
     pub picture: &'a [ImageRequest],
     pub locked: bool,
     pub size: f32,
@@ -523,8 +526,8 @@ impl<'a> ProfileTile<'a> {
         ProfileTile { name, color: None, picture: &[], locked: false, size: 100.0, dimmed: false }
     }
 
-    /// The profile's own color.
-    pub fn color(self, color: Option<Color>) -> ProfileTile<'a> {
+    /// The profile's own color (`avatar_color`).
+    pub fn color(self, color: Option<&'a str>) -> ProfileTile<'a> {
         ProfileTile { color, ..self }
     }
 
@@ -548,18 +551,18 @@ impl<'a> ProfileTile<'a> {
         ProfileTile { dimmed, ..self }
     }
 
-    /// Draws the circle alone (no focus, no name) in `rect`.
+    /// Draws the circle alone (no focus, no name) in `rect`: the picture, else the initial on the
+    /// profile's color in the ink that reads best on it, whatever the theme.
     pub fn avatar(&self, ui: &mut Ui, rect: Rect) {
-        let fill = self.color.unwrap_or_else(|| theme::profile_color(self.name));
+        let fill = avatar::color(self.name, self.color);
         let r = radius::circle(rect.w);
         let shown = first_art(ui, self.picture, Priority::Visible);
         if !shown.is_some_and(|s| s.opaque()) {
             ui.fill(rect, fill, r);
-            let initial: String = self.name.chars().next().map(|c| c.to_uppercase().collect()).unwrap_or_default();
             let style = TextStyle { size: rect.w * 0.44, line_height: rect.w * 0.5, ..theme::PAGE_TITLE };
-            let layout = ui.layout(&initial, &style, &free_line());
+            let layout = ui.layout(&avatar::initial(self.name), &style, &free_line());
             let x = rect.x + (rect.w - layout.size.w) / 2.0;
-            text_mid(ui, x, rect.y, rect.h, layout, theme::content_on(fill));
+            text_mid(ui, x, rect.y, rect.h, layout, avatar::ink(fill));
         }
         if let Some(s) = shown {
             ui.draw_image(rect, &s, &ImageOpts::cover().rounded(r));
