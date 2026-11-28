@@ -62,9 +62,23 @@ fn pick_intel_node(nodes: &[(String, Option<String>)]) -> Option<String> {
         .map(|(node, _)| format!("/dev/dri/{node}"))
 }
 
+/// Where Rockchip's MPP reads which chip it runs on, and so which codecs it
+/// has. In a container it points into `/sys/firmware`, which Docker hides.
+pub const DEVICE_TREE_CHIP: &str = "/proc/device-tree/compatible";
+
+/// Rockchip's video engines are here, but MPP can't read which chip they
+/// are on ([`DEVICE_TREE_CHIP`]): it then takes the chip for one with H.264
+/// and none of HEVC, VP9 or AV1.
+pub fn rockchip_chip_hidden() -> bool {
+    cfg!(target_os = "linux")
+        && std::path::Path::new("/dev/mpp_service").exists()
+        && std::fs::read(DEVICE_TREE_CHIP).is_err()
+}
+
 /// What detection's results depend on besides FFmpeg: the render nodes and
 /// their drivers, NVIDIA's driver, WSL's GPU, and Rockchip's video engines
-/// (MPP's and RGA's devices, which a Docker add-on hands over).
+/// (MPP's and RGA's devices, which a Docker add-on hands over, and whether
+/// MPP can read the chip's name).
 pub fn stamp() -> String {
     let nodes: Vec<String> =
         render_nodes().iter().map(|(node, driver)| format!("{node}={}", driver.as_deref().unwrap_or("?"))).collect();
@@ -74,13 +88,14 @@ pub fn stamp() -> String {
         .unwrap_or_default();
     let present = |path: &str| if std::path::Path::new(path).exists() { "1" } else { "0" };
     format!(
-        "{}|vaapi={}|nvidia={}:{nvidia}|dxg={}|rkmpp={}{}",
+        "{}|vaapi={}|nvidia={}:{nvidia}|dxg={}|rkmpp={}{}{}",
         nodes.join(","),
         vaapi_device(),
         present("/dev/nvidia0"),
         present("/dev/dxg"),
         present("/dev/mpp_service"),
-        present("/dev/rga")
+        present("/dev/rga"),
+        if rockchip_chip_hidden() { ":chip-hidden" } else { "" }
     )
 }
 

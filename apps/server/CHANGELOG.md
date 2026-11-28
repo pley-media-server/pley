@@ -30,6 +30,20 @@ describes how they are made.
   "Pley is offline" floats over the page instead of pushing it down.
 - Account is laid out as Settings is: its sections down the side, one at a
   time. In a narrow window, both pick their section from one menu.
+- HDR video converted for playback stays HDR only where a GPU encodes
+  10-bit HEVC, where no GPU encodes at all, or with tone mapping turned
+  off. A GPU that encodes H.264 but not 10-bit HEVC (Rockchip's chips,
+  older Intel and NVIDIA graphics) has it tone mapped to SDR, which keeps
+  up, rather than encoded on the CPU, which fell far behind. Settings →
+  Transcoder says so; downloads still keep HDR.
+
+### Fixed
+
+- Rockchip in Docker decodes HEVC, VP9 and AV1 on the chip, and encodes
+  HEVC there: `compose.rockchip.yaml` shows Rockchip's MPP the device tree
+  it tells the chip by (`security_opt: systempaths=unconfined`), which
+  Docker hides. An installation set up before needs the new file; until
+  then Settings → Transcoder says what is missing.
 
 ## [0.1.18] - 2026-11-27
 

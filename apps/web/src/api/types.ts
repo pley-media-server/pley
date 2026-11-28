@@ -1223,6 +1223,8 @@ export interface TranscoderInfo {
   chromaprint: boolean;
   /** FFmpeg can hold transcodes back (6.1 and newer). */
   throttling: boolean;
+  /** Rockchip's MPP can't read the device tree it tells the chip by (a container that hides it): H.264 only. Absent from servers before it. */
+  rockchip_chip_unknown?: boolean;
   /** Whether segments can be kept in memory, and how much; `null` while the transcoder is unavailable. */
   memory?: TranscoderMemory | null;
   max_jobs: number;
@@ -1236,6 +1238,8 @@ export interface AccelUse {
   hardware_decoding: boolean;
   /** What it leaves to software encoders (`hdr`: HEVC in 10 bits, for transcodes that keep HDR), where one works. */
   software: ("h264" | "hevc" | "hdr")[];
+  /** HDR converted for playback is tone mapped with it, though the transcoder could keep it: only software encodes HEVC in 10 bits, a GPU encodes H.264 and a tone mapper works. Not with tone mapping turned off, which keeps it. Downloads keep it. Absent from servers before it. */
+  hdr_to_sdr?: boolean;
   /** The tone mappers that work with it, where the transcoder tried them (VAAPI); `null`: every one it has. */
   tonemappers?: string[] | null;
 }

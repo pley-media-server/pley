@@ -185,11 +185,15 @@ pub async fn start(
     if !master_ok && let Some(hls) = req.caps.hls.as_mut() {
         hls.master_playlist = false;
     }
-    // Transcodes keep HDR only with a transcoder that can (HEVC Main 10).
-    req.hdr_transcodes = state.transcoder.info().is_some_and(|info| info.capabilities.hdr_transcode);
+    let settings = state.settings.get();
+    // Transcodes keep HDR only with a transcoder that can (HEVC Main 10),
+    // where its encoder for it keeps up (`settings::keeps_hdr`).
+    req.hdr_transcodes = state
+        .transcoder
+        .info()
+        .is_some_and(|info| crate::settings::keeps_hdr(&info.capabilities, settings.hwaccel, settings.tonemapping));
     // fMP4 segments only from a transcoder that makes them.
     req.fmp4_segments = state.transcoder.info().is_some_and(|info| info.capabilities.fmp4_segments);
-    let settings = state.settings.get();
     // Music and audiobooks have no video: a track or part is converted as
     // ever, also one never analyzed, whose streams aren't known to be sound
     // alone.
@@ -867,6 +871,8 @@ pub async fn convert(
         return Err(AppError::bad_request("only movies, episodes and extras are downloaded"));
     }
     let transcoder = state.transcoder.info();
+    // A download needn't keep up with a player: x265 keeps HDR where no GPU
+    // encodes HEVC Main 10.
     req.hdr_transcodes = transcoder.as_ref().is_some_and(|info| info.capabilities.hdr_transcode);
     req.download = true;
     req.copy_video_only = !state.settings.get().transcode_video;
