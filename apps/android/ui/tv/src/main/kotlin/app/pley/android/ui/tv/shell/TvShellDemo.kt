@@ -104,7 +104,7 @@ object TvShellDemo {
             ),
         )
 
-        override val profile: Flow<RailProfile?> = flowOf(RailProfile("Anna", RailProfile.parseColor("#e07a5f")))
+        override val profile: Flow<RailProfile?> = flowOf(RailProfile("Anna", "#e07a5f"))
 
         override suspend fun keepUpdated() = Unit
     }

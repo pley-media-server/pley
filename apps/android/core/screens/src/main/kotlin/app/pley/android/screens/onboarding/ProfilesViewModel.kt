@@ -33,7 +33,7 @@ data class ProfileTile(
     val name: String,
     /** The picture's full address, or `null` for the initial on [color]. */
     val avatarUrl: String?,
-    /** "#e07a5f"; `null`: picked from the name, as the web does. */
+    /** "#e07a5f"; `null`, or one that isn't a color: picked from the name, as every app does. */
     val color: String?,
     val needs: Needs,
     /** The profile the app uses now. */
@@ -41,8 +41,6 @@ data class ProfileTile(
 ) {
     /** A lock badge: switching to it takes its PIN. */
     val locked: Boolean get() = needs == Needs.PIN
-
-    val initial: String get() = name.trim().firstOrNull()?.uppercase() ?: "?"
 }
 
 /** Up to 8 digits; OK from 4 (PINs are 4 to 8 digits long). Never shown, never kept. */

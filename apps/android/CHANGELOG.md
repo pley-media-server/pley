@@ -23,6 +23,9 @@ describes how they are made.
 - Skip Intro and Skip Credits show by themselves for 8 seconds, then only
   with the player's controls, instead of over the whole intro or credits.
   On TVs, OK and the arrows act on the video again once Skip has gone.
+- A profile's avatar is in its own color in every theme, the TV's side
+  menu included, with its initial while its picture loads or when it
+  doesn't.
 
 ## [0.1.20] - 2026-11-27
 

@@ -39,7 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusDirection
@@ -56,7 +55,6 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -87,8 +85,8 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
+import app.pley.android.designsystem.avatar.PleyAvatar
 import app.pley.android.designsystem.icon.Icon
-import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.GradientBitmaps
 import app.pley.android.designsystem.image.drawStretched
 import app.pley.android.designsystem.reducedMotion
@@ -737,22 +735,22 @@ private fun BoxScope.RailCount(entry: RequestsEntry, focused: Boolean) {
     }
 }
 
-/** The profile's 32 dp circle: its picture, or its initial on its color; marked while [offline]. */
+/**
+ * The profile's 32 dp avatar ([PleyAvatar]): its picture, or its initial on
+ * its own color whatever the theme; marked while [offline]. Nothing until
+ * the profile is known.
+ */
 @Composable
 private fun Avatar(profile: RailProfile?, offline: Boolean) {
-    val color = profile?.color ?: PleyColors.Surface3
     Box(Modifier.size(AvatarSize)) {
-        Box(
-            Modifier.size(AvatarSize).clip(PleyShape.Circle).background(color),
-            contentAlignment = Alignment.Center,
-        ) {
-            val picture = profile?.picture
-            if (picture != null) {
-                Artwork(picture, profile.name, Modifier.size(AvatarSize))
-            } else {
-                val ink = if (color.luminance() > 0.45f) PleyColors.OnAccent else PleyColors.Fg
-                BasicText(profile?.initial ?: "", style = PleyType.Tv.Label.copy(color = ink, fontWeight = PleyType.Bold))
-            }
+        if (profile != null) {
+            PleyAvatar(
+                name = profile.name,
+                color = profile.color,
+                picture = profile.picture,
+                size = AvatarSize,
+                style = PleyType.Tv.Label.copy(fontWeight = PleyType.Bold),
+            )
         }
         if (offline) OfflineMark()
     }

@@ -39,13 +39,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalResources
@@ -54,7 +52,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -69,9 +66,9 @@ import app.pley.android.designsystem.PleyFocus
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
+import app.pley.android.designsystem.avatar.PleyAvatar
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
-import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.text.asString
@@ -299,28 +296,18 @@ private fun ProfileChoice(profile: ProfileTile, busy: Boolean, initial: Boolean,
     }
 }
 
-/** A profile's picture, or its initial on its color (the web's Avatar.tsx). Decoration: the name is said beside it. */
+/** A profile's picture, or its initial on its color (every app's rule, [PleyAvatar]). Decoration: the name is said beside it. */
 @Composable
 internal fun ProfileAvatar(profile: ProfileTile, size: Dp, modifier: Modifier = Modifier) {
-    val fill = remember(profile.name, profile.color) { ProfileColors.of(profile.name, profile.color) }
-    Box(
-        modifier.size(size).clip(PleyShape.Circle).background(fill).clearAndSetSemantics {},
-        contentAlignment = Alignment.Center,
-    ) {
-        val url = profile.avatarUrl
-        if (url != null) {
-            Artwork(ArtworkImage(listOf(url)), profile.name, Modifier.size(size))
-        } else {
-            BasicText(
-                profile.initial,
-                style = PleyType.Tv.PageTitle.copy(
-                    color = ProfileColors.textOn(fill),
-                    fontSize = (size.value * 0.44f).sp,
-                    lineHeight = (size.value * 0.5f).sp,
-                ),
-            )
-        }
-    }
+    val picture = remember(profile.avatarUrl) { profile.avatarUrl?.let { ArtworkImage(listOf(it)) } }
+    PleyAvatar(
+        name = profile.name,
+        color = profile.color,
+        picture = picture,
+        size = size,
+        style = PleyType.Tv.PageTitle.copy(fontSize = (size.value * 0.44f).sp, lineHeight = (size.value * 0.5f).sp),
+        modifier = modifier,
+    )
 }
 
 /**
@@ -454,42 +441,6 @@ private fun PinDot(filled: Boolean) {
             }
         },
     )
-}
-
-/**
- * The web's profile colors (apps/web/src/components/Avatar.tsx): the
- * profile's own, or one picked from its name; dark text on light ones.
- */
-internal object ProfileColors {
-    private val palette = listOf(
-        Color(0xFF38BDF8), Color(0xFFA78BFA), Color(0xFFF472B6), Color(0xFFFB923C),
-        Color(0xFFFACC15), Color(0xFF4ADE80), Color(0xFF2DD4BF), Color(0xFFF87171),
-    )
-
-    fun of(name: String, chosen: String?): Color {
-        chosen?.let(::parse)?.let { return it }
-        var hash = 0L
-        var i = 0
-        while (i < name.length) {
-            hash = (hash * 31 + name[i].code) and 0xFFFFFFFFL
-            i += Character.charCount(name.codePointAt(i))
-        }
-        return palette[(hash % palette.size).toInt()]
-    }
-
-    /** Dark words on a light avatar, in every theme: an avatar's color is its own, as the web's (Avatar.tsx). */
-    private val DarkText = Color(0xFF0B0D10)
-
-    /** The web's luminance test, on unconverted channels. */
-    fun textOn(color: Color): Color =
-        if (0.2126f * color.red + 0.7152f * color.green + 0.0722f * color.blue > 0.45f) DarkText else Color.White
-
-    private fun parse(hex: String): Color? {
-        val digits = hex.removePrefix("#")
-        if (digits.length != 3 && digits.length != 6 || digits.any { Character.digit(it, 16) < 0 }) return null
-        val full = if (digits.length == 3) digits.map { "$it$it" }.joinToString("") else digits
-        return Color(0xFF000000 or full.toLong(16))
-    }
 }
 
 private val AvatarSize = 100.dp
