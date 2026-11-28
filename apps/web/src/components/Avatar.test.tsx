@@ -1,7 +1,17 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import fixture from "../../../../packages/tv/test/fixtures/avatar.json";
+// Read as text: the server's image builds the web app without packages/tv.
+import raw from "../../../../packages/tv/test/fixtures/avatar.json?raw";
 import { Avatar, AVATAR_COLORS, avatarColor, avatarInitial, textOn } from "./Avatar";
+
+interface Case {
+  name: string;
+  avatar_color: string | null;
+  color: string;
+  ink: string;
+  initial: string;
+}
+const fixture = JSON.parse(raw) as { colors: string[]; cases: Case[] };
 
 describe("a profile's avatar, as on every app (fixtures/avatar.json)", () => {
   it("offers the fixture's colors", () => {
