@@ -19,8 +19,8 @@ describes how they are made.
   Settings and Who's watching? do, and every avatar keeps the profile's
   color under any theme.
 - Up Next's card shows the next title's name without its picture, so it
-  covers less of the credits, and its countdown ring fills smoothly
-  instead of a step each second.
+  covers less of the credits. Its countdown is in Play now: "Play now (7)"
+  with a sweep that fills the button.
 - Skip Intro and Skip Credits show on their own for 8 seconds as an intro
   or the credits begin, then only with the controls, so they don't sit
   over the picture for the whole segment. Once they go, OK and the arrows

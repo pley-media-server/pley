@@ -27,6 +27,10 @@ describes how they are made.
   menu included, with its initial while its picture loads or when it
   doesn't.
 
+### Fixed
+
+- Up Next's countdown stays in Play now when the episode ends during it.
+
 ## [0.1.20] - 2026-11-27
 
 ### Added

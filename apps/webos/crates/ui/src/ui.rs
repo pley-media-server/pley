@@ -1248,6 +1248,13 @@ impl<'a> Ui<'a> {
         self.tween(id, Some([from, 0.0, 0.0, 0.0]), [target, 0.0, 0.0, 0.0], motion)[0]
     }
 
+    /// As [`Ui::animate_from`], but a value that stands already starts at `from` again too: a
+    /// countdown that starts again jumps back rather than gliding back.
+    pub fn animate_again(&mut self, id: Id, from: f32, target: f32, motion: Motion) -> f32 {
+        self.st.tweens.forget(id);
+        self.animate_from(id, from, target, motion)
+    }
+
     /// A color heading for `target`, channel by channel. In the frame a theme or accent is picked
     /// it snaps, so every color changes in that frame.
     pub fn animate_color(&mut self, id: Id, target: Color, motion: Motion) -> Color {

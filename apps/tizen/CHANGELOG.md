@@ -48,8 +48,8 @@ describes how they are made.
 - The avatar at the top of the rail shows the profile's picture, or its
   own color, under every theme.
 - Up Next's card shows the next title's name without its picture, so it
-  covers less of the credits, and its countdown ring fills smoothly
-  instead of a step each second.
+  covers less of the credits. Its countdown is in Play now: "Play now (7)"
+  with a sweep that fills the button.
 - Playback details name Rockchip MPP when a Rockchip server's video
   engines made the transcode.
 - Movies, shows and music without a picture show Pley's mark on their

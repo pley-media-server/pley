@@ -4,12 +4,12 @@
 mod common;
 
 use common::{Call, Fake, chapter};
-use pley_base::{Cmd, Key, Point};
+use pley_base::{Cmd, Icon, Key, Point, Rect};
 use pley_core::Settings;
 use pley_core::model::{MediaStream, PlaybackMethod, StreamKind, SubtitleResult};
 use pley_core::store::SubtitleSize;
 use pley_player::Phase;
-use pley_player::controller::SubtitleSearch;
+use pley_player::controller::{SubtitleSearch, UpNextCard};
 use pley_player::details::{DetailRow, PlaybackDetails, SubtitleDelivery, reconnecting};
 use pley_player_ui::{Btn, Out, Panel, Playback, PlayerView, Style, Target, keeps_awake};
 use pley_ui::testing::{Frame, Harness, Step};
@@ -917,15 +917,88 @@ fn hiding_the_controls_puts_focus_on_the_video_not_the_sleep_notice() {
     assert_eq!(pl.focus(), Some(Target::Scrubber));
 }
 
+/// Play now on Up Next's card: its rectangle, and how far across it the countdown's sweep reaches
+/// (0 to 1), which is drawn as the button's own shape cut at that width.
+fn play_now(pl: &mut Player) -> (Rect, Option<f32>) {
+    let f = pl.idle();
+    let cmds = &f.list.cmds;
+    let icon = cmds.iter().position(|c| matches!(c, Cmd::Icon { icon: Icon::Play, rect, .. } if rect.w == 22.0));
+    let icon = icon.expect("Play now shows");
+    let fill = |c: &Cmd| match c {
+        Cmd::Fill { rect, .. } if rect.h == 48.0 => Some(*rect),
+        _ => None,
+    };
+    let button = cmds[..icon].iter().rev().find_map(fill).expect("Play now's fill");
+    let sweep = cmds[..icon].windows(2).find_map(|pair| match pair {
+        [Cmd::PushClip { rect: cut }, Cmd::Fill { rect, .. }] if *rect == button => {
+            assert_eq!((cut.x, cut.y, cut.h), (button.x, button.y, button.h), "it starts at the button's left edge");
+            Some(cut.w / button.w)
+        }
+        _ => None,
+    });
+    (button, sweep)
+}
+
+/// See [`play_now`].
+fn sweep(pl: &mut Player) -> Option<f32> {
+    play_now(pl).1
+}
+
+/// Where Cancel's label is drawn, which moves if Play now beside it changes width.
+fn cancel_x(pl: &mut Player) -> f32 {
+    let f = pl.idle();
+    let x = f.list.cmds.iter().find_map(|c| match c {
+        Cmd::Text { origin, layout, .. } if &*layout.text == "Cancel" => Some(origin.x),
+        _ => None,
+    });
+    x.expect("Cancel shows")
+}
+
 #[test]
-fn up_next_with_reduce_motion_says_play_now_then_the_seconds() {
+fn play_now_holds_the_countdown_s_seconds_and_keeps_its_width() {
     let mut pl = Player::new(Fake::episode());
-    pl.h.state.set_reduced_motion(true);
-    pl.p.state.up_next = Some(Fake::card(7));
+    pl.p.state.up_next = Some(Fake::card(10));
+    pl.wait(0.3);
+    let texts = pl.texts();
+    assert!(texts.contains(&"Play now (10)".to_string()), "{texts:?}");
+    assert!(!texts.contains(&"Play now".to_string()), "{texts:?}");
+    let (first, cancel) = (play_now(&mut pl).0, cancel_x(&mut pl));
+
+    pl.p.state.up_next = Some(Fake::card(9));
+    pl.wait(0.3);
+    let texts = pl.texts();
+    assert!(texts.contains(&"Play now (9)".to_string()), "{texts:?}");
+    assert!(!texts.contains(&"Play now (10)".to_string()), "{texts:?}");
+    assert_eq!(play_now(&mut pl).0, first, "the button keeps the width of the countdown's first second");
+    assert_eq!(cancel_x(&mut pl), cancel, "Cancel stays where it is");
+}
+
+#[test]
+fn play_now_without_a_countdown_says_play_now_alone() {
+    let mut pl = Player::new(Fake::episode());
+    pl.p.state.up_next = Some(UpNextCard { seconds_left: None, ..Fake::card(7) });
     pl.wait(0.3);
     let texts = pl.texts();
     assert!(texts.contains(&"Play now".to_string()), "{texts:?}");
+    assert_eq!(sweep(&mut pl), None, "nothing counts down");
+}
+
+#[test]
+fn up_next_with_reduce_motion_says_next_in_and_its_sweep_steps() {
+    let mut pl = Player::new(Fake::episode());
+    pl.h.state.set_reduced_motion(true);
+    pl.p.state.up_next = Some(Fake::card(7));
+    pl.idle();
+    let texts = pl.texts();
     assert!(texts.contains(&"Next in 7".to_string()), "{texts:?}");
+    assert!(!texts.iter().any(|t| t.starts_with("Play now")), "{texts:?}");
+    let at = |pl: &mut Player| sweep(pl).expect("the sweep shows");
+    assert!((at(&mut pl) - 0.3).abs() < 1e-4, "three seconds of ten have gone");
+    pl.wait(0.6);
+    assert!((at(&mut pl) - 0.3).abs() < 1e-4, "it stays there through the second");
+    pl.p.state.up_next = Some(Fake::card(6));
+    assert!((at(&mut pl) - 0.4).abs() < 1e-4, "and steps with the next");
+    assert!(pl.texts().contains(&"Next in 6".to_string()));
 }
 
 #[test]
@@ -938,49 +1011,76 @@ fn up_next_shows_no_still() {
 }
 
 #[test]
-fn up_next_s_ring_glides_through_each_second_then_rests() {
-    let ring = |pl: &mut Player| {
-        let f = pl.idle();
-        f.list.cmds.iter().find_map(|c| match c {
-            Cmd::Raw { rect, key, .. } if rect.w == 22.0 => Some(*key),
-            _ => None,
-        })
-    };
+fn play_now_s_sweep_glides_through_each_second_then_rests() {
+    let at = |pl: &mut Player| sweep(pl).expect("the sweep shows");
     let mut pl = Player::new(Fake::episode());
     pl.p.state.up_next = Some(Fake::card(7));
+    pl.idle();
     pl.wait(0.3);
-    let early = ring(&mut pl).expect("the ring shows");
+    let early = at(&mut pl);
     pl.wait(0.4);
-    let later = ring(&mut pl).expect("the ring shows");
-    assert_ne!(early, later, "it moves within the second");
+    let later = at(&mut pl);
+    assert!(0.3 < early && early < later && later < 0.4, "it moves within the second: {early} then {later}");
     pl.wait(1.0);
-    let rested = ring(&mut pl);
+    let rested = at(&mut pl);
+    assert!((rested - 0.4).abs() < 1e-4, "where the countdown stands at the second's end: {rested}");
     pl.wait(0.5);
-    assert_eq!(ring(&mut pl), rested, "at the second's end it waits for the next");
+    assert_eq!(at(&mut pl), rested, "there it waits for the next");
+    // The next second carries on from there.
+    pl.p.state.up_next = Some(Fake::card(6));
+    pl.idle();
+    pl.wait(0.5);
+    let next = at(&mut pl);
+    assert!(0.4 < next && next < 0.5, "{next}");
 }
 
 #[test]
-fn up_next_s_ring_glides_on_while_a_direction_key_is_held() {
-    let ring = |pl: &mut Player| {
-        let f = pl.idle();
-        f.list.cmds.iter().find_map(|c| match c {
-            Cmd::Raw { rect, key, .. } if rect.w == 22.0 => Some(*key),
-            _ => None,
-        })
-    };
+fn play_now_s_sweep_glides_on_while_a_direction_key_is_held() {
+    let at = |pl: &mut Player| sweep(pl).expect("the sweep shows");
     let mut pl = Player::new(Fake::episode());
     pl.p.state.up_next = Some(Fake::card(7));
     pl.run(&[Step::Down(Key::Left), Step::Wait(0.1)]);
     for _ in 0..3 {
         pl.run(&[Step::Repeat(Key::Left), Step::Wait(0.1)]);
     }
-    let early = ring(&mut pl).expect("the ring shows");
+    let early = at(&mut pl);
     for _ in 0..3 {
         pl.run(&[Step::Repeat(Key::Left), Step::Wait(0.1)]);
     }
-    let later = ring(&mut pl).expect("the ring shows");
+    let later = at(&mut pl);
     pl.run(&[Step::Up(Key::Left)]);
-    assert_ne!(early, later, "held, it still moves within the second rather than jumping to its end");
+    assert!(
+        early < later && later < 0.4,
+        "held, it still moves within the second rather than jumping to its end: {early} then {later}"
+    );
+}
+
+#[test]
+fn a_countdown_that_starts_again_takes_play_now_s_sweep_back_at_once() {
+    let mut pl = Player::new(Fake::episode());
+    pl.p.state.up_next = Some(Fake::card(4));
+    pl.idle();
+    pl.wait(0.5);
+    let before = sweep(&mut pl).expect("the sweep shows");
+    assert!(0.6 < before && before < 0.7, "{before}");
+    // The same card counts from 10 again: the sweep is back at the start in that frame, not on
+    // its way there.
+    pl.p.state.up_next = Some(Fake::card(10));
+    assert_eq!(sweep(&mut pl), None, "nothing has gone of the new countdown");
+    pl.wait(0.5);
+    let after = sweep(&mut pl).expect("the sweep shows");
+    assert!(0.0 < after && after < 0.1, "it glides on from the start: {after}");
+}
+
+#[test]
+fn seconds_the_countdown_missed_take_play_now_s_sweep_forward_at_once() {
+    let mut pl = Player::new(Fake::episode());
+    pl.p.state.up_next = Some(Fake::card(10));
+    pl.idle();
+    pl.wait(1.0);
+    pl.p.state.up_next = Some(Fake::card(5));
+    let at = sweep(&mut pl).expect("the sweep shows");
+    assert!((at - 0.5).abs() < 1e-4, "where the countdown is: {at}");
 }
 
 #[test]
