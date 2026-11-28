@@ -24,9 +24,9 @@ use parking_lot::Mutex;
 use pley::catalog::FileRow;
 use pley::playback::{Decision, Delivery, Method, PlaybackRequest, decide, video_range_shown};
 use pley_transcoder_api::{
-    API_VERSION, Capabilities, DolbyVisionLayer, DolbyVisionMode, DynamicRange, EncoderInfo, ErrorBody, HwAccel,
-    JobCreated, JobRequest, JobStatus, Limits, MediaInfo, MediaStream, OutputRange, StreamKind, TranscoderInfo,
-    VideoCodec, VideoMode, VideoPlan,
+    API_VERSION, Capabilities, ConversionState, ConversionStatus, DolbyVisionLayer, DolbyVisionMode, DynamicRange,
+    EncoderInfo, ErrorBody, HwAccel, JobCreated, JobRequest, JobStatus, Limits, MediaInfo, MediaStream, OutputRange,
+    StreamKind, Tonemapper, TranscoderInfo, VideoCodec, VideoMode, VideoPlan,
 };
 use serde_json::{Value, json};
 
@@ -707,7 +707,9 @@ async fn start_fake(masters: bool, hdr: bool, encoders: Vec<EncoderInfo>) -> (Fa
                         hls_master_playlist: fake.masters.load(Ordering::SeqCst),
                         hdr_transcode: fake.hdr.load(Ordering::SeqCst),
                         encoders: fake.encoders.lock().clone(),
+                        tonemappers: vec![Tonemapper::Zscale],
                         hls_variants: true,
+                        conversions: true,
                         ..Default::default()
                     },
                     limits: Limits { max_jobs: 8, max_hw_jobs: 0 },
@@ -741,6 +743,19 @@ async fn start_fake(masters: bool, hdr: bool, encoders: Vec<EncoderInfo>) -> (Fa
                     warnings: vec![],
                     variants,
                     segment_format: Default::default(),
+                })
+            }),
+        )
+        // Downloads: the file a playback would stream.
+        .route(
+            "/v1/conversions",
+            post(|State(fake): State<Fake>, Json(req): Json<JobRequest>| async move {
+                fake.created.lock().push(req);
+                Json(ConversionStatus {
+                    id: "conversion1".into(),
+                    state: ConversionState::Running,
+                    duration_ms: 60_000,
+                    ..Default::default()
                 })
             }),
         )
@@ -904,7 +919,8 @@ async fn older_transcoders_get_requests_as_before() {
 /// The profile 7 film converted for the Google TV Streamer: HEVC Main 10 in
 /// HDR10 from a transcoder that keeps HDR, H.264 in SDR from one that
 /// doesn't, or whose GPU encodes H.264 and only x265 HEVC Main 10 (a
-/// Rockchip board's).
+/// Rockchip board's), unless tone mapping is turned off there. Its
+/// download keeps HDR all the same.
 #[tokio::test]
 async fn transcodes_keep_hdr_where_the_transcoder_can() {
     let encoder = |name: &str, codec, accel, main10| EncoderInfo {
@@ -938,5 +954,21 @@ async fn transcodes_keep_hdr_where_the_transcoder_can() {
         let session = started.body["session_id"].as_str().unwrap();
         let status = app.get(&format!("/api/playback/{session}"), &admin).await;
         assert_eq!(status.body["transcode"]["video_out"], json!(video_out), "{:?}", status.body);
+        if !hdr {
+            continue;
+        }
+        // A download needn't keep up with a player: x265 keeps HDR.
+        let body = json!({"item_id": movie, "caps": google_tv_streamer(), "mode": "transcode"});
+        let download = app.post("/api/conversions", &admin, body).await;
+        assert_eq!(download.body["state"], json!("running"), "{:?}", download.body);
+        let video = fake.created.lock().last().cloned().unwrap().video.unwrap();
+        assert_eq!((video.codec, video.dynamic_range), (VideoCodec::Hevc, OutputRange::Hdr10));
+        // Tone mapping turned off: nothing would make it SDR, x265 keeps it.
+        app.put("/api/settings", &admin, json!({"tonemapping": "none"})).await;
+        let body = json!({"item_id": movie, "caps": google_tv_streamer(), "mode": "transcode"});
+        let started = app.post("/api/playback", &admin, body).await;
+        assert_eq!(started.body["method"], json!("transcode"), "{:?}", started.body);
+        let video = fake.created.lock().last().cloned().unwrap().video.unwrap();
+        assert_eq!((video.codec, video.dynamic_range), (VideoCodec::Hevc, OutputRange::Hdr10));
     }
 }

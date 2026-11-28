@@ -204,21 +204,25 @@ export function fitToAccel(form: Pick<Settings, "tonemapping" | "hardware_decodi
   return fit;
 }
 
+/** Whether playback tone maps HDR with `accel` chosen rather than keep it in software: not with tone mapping turned off, which keeps it. */
+function hdrToSdr(accel: HwAccel, system: SystemInfo | undefined, tonemapping: ToneMapping): boolean {
+  return tonemapping !== "none" && knownTranscoder(system)?.with_accel?.[accel]?.hdr_to_sdr === true;
+}
+
 /**
  * What the software encoder preset applies to with `accel` chosen, when a
  * GPU encodes: what the transcoder leaves to software with it (HEVC, or
  * HDR kept in 10-bit HEVC), and the transcodes software takes over.
  * `null` with software encoding, where it applies to everything.
  */
-export function presetNote(accel: HwAccel, system: SystemInfo | undefined): string | null {
+export function presetNote(accel: HwAccel, system: SystemInfo | undefined, tonemapping: ToneMapping = "auto"): string | null {
   const encodes = accelInUse(accel, system);
   if (!encodes) return null;
   const name = accelName(encodes);
-  const use = knownTranscoder(system)?.with_accel?.[accel];
-  const software = use?.software ?? [];
+  const software = knownTranscoder(system)?.with_accel?.[accel]?.software ?? [];
   if (software.includes("hevc")) return t("choices.presetHevc", { ns: "settings", name });
   // Playback tone maps HDR rather than keep it in software: downloads still do.
-  if (software.includes("hdr")) return t(use?.hdr_to_sdr ? "choices.presetHdrDownloads" : "choices.presetHdr", { ns: "settings", name });
+  if (software.includes("hdr")) return t(hdrToSdr(accel, system, tonemapping) ? "choices.presetHdrDownloads" : "choices.presetHdr", { ns: "settings", name });
   return t("choices.presetSoftware", { ns: "settings", name });
 }
 
@@ -227,9 +231,9 @@ export function presetNote(accel: HwAccel, system: SystemInfo | undefined): stri
  * it, but its GPU encodes H.264 and no 10-bit HEVC: playback tone maps it
  * (the server's `keeps_hdr`). `null` otherwise.
  */
-export function hdrNote(accel: HwAccel, system: SystemInfo | undefined): string | null {
+export function hdrNote(accel: HwAccel, system: SystemInfo | undefined, tonemapping: ToneMapping = "auto"): string | null {
   const encodes = accelInUse(accel, system);
-  if (!encodes || !knownTranscoder(system)?.with_accel?.[accel]?.hdr_to_sdr) return null;
+  if (!encodes || !hdrToSdr(accel, system, tonemapping)) return null;
   return t("choices.hdrToSdr", { ns: "settings", name: accelName(encodes) });
 }
 

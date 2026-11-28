@@ -166,8 +166,8 @@ export function TranscoderSettings() {
         const os = transcoderOs(system.data);
         const accels = accelChoices(saved?.hwaccel ?? form.hwaccel, system.data);
         const accelProblem = accelReason(form.hwaccel, system.data);
-        const preset = presetNote(form.hwaccel, system.data);
-        const hdr = hdrNote(form.hwaccel, system.data);
+        const preset = presetNote(form.hwaccel, system.data, form.tonemapping);
+        const hdr = hdrNote(form.hwaccel, system.data, form.tonemapping);
         const tonemaps = tonemapChoices(system.data, form.hwaccel);
         const tonemapProblem = tonemapReason(form.tonemapping, system.data);
         // A combination saved before: the transcoder doesn't use Vulkan then.

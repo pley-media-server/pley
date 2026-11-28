@@ -104,6 +104,9 @@ describe("what goes with the hardware acceleration chosen", () => {
         "Rockchip MPP encodes no 10-bit HEVC here: HDR is tone mapped to SDR for playback, HDR screens included, rather than kept by the far slower software encoder. Downloads keep it.",
       );
       expect(presetNote(accel, rockchip)).toBe("Rockchip MPP encodes here: this applies to downloads that keep HDR, and when software encodes instead.");
+      // Tone mapping turned off: software keeps HDR for playback too.
+      expect(hdrNote(accel, rockchip, "none")).toBeNull();
+      expect(presetNote(accel, rockchip, "none")).toBe("Rockchip MPP encodes here: this applies to transcodes that keep HDR, and when software encodes instead.");
     }
     expect(hdrNote("none", rockchip)).toBeNull();
   });

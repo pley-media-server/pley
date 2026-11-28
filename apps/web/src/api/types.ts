@@ -1238,7 +1238,7 @@ export interface AccelUse {
   hardware_decoding: boolean;
   /** What it leaves to software encoders (`hdr`: HEVC in 10 bits, for transcodes that keep HDR), where one works. */
   software: ("h264" | "hevc" | "hdr")[];
-  /** HDR converted for playback is tone mapped with it, though the transcoder could keep it: only software encodes HEVC in 10 bits, and a GPU encodes H.264. Downloads keep it. Absent from servers before it. */
+  /** HDR converted for playback is tone mapped with it, though the transcoder could keep it: only software encodes HEVC in 10 bits, a GPU encodes H.264 and a tone mapper works. Not with tone mapping turned off, which keeps it. Downloads keep it. Absent from servers before it. */
   hdr_to_sdr?: boolean;
   /** The tone mappers that work with it, where the transcoder tried them (VAAPI); `null`: every one it has. */
   tonemappers?: string[] | null;

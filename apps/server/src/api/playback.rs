@@ -188,8 +188,10 @@ pub async fn start(
     let settings = state.settings.get();
     // Transcodes keep HDR only with a transcoder that can (HEVC Main 10),
     // where its encoder for it keeps up (`settings::keeps_hdr`).
-    req.hdr_transcodes =
-        state.transcoder.info().is_some_and(|info| crate::settings::keeps_hdr(&info.capabilities, settings.hwaccel));
+    req.hdr_transcodes = state
+        .transcoder
+        .info()
+        .is_some_and(|info| crate::settings::keeps_hdr(&info.capabilities, settings.hwaccel, settings.tonemapping));
     // fMP4 segments only from a transcoder that makes them.
     req.fmp4_segments = state.transcoder.info().is_some_and(|info| info.capabilities.fmp4_segments);
     // Music and audiobooks have no video: a track or part is converted as
