@@ -60,16 +60,6 @@
     "originalHint": "完整畫質。網路較慢時可能會緩衝。",
     "automaticHint": "根據網路狀況動態調整。"
   },
-  "sleep": {
-    "title": "睡眠定時",
-    "titleNow": "睡眠定時：{{state}}",
-    "minutesLeft_other": "剩餘 {{count}} 分鐘",
-    "end": {
-      "track": "本曲目結束"
-    },
-    "pausingIn": "{{seconds}} 秒後暫停",
-    "keepListening": "繼續收聽"
-  },
   "find": {
     "title": "搜尋字幕",
     "language": "字幕語言",

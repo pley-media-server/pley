@@ -285,7 +285,7 @@ a random order. As on the other TVs, an album's page also has Go to
 artist, and Now playing while music plays.
 
 Now Playing shows the track, its cover and how far along it is, Shuffle,
-Previous, Pause, Next, Stop and the sleep timer, and Up next: the queue,
+Previous, Pause, Next and Stop, and Up next: the queue,
 numbered, the track playing in bold, which stays in view unless the
 focus is on the list. OK on one plays it, and the queue goes on from
 there. Up from the buttons goes to the scrubber, where Left and Right move
@@ -296,15 +296,6 @@ one: each row is a node the Roku draws, and a playlist holds up to
 order; Stop shuffling puts them back in the album's or playlist's order,
 at the same track. Play pauses or goes on; fast forward and rewind go to the next
 track or back.
-
-The sleep timer belongs to the music, not to Now Playing: it runs while
-other screens show. Each OK on its button steps Off, 15, 30, 45, 60 and 90
-min, End of this track, and the button says what is left ("Sleep timer:
-23 min left"). In its last 30 s Now Playing says "Pausing in 12 s" and the
-button is Keep listening, which adds the same time again (or lets this
-track play to its end). Then the music pauses until Play, as on the other
-apps; at the end of a track, the next one waits, paused. Stop, or the
-queue's end, turns the timer off.
 
 ### The player
 
@@ -1028,9 +1019,8 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   of shows, opens a Home row of two libraries' collections together and
   one library's from it, plays an artist's tracks, makes a playlist,
   plays a track from Now Playing's Up next, shuffles the queue and puts
-  its order back, steps the music's sleep timer through its choices,
-  plays a track from under an album's "Disc 2", opens the See all of
-  Search's Discover row,
+  its order back, plays a track from under an album's "Disc 2", opens
+  the See all of Search's Discover row,
   asks for a movie and three seasons from Discover, approves a request,
   opens a title from its ready-to-watch card on Home (which waited while
   the requests showed), chooses Español in Settings → Language for the
@@ -1043,7 +1033,7 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   music's don't.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next and its wait at the end, the title as an item begins, reconnecting,
-  stalls, media that ends short, the sleep timer's end, picture
+  stalls, media that ends short, picture
   subtitles shown in time and the remote's commands, which a player obeys
   only once it plays, have only unit tests), sockets that connect but send
   nothing (the event stream, and the casts it brings, have only unit

@@ -60,18 +60,6 @@
     "originalHint": "Calidad máxima. Puede detenerse a cargar con una conexión lenta.",
     "automaticHint": "Se adapta a las condiciones."
   },
-  "sleep": {
-    "title": "Temporizador",
-    "titleNow": "Temporizador: {{state}}",
-    "minutesLeft_one": "Queda {{count}} min",
-    "minutesLeft_many": "Quedan {{count}} min",
-    "minutesLeft_other": "Quedan {{count}} min",
-    "end": {
-      "track": "Fin de la pista"
-    },
-    "pausingIn": "Se pausará en {{seconds}} s",
-    "keepListening": "Seguir escuchando"
-  },
   "find": {
     "title": "Buscar subtítulos",
     "language": "Idioma de los subtítulos",

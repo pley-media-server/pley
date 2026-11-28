@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Now Playing: the track the music player plays, its cover, how far
-     along it is, Shuffle, Previous, Pause, Next, Stop and the sleep
-     timer, and under them Up next, the queue. Back leaves it;
-     the music goes on, and Home's menu brings it back. -->
+     along it is, Shuffle, Previous, Pause, Next and Stop, and under them
+     Up next, the queue. Back leaves it; the music goes on, and Home's
+     menu brings it back. -->
 <component name="NowPlayingScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -34,8 +34,8 @@
             <Label id="title" width="968" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
             <!-- "Artist · Album". -->
             <Label id="line" width="968" color="0xA1A9B6FF" font="font:MediumSystemFont" />
-            <!-- The sleep timer's countdown, or what went wrong with a track:
-                 its line kept, so nothing moves when it shows. -->
+            <!-- What went wrong with a track: its line kept, so nothing
+                 moves when it shows. -->
             <Label id="message" width="968" height="36" color="0xEB6B70FF" font="font:SmallestSystemFont" />
         </LayoutGroup>
         <!-- Under the track's lines, however many its title takes (placed
@@ -50,9 +50,9 @@
             <Label id="elapsed" translation="[856, 352]" width="240" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
             <Label id="queue" translation="[1096, 352]" width="488" horizAlign="center" color="0x8B95A5FF" font="font:SmallestSystemFont" />
             <Label id="left" translation="[1584, 352]" width="240" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-            <!-- Shuffle, Previous, Play/Pause, Next, Stop and the sleep
-                 timer: round icons named while focused, as Android TV's,
-                 under the scrubber they go with. -->
+            <!-- Shuffle, Previous, Play/Pause, Next and Stop: round icons
+                 named while focused, as Android TV's, under the scrubber
+                 they go with. -->
             <ChipRow id="buttons" translation="[856, 424]" look="buttons" />
             <!-- Up next under them, in the column: the queue, the track
                  playing marked, OK playing one. -->

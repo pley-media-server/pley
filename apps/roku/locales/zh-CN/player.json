@@ -60,16 +60,6 @@
     "originalHint": "完整画质。网络较慢时可能会缓冲。",
     "automaticHint": "根据网络状况动态调整。"
   },
-  "sleep": {
-    "title": "睡眠定时",
-    "titleNow": "睡眠定时：{{state}}",
-    "minutesLeft_other": "剩余 {{count}} 分钟",
-    "end": {
-      "track": "本曲目结束"
-    },
-    "pausingIn": "{{seconds}} 秒后暂停",
-    "keepListening": "继续收听"
-  },
   "find": {
     "title": "查找字幕",
     "language": "字幕语言",

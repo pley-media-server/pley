@@ -60,17 +60,6 @@
     "originalHint": "Full quality. May buffer on a slow connection.",
     "automaticHint": "Dynamically adjust to conditions."
   },
-  "sleep": {
-    "title": "Sleep timer",
-    "titleNow": "Sleep timer: {{state}}",
-    "minutesLeft_one": "{{count}} min left",
-    "minutesLeft_other": "{{count}} min left",
-    "end": {
-      "track": "End of this track"
-    },
-    "pausingIn": "Pausing in {{seconds}} s",
-    "keepListening": "Keep listening"
-  },
   "find": {
     "title": "Find subtitles",
     "language": "Subtitle language",
